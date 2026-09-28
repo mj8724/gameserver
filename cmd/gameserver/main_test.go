@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -509,14 +510,19 @@ func TestRuntimeConfiguresInstallerFromTemplate(t *testing.T) {
 
 // ---- end-to-end install/start/stop with injected fakes -------------------
 
+// fakeInstaller is driven from the install goroutine and inspected by the test,
+// so every field is mutex guarded (the race detector caught this on CI).
 type fakeInstaller struct {
+	mu         sync.Mutex
 	installed  bool
 	requests   []ports.InstallRequest
 	installDir func(domain.InstanceID) (string, error)
 }
 
 func (f *fakeInstaller) Install(_ context.Context, request ports.InstallRequest, progress func(ports.Progress)) error {
+	f.mu.Lock()
 	f.requests = append(f.requests, request)
+	f.mu.Unlock()
 	progress(ports.Progress{Percent: 50, Message: "下载中"})
 	if f.installDir == nil {
 		return nil
@@ -532,12 +538,23 @@ func (f *fakeInstaller) Install(_ context.Context, request ports.InstallRequest,
 	if err := os.WriteFile(filepath.Join(installDir, "ProjectZomboid64"), []byte("stub"), 0o700); err != nil {
 		return err
 	}
+	f.mu.Lock()
 	f.installed = true
+	f.mu.Unlock()
 	progress(ports.Progress{Percent: 100, Message: "完成"})
 	return nil
 }
 
+func (f *fakeInstaller) requestCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.requests)
+}
+
+// fakeSupervisor is called from request handlers and from the readiness
+// goroutine, so all state is mutex guarded.
 type fakeSupervisor struct {
+	mu        sync.Mutex
 	running   bool
 	pid       int
 	specs     []ports.LaunchSpec
@@ -547,6 +564,8 @@ type fakeSupervisor struct {
 }
 
 func (f *fakeSupervisor) Start(_ context.Context, spec ports.LaunchSpec) (ports.Process, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.specs = append(f.specs, spec)
 	f.running = true
 	f.pid = 4242
@@ -554,35 +573,67 @@ func (f *fakeSupervisor) Start(_ context.Context, spec ports.LaunchSpec) (ports.
 	return ports.Process{PID: f.pid}, nil
 }
 func (f *fakeSupervisor) Stop(context.Context, domain.InstanceID) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.running = false
 	f.pid = 0
 	f.logs = append(f.logs, "fake server stopped")
 	return nil
 }
 func (f *fakeSupervisor) Kill(context.Context, domain.InstanceID) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.running = false
 	f.pid = 0
 	return nil
 }
 func (f *fakeSupervisor) SendInput(_ context.Context, _ domain.InstanceID, text string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.inputs = append(f.inputs, text)
 	return nil
 }
 func (f *fakeSupervisor) Recent(limit int) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if limit > 0 && len(f.logs) > limit {
-		return f.logs[len(f.logs)-limit:]
+		return append([]string(nil), f.logs[len(f.logs)-limit:]...)
 	}
 	return append([]string(nil), f.logs...)
 }
 func (f *fakeSupervisor) Subscribe(buffer int) ports.LogSubscription {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.listeners++
 	return &fakeSubscription{lines: make(chan string, buffer), closed: make(chan struct{})}
 }
 func (f *fakeSupervisor) ProcessStatus(context.Context, domain.InstanceID) (ports.ProcessStatus, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.running {
 		return ports.ProcessStatus{Running: true, Status: "RUNNING", PID: f.pid, CPUPercent: 1.5, MemoryMB: 512}, nil
 	}
 	return ports.ProcessStatus{Running: false, Status: "STOPPED"}, nil
+}
+func (f *fakeSupervisor) specCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.specs)
+}
+func (f *fakeSupervisor) spec(index int) ports.LaunchSpec {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.specs[index]
+}
+func (f *fakeSupervisor) inputCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.inputs)
+}
+func (f *fakeSupervisor) input(index int) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.inputs[index]
 }
 
 type fakeSubscription struct {
@@ -636,8 +687,14 @@ func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 	if status, body := call(t, client, "POST", origin+"/api/server/install", origin, `{}`); status != 202 && status != 200 {
 		t.Fatalf("install = %d %s", status, body)
 	}
-	if len(installer.requests) != 1 {
-		t.Fatalf("installer requests = %d", len(installer.requests))
+	// The install runs in a goroutine, so wait for it instead of assuming it was
+	// scheduled before the POST returned (this raced on CI).
+	requestDeadline := time.Now().Add(5 * time.Second)
+	for installer.requestCount() == 0 && time.Now().Before(requestDeadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if installer.requestCount() != 1 {
+		t.Fatalf("installer requests = %d", installer.requestCount())
 	}
 	dir, err := files.InstallDir("pz_01")
 	if err != nil {
@@ -662,10 +719,10 @@ func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 	if status, body := call(t, client, "POST", origin+"/api/server/start", origin, `{}`); status != 200 {
 		t.Fatalf("start = %d %s", status, body)
 	}
-	if len(supervisor.specs) != 1 {
-		t.Fatalf("launch specs = %d", len(supervisor.specs))
+	if supervisor.specCount() != 1 {
+		t.Fatalf("launch specs = %d", supervisor.specCount())
 	}
-	spec := supervisor.specs[0]
+	spec := supervisor.spec(0)
 	if !strings.HasSuffix(spec.Executable, "ProjectZomboid64") {
 		t.Fatalf("launch executable = %q", spec.Executable)
 	}
@@ -682,8 +739,8 @@ func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 	if status, body := call(t, client, "POST", origin+"/api/server/command", origin, `{"command":"save"}`); status != 200 {
 		t.Fatalf("command = %d %s", status, body)
 	}
-	if len(supervisor.inputs) != 1 || supervisor.inputs[0] != "save" {
-		t.Fatalf("console inputs = %v", supervisor.inputs)
+	if supervisor.inputCount() != 1 || supervisor.input(0) != "save" {
+		t.Fatalf("console inputs = %d", supervisor.inputCount())
 	}
 	if status, body := call(t, client, "POST", origin+"/api/server/stop", origin, `{}`); status != 200 {
 		t.Fatalf("stop = %d %s", status, body)
