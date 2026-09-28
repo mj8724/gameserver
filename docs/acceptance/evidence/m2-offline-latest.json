@@ -1,9 +1,9 @@
 {
-  "commit": "ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a",
+  "commit": "6232cd4b10f1fad54e5f0c6a566b4f7e71d584e1",
   "go": "go1.27.1",
   "goos": "darwin",
   "goarch": "arm64",
-  "binary_sha256": "2c9a4aba7bd9a2b2305c0f8e5986ef34e13788c65e3b5df80a89743178a6782f",
+  "binary_sha256": "36cbff4892567b938bae2831ae3872efa0a4fdfebdce3d811fea63a2cb7a4526",
   "totals": {
     "PASS": 41,
     "BLOCKED": 15
@@ -13,13 +13,13 @@
       "id": "M2-BUILD",
       "title": "固定工具链与本机门禁（gofmt/vet/build/tidy）",
       "status": "PASS",
-      "evidence": "go=go1.27.1 commit=ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a binary_sha256=2c9a4aba7bd9a2b2305c0f8e5986ef34e13788c65e3b5df80a89743178a6782f"
+      "evidence": "go=go1.27.1 commit=6232cd4b10f1fad54e5f0c6a566b4f7e71d584e1 binary_sha256=36cbff4892567b938bae2831ae3872efa0a4fdfebdce3d811fea63a2cb7a4526"
     },
     {
       "id": "M2-BUILD",
       "title": "目标提交 GitHub CI 全绿（含 race 与 archtest）",
       "status": "PASS",
-      "evidence": "run 36458076335 success for ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a https://github.com/mj8724/gameserver/actions/runs/36458076335"
+      "evidence": "run 36458297961 success for 6232cd4b10f1fad54e5f0c6a566b4f7e71d584e1 https://github.com/mj8724/gameserver/actions/runs/36458297961"
     },
     {
       "id": "M2-BUILD",
