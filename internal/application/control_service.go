@@ -1,0 +1,736 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/mj8724/gameserver/internal/domain"
+	"github.com/mj8724/gameserver/internal/ports"
+)
+
+// LaunchEvidence is the reviewed mechanical evidence used to select the launch
+// vector. It comes from the Target Manifest, never from template metadata.
+type LaunchEvidence struct {
+	ExecutableName   string
+	DirectExecutable bool
+	Reference        string
+}
+
+// ServiceDeps contains every outbound dependency of the control service.
+type ServiceDeps struct {
+	Instance        domain.InstanceID
+	Platform        string
+	States          ports.StateStore
+	Config          ports.GameConfig
+	Installer       ports.Installer
+	Processes       ports.ProcessSupervisor
+	ProcessStatus   ports.ProcessStatusProvider
+	Readiness       ports.ReadinessProbe
+	Locks           ports.InstanceLock
+	Templates       ports.TemplateCatalog
+	Logs            ports.LogSource
+	Files           ports.InstanceFiles
+	Clock           ports.Clock
+	BuildLaunchSpec ports.LaunchSpecBuilder
+	ApplyGameConfig ports.StateConfigApplier
+	LaunchEvidence  LaunchEvidence
+}
+
+type diskUsageProvider interface {
+	DiskUsageMB(domain.InstanceID) (float64, error)
+}
+
+// ControlService implements the Control use cases over injected ports.
+type ControlService struct {
+	deps ServiceDeps
+
+	mu        sync.Mutex
+	install   installTask
+	ready     bool
+	readiness string
+}
+
+type installTask struct {
+	running  bool
+	status   string
+	progress float64
+	message  string
+	errText  *string
+	cancel   context.CancelFunc
+}
+
+// NewControlService validates the dependency set and returns a usable service.
+func NewControlService(deps ServiceDeps) (*ControlService, error) {
+	missing := make([]string, 0, 8)
+	if deps.Instance == "" {
+		missing = append(missing, "instance")
+	}
+	if deps.States == nil {
+		missing = append(missing, "state store")
+	}
+	if deps.Files == nil {
+		missing = append(missing, "instance files")
+	}
+	if deps.Templates == nil {
+		missing = append(missing, "template catalog")
+	}
+	if deps.Processes == nil {
+		missing = append(missing, "process supervisor")
+	}
+	if deps.ProcessStatus == nil {
+		missing = append(missing, "process status")
+	}
+	if deps.Logs == nil {
+		missing = append(missing, "log source")
+	}
+	if deps.Clock == nil {
+		missing = append(missing, "clock")
+	}
+	if deps.BuildLaunchSpec == nil {
+		missing = append(missing, "launch spec builder")
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing control dependencies: %s", strings.Join(missing, ", "))
+	}
+	if deps.ApplyGameConfig == nil {
+		deps.ApplyGameConfig = func(context.Context, domain.InstanceState) error { return nil }
+	}
+	service := &ControlService{
+		deps:      deps,
+		install:   installTask{status: "IDLE", message: "尚未运行"},
+		readiness: "unknown",
+	}
+	return service, nil
+}
+
+func (s *ControlService) load(ctx context.Context) (domain.InstanceState, error) {
+	state, err := s.deps.States.Load(ctx, s.deps.Instance)
+	if err != nil {
+		return domain.InstanceState{}, WrapError(CodeOperationFailed, "读取实例状态失败", err)
+	}
+	return state, nil
+}
+
+func (s *ControlService) template(state domain.InstanceState) (domain.Template, error) {
+	template, ok := s.deps.Templates.Get(domain.TemplateID(state.TemplateID))
+	if !ok {
+		return domain.Template{}, NewError(CodeOperationFailed, "模板不可用")
+	}
+	return template, nil
+}
+
+func (s *ControlService) processStatus(ctx context.Context) ports.ProcessStatus {
+	status, err := s.deps.ProcessStatus.ProcessStatus(ctx, s.deps.Instance)
+	if err != nil {
+		return ports.ProcessStatus{Status: "STOPPED"}
+	}
+	if status.Status == "" {
+		status.Status = "STOPPED"
+	}
+	return status
+}
+
+func (s *ControlService) installSnapshot() InstallStatus {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return InstallStatus{
+		Status:   s.install.status,
+		Progress: s.install.progress,
+		Message:  s.install.message,
+		Error:    s.install.errText,
+	}
+}
+
+// Status implements Control.
+func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
+	state, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	process := s.processStatus(ctx)
+	install := s.installSnapshot()
+
+	status := process.Status
+	if install.Status == "INSTALLING" {
+		status = "INSTALLING"
+	}
+	pid := any(nil)
+	if process.PID > 0 {
+		pid = process.PID
+	}
+	mods := state.Mods
+	if mods == nil {
+		mods = map[string]any{"workshop_ids": []any{}, "mod_names": []any{}}
+	}
+	billing := state.Billing
+	if billing == nil {
+		billing = map[string]any{}
+	}
+	quota := state.QuotaGB
+	if quota <= 0 {
+		quota = 30
+	}
+	disk := map[string]any{"used_mb": 0.0, "quota_gb": quota, "usage_percent": 0.0}
+	if provider, ok := s.deps.Files.(diskUsageProvider); ok {
+		if used, err := provider.DiskUsageMB(s.deps.Instance); err == nil {
+			disk["used_mb"] = round1(used)
+			if quota > 0 {
+				disk["usage_percent"] = round1(used / (quota * 1024) * 100)
+			}
+		}
+	}
+
+	s.mu.Lock()
+	ready := s.ready
+	readiness := s.readiness
+	s.mu.Unlock()
+
+	return StatusResponse{
+		"instance_id":    string(s.deps.Instance),
+		"name":           state.Name,
+		"template_id":    state.TemplateID,
+		"is_installed":   s.deps.Files.IsInstalled(s.deps.Instance),
+		"status":         status,
+		"running":        process.Running,
+		"pid":            pid,
+		"cpu_percent":    round1(process.CPUPercent),
+		"memory_mb":      round1(process.MemoryMB),
+		"uptime_seconds": process.UptimeSeconds,
+		"disk":           disk,
+		"ports":          state.Ports,
+		"variables":      state.Variables,
+		"mods":           mods,
+		"billing":        billing,
+		"steamcmd": map[string]any{
+			"busy":        install.Status == "INSTALLING",
+			"progress":    install.Progress,
+			"status_text": install.Message,
+		},
+		"platform":  s.deps.Platform,
+		"ready":     ready,
+		"readiness": readiness,
+	}, nil
+}
+
+// Templates implements Control.
+func (s *ControlService) Templates(context.Context) ([]TemplateSummary, error) {
+	summaries := s.deps.Templates.List()
+	result := make([]TemplateSummary, 0, len(summaries))
+	for _, summary := range summaries {
+		result = append(result, TemplateSummary{
+			ID:          string(summary.ID),
+			Name:        summary.Name,
+			Category:    summary.Category,
+			Icon:        summary.Icon,
+			Author:      summary.Author,
+			Version:     summary.Version,
+			Description: summary.Description,
+			SupportedOS: summary.SupportedOS,
+			AppID:       summary.AppID,
+		})
+	}
+	return result, nil
+}
+
+// BeginInstall implements Control.
+func (s *ControlService) BeginInstall(ctx context.Context) (InstallAccepted, error) {
+	if s.deps.Installer == nil {
+		return InstallAccepted{}, NewError(CodeOperationFailed, "安装器不可用")
+	}
+	if err := ctx.Err(); err != nil {
+		return InstallAccepted{}, WrapError(CodeOperationFailed, "安装已取消", err)
+	}
+	if s.processStatus(ctx).Running {
+		return InstallAccepted{}, NewError(CodeInstallWhileRunning, "")
+	}
+
+	s.mu.Lock()
+	if s.install.running {
+		s.mu.Unlock()
+		return InstallAccepted{}, NewError(CodeInstallAlreadyRunning, "")
+	}
+	taskCtx, cancel := context.WithCancel(context.Background())
+	s.install = installTask{running: true, status: "INSTALLING", progress: 0, message: "准备安装", cancel: cancel}
+	s.mu.Unlock()
+
+	go func() {
+		defer cancel()
+		progress := func(value ports.Progress) {
+			s.mu.Lock()
+			if value.Percent >= 0 {
+				s.install.progress = value.Percent
+			}
+			if value.Message != "" {
+				s.install.message = value.Message
+			}
+			s.mu.Unlock()
+		}
+		err := s.deps.Installer.Install(taskCtx, ports.InstallRequest{InstanceID: s.deps.Instance, Validate: true}, progress)
+
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.install.running = false
+		s.install.cancel = nil
+		switch {
+		case err == nil:
+			s.install.status = "COMPLETED"
+			s.install.progress = 100
+			s.install.message = "安装完成"
+			s.install.errText = nil
+		default:
+			message := "安装失败，请查看日志"
+			if errors.Is(err, context.Canceled) {
+				message = "安装已取消"
+			}
+			s.install.status = "FAILED"
+			s.install.message = message
+			text := err.Error()
+			s.install.errText = &text
+		}
+	}()
+	return InstallAccepted{Message: "安装/更新任务已启动", Status: "INSTALLING"}, nil
+}
+
+// InstallState implements Control.
+func (s *ControlService) InstallState(context.Context) (InstallStatus, error) {
+	return s.installSnapshot(), nil
+}
+
+func (s *ControlService) ensureLock(ctx context.Context) (ports.Lease, error) {
+	if s.deps.Locks == nil {
+		return nil, nil
+	}
+	lease, err := s.deps.Locks.Acquire(ctx, s.deps.Instance)
+	if err != nil {
+		return nil, mapLockError(err)
+	}
+	return lease, nil
+}
+
+func mapLockError(err error) error {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "owned by another process"):
+		return WrapError(CodeInstanceOwned, "", err)
+	case strings.Contains(message, "recovery required"):
+		return WrapError(CodeRecoveryRequired, "", err)
+	default:
+		return WrapError(CodeOperationFailed, "无法取得实例锁", err)
+	}
+}
+
+// Start implements Control.
+func (s *ControlService) Start(ctx context.Context) (StartResult, error) {
+	if s.processStatus(ctx).Running {
+		return StartResult{Message: "服务器已在运行中", Running: true}, nil
+	}
+	if s.installSnapshot().Status == "INSTALLING" {
+		return StartResult{}, NewError(CodeServerInstalling, "")
+	}
+	if !s.deps.Files.IsInstalled(s.deps.Instance) {
+		return StartResult{}, NewError(CodeServerNotInstalled, "")
+	}
+	if !s.deps.LaunchEvidence.DirectExecutable && s.deps.LaunchEvidence.ExecutableName == "" {
+		return StartResult{}, NewError(CodeOperationFailed, "缺少已审核的启动向量证据（Target Manifest）")
+	}
+
+	state, err := s.load(ctx)
+	if err != nil {
+		return StartResult{}, err
+	}
+	installDir, err := s.deps.Files.InstallDir(s.deps.Instance)
+	if err != nil {
+		return StartResult{}, WrapError(CodeOperationFailed, "无法定位安装目录", err)
+	}
+	cacheDir, err := s.deps.Files.CacheDir(s.deps.Instance)
+	if err != nil {
+		return StartResult{}, WrapError(CodeOperationFailed, "无法定位缓存目录", err)
+	}
+	adminPass, _ := state.Variables["ADMIN_PASSWORD"].(string)
+	serverName, _ := state.Variables["SERVER_NAME"].(string)
+	spec, err := s.deps.BuildLaunchSpec(ctx, state, ports.LaunchInput{
+		InstallDir:       installDir,
+		CacheDir:         cacheDir,
+		Platform:         s.deps.Platform,
+		ServerName:       serverName,
+		AdminPass:        adminPass,
+		ExecutableName:   s.deps.LaunchEvidence.ExecutableName,
+		DirectExecutable: s.deps.LaunchEvidence.DirectExecutable,
+		EvidenceRef:      s.deps.LaunchEvidence.Reference,
+	})
+	if err != nil {
+		return StartResult{}, WrapError(CodeStartFailed, "", err)
+	}
+	lease, err := s.ensureLock(ctx)
+	if err != nil {
+		return StartResult{}, err
+	}
+	if lease != nil {
+		defer lease.Release()
+	}
+	if err := s.deps.ApplyGameConfig(ctx, state); err != nil {
+		return StartResult{}, WrapError(CodeStartFailed, "同步配置失败", err)
+	}
+	if _, err := s.deps.Processes.Start(ctx, spec); err != nil {
+		return StartResult{}, WrapError(CodeStartFailed, "", err)
+	}
+	s.scheduleReadiness(ctx)
+	return StartResult{Message: "启动指令已执行", Running: true}, nil
+}
+
+func (s *ControlService) scheduleReadiness(ctx context.Context) {
+	if s.deps.Readiness == nil {
+		return
+	}
+	s.mu.Lock()
+	s.ready = false
+	s.readiness = "checking"
+	s.mu.Unlock()
+	go func() {
+		probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
+		defer cancel()
+		ready, err := s.deps.Readiness.Ready(probeCtx, s.deps.Instance)
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if err != nil {
+			s.readiness = "failed"
+			return
+		}
+		s.ready = ready
+		if ready {
+			s.readiness = "ready"
+		} else {
+			s.readiness = "timeout"
+		}
+	}()
+}
+
+// Stop implements Control.
+func (s *ControlService) Stop(ctx context.Context) (OperationResult, error) {
+	if err := s.deps.Processes.Stop(ctx, s.deps.Instance); err != nil {
+		return OperationResult{}, WrapError(CodeStopFailed, "", err)
+	}
+	s.mu.Lock()
+	s.ready = false
+	s.readiness = "unknown"
+	s.mu.Unlock()
+	return OperationResult{Message: "服务器已停止", Success: true}, nil
+}
+
+// Restart implements Control.
+func (s *ControlService) Restart(ctx context.Context) (OperationResult, error) {
+	if s.processStatus(ctx).Running {
+		if _, err := s.Stop(ctx); err != nil {
+			return OperationResult{}, NewError(CodeRestartStopFailed, "")
+		}
+	}
+	if !s.deps.Files.IsInstalled(s.deps.Instance) {
+		return OperationResult{}, NewError(CodeRestartNotInstalled, "")
+	}
+	if _, err := s.Start(ctx); err != nil {
+		return OperationResult{}, NewError(CodeRestartFailed, "")
+	}
+	return OperationResult{Message: "服务器已重启", Success: true}, nil
+}
+
+// Kill implements Control.
+func (s *ControlService) Kill(ctx context.Context) (OperationResult, error) {
+	if err := s.deps.Processes.Kill(ctx, s.deps.Instance); err != nil {
+		return OperationResult{Message: "强制终止失败", Success: false}, nil
+	}
+	s.mu.Lock()
+	s.ready = false
+	s.readiness = "unknown"
+	s.mu.Unlock()
+	return OperationResult{Message: "强制终止指令已执行", Success: true}, nil
+}
+
+// SendCommand implements Control.
+func (s *ControlService) SendCommand(ctx context.Context, command string) (CommandResult, error) {
+	if !s.processStatus(ctx).Running {
+		return CommandResult{}, NewError(CodeServerNotRunning, "")
+	}
+	if err := s.deps.Processes.SendInput(ctx, s.deps.Instance, command); err != nil {
+		return CommandResult{}, WrapError(CodeOperationFailed, "发送指令失败", err)
+	}
+	return CommandResult{Success: true}, nil
+}
+
+// SendConsoleInput implements Control for the WebSocket console. It reports
+// running=false instead of failing so the transport can emit the D3 error
+// frame while keeping the connection open.
+func (s *ControlService) SendConsoleInput(ctx context.Context, text string) (bool, error) {
+	if !s.processStatus(ctx).Running {
+		return false, nil
+	}
+	if err := s.deps.Processes.SendInput(ctx, s.deps.Instance, text); err != nil {
+		return true, WrapError(CodeOperationFailed, "发送控制台输入失败", err)
+	}
+	return true, nil
+}
+
+// Logs implements Control.
+func (s *ControlService) Logs(_ context.Context, limit int) ([]string, error) {
+	return s.deps.Logs.Recent(limit), nil
+}
+
+// Config implements Control.
+func (s *ControlService) Config(ctx context.Context) (ConfigSnapshot, error) {
+	state, err := s.load(ctx)
+	if err != nil {
+		return ConfigSnapshot{}, err
+	}
+	template, err := s.template(state)
+	if err != nil {
+		return ConfigSnapshot{}, err
+	}
+	snapshot := ConfigSnapshot{
+		Variables: state.Variables,
+		Ports:     state.Ports,
+		Template:  ConfigTemplate{ID: string(template.Summary.ID), Name: template.Summary.Name},
+	}
+	for _, variable := range template.Variables {
+		field := ConfigField{
+			Key:          variable.Key,
+			Label:        variable.Label,
+			Type:         variable.Type,
+			Description:  variable.Description,
+			Required:     variable.Required,
+			UserEditable: variable.UserEditable,
+			Default:      variable.Default,
+			Value:        state.Variables[variable.Key],
+		}
+		if field.Value == nil {
+			field.Value = variable.Default
+		}
+		if variable.Type == "password" {
+			field.Value = nil
+			field.Default = nil
+		}
+		if variable.Min != nil || variable.Max != nil {
+			validation := map[string]any{}
+			if variable.Min != nil {
+				validation["min"] = *variable.Min
+			}
+			if variable.Max != nil {
+				validation["max"] = *variable.Max
+			}
+			field.Validation = validation
+		}
+		snapshot.Fields = append(snapshot.Fields, field)
+	}
+	for _, port := range template.Ports {
+		snapshot.AllowedPorts = append(snapshot.AllowedPorts, port.Key)
+	}
+	return snapshot, nil
+}
+
+// UpdateConfig implements Control.
+func (s *ControlService) UpdateConfig(ctx context.Context, update ConfigUpdate) (ConfigUpdateResult, error) {
+	snapshot, err := s.Config(ctx)
+	if err != nil {
+		return ConfigUpdateResult{}, err
+	}
+	if err := ValidateConfigUpdate(snapshot, update); err != nil {
+		return ConfigUpdateResult{}, err
+	}
+	state, err := s.load(ctx)
+	if err != nil {
+		return ConfigUpdateResult{}, err
+	}
+	updated := state.Clone()
+	for key, value := range update.Variables {
+		if text, ok := value.(string); ok {
+			updated.Variables[key] = text
+			continue
+		}
+		updated.Variables[key] = value
+	}
+	for key, value := range update.Ports {
+		updated.Ports[key] = value
+	}
+	lease, err := s.ensureLock(ctx)
+	if err != nil {
+		return ConfigUpdateResult{}, err
+	}
+	if lease != nil {
+		defer lease.Release()
+	}
+	if err := s.deps.States.Save(ctx, updated); err != nil {
+		return ConfigUpdateResult{}, WrapError(CodeOperationFailed, "保存配置失败", err)
+	}
+	if err := s.deps.ApplyGameConfig(ctx, updated); err != nil {
+		return ConfigUpdateResult{}, WrapError(CodeOperationFailed, "同步游戏配置失败", err)
+	}
+	return ConfigUpdateResult{Message: "配置已保存并同步", State: stateMap(updated)}, nil
+}
+
+// AddMod implements Control. Mods are registered only; nothing is downloaded.
+func (s *ControlService) AddMod(ctx context.Context, request AddModRequest) (ModsResult, error) {
+	state, err := s.load(ctx)
+	if err != nil {
+		return ModsResult{}, err
+	}
+	updated := state.Clone()
+	mods := ensureMods(updated)
+	ids := stringSlice(mods["workshop_ids"])
+	if !containsString(ids, request.WorkshopID) {
+		ids = append(ids, request.WorkshopID)
+	}
+	mods["workshop_ids"] = ids
+	if request.ModName != nil && *request.ModName != "" {
+		names := stringSlice(mods["mod_names"])
+		if !containsString(names, *request.ModName) {
+			names = append(names, *request.ModName)
+		}
+		mods["mod_names"] = names
+	}
+	if err := s.deps.States.Save(ctx, updated); err != nil {
+		return ModsResult{}, WrapError(CodeOperationFailed, "保存模组失败", err)
+	}
+	return ModsResult{Message: "模组已登记（尚未下载）", Mods: mods}, nil
+}
+
+// RemoveMod implements Control.
+func (s *ControlService) RemoveMod(ctx context.Context, workshopID string) (ModsResult, error) {
+	state, err := s.load(ctx)
+	if err != nil {
+		return ModsResult{}, err
+	}
+	updated := state.Clone()
+	mods := ensureMods(updated)
+	ids := stringSlice(mods["workshop_ids"])
+	names := stringSlice(mods["mod_names"])
+	for index, id := range ids {
+		if id != workshopID {
+			continue
+		}
+		ids = append(ids[:index], ids[index+1:]...)
+		if index < len(names) {
+			names = append(names[:index], names[index+1:]...)
+		}
+		break
+	}
+	mods["workshop_ids"] = ids
+	mods["mod_names"] = names
+	if err := s.deps.States.Save(ctx, updated); err != nil {
+		return ModsResult{}, WrapError(CodeOperationFailed, "保存模组失败", err)
+	}
+	return ModsResult{Message: "模组已移除", Mods: mods}, nil
+}
+
+// Renew implements Control. This is a local state simulation, not billing.
+func (s *ControlService) Renew(ctx context.Context, months int) (RenewalResult, error) {
+	if months < 1 || months > 24 {
+		return RenewalResult{}, NewError(CodeRenewalOutOfRange, "")
+	}
+	state, err := s.load(ctx)
+	if err != nil {
+		return RenewalResult{}, err
+	}
+	updated := state.Clone()
+	if updated.Billing == nil {
+		updated.Billing = map[string]any{}
+	}
+	current := intValue(updated.Billing["expire_days_left"])
+	updated.Billing["expire_days_left"] = current + months*30
+	updated.Billing["status"] = "ACTIVE"
+	if err := s.deps.States.Save(ctx, updated); err != nil {
+		return RenewalResult{}, WrapError(CodeOperationFailed, "保存续费状态失败", err)
+	}
+	return RenewalResult{
+		Message: fmt.Sprintf("模拟续费成功，剩余天数: %d 天", current+months*30),
+		Billing: updated.Billing,
+	}, nil
+}
+
+// SubscribeConsole implements Control.
+func (s *ControlService) SubscribeConsole(_ context.Context, replay int) (ConsoleSubscription, error) {
+	if replay < 0 {
+		replay = 0
+	}
+	inner := s.deps.Logs.Subscribe(128)
+	return &consoleSubscription{inner: inner, replay: s.deps.Logs.Recent(replay)}, nil
+}
+
+type consoleSubscription struct {
+	inner  ports.LogSubscription
+	replay []string
+}
+
+func (c *consoleSubscription) Replay() []string      { return c.replay }
+func (c *consoleSubscription) Events() <-chan string { return c.inner.Lines() }
+func (c *consoleSubscription) Close()                { c.inner.Close() }
+
+func ensureMods(state domain.InstanceState) map[string]any {
+	if state.Mods == nil {
+		return map[string]any{}
+	}
+	return state.Mods
+}
+
+func stateMap(state domain.InstanceState) map[string]any {
+	document := map[string]any{
+		"instance_id": string(state.ID),
+		"name":        state.Name,
+		"template_id": state.TemplateID,
+		"variables":   state.Variables,
+		"ports":       state.Ports,
+	}
+	if state.Mods != nil {
+		document["mods"] = state.Mods
+	}
+	if state.Billing != nil {
+		document["billing"] = state.Billing
+	}
+	return document
+}
+
+func stringSlice(value any) []string {
+	switch typed := value.(type) {
+	case []string:
+		return append([]string(nil), typed...)
+	case []any:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if text, ok := item.(string); ok {
+				result = append(result, text)
+			}
+		}
+		return result
+	default:
+		return []string{}
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func intValue(value any) int {
+	switch typed := value.(type) {
+	case int:
+		return typed
+	case int64:
+		return int(typed)
+	case float64:
+		return int(typed)
+	default:
+		return 0
+	}
+}
+
+func round1(value float64) float64 {
+	return float64(int(value*10+0.5)) / 10
+}
+
+var _ Control = (*ControlService)(nil)

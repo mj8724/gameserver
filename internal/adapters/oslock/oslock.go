@@ -442,13 +442,14 @@ func randomToken() (string, error) {
 
 // Locks is the ports.InstanceLock implementation over a servers root.
 type Locks struct {
-	ServiceID string
-	Options   []Option
+	ServersRoot string
+	ServiceID   string
+	Options     []Option
 }
 
-// Acquire implements ports.InstanceLock for one servers root.
-func (l *Locks) Acquire(_ context.Context, serversRoot string, id domain.InstanceID) (ports.Lease, error) {
-	manager, err := NewManager(serversRoot, l.ServiceID, l.Options...)
+// Acquire implements ports.InstanceLock for the configured servers root.
+func (l *Locks) Acquire(_ context.Context, id domain.InstanceID) (ports.Lease, error) {
+	manager, err := NewManager(l.ServersRoot, l.ServiceID, l.Options...)
 	if err != nil {
 		return nil, err
 	}

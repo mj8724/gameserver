@@ -70,8 +70,10 @@ type Lease interface {
 }
 
 // InstanceLock acquires the cross-process single-writer lease for an instance.
+// Implementations are pre-configured with the servers root so that application
+// code never handles filesystem paths.
 type InstanceLock interface {
-	Acquire(context.Context, string, domain.InstanceID) (Lease, error)
+	Acquire(context.Context, domain.InstanceID) (Lease, error)
 }
 
 // StaticAssets opens a read-only static asset by a validated relative name.
@@ -83,3 +85,67 @@ type StaticAssets interface {
 type Clock interface {
 	Now() time.Time
 }
+
+// TemplateCatalog exposes the declarative game templates shipped with the
+// application. Implementations must never enable an unreviewed template.
+type TemplateCatalog interface {
+	List() []domain.TemplateSummary
+	Get(domain.TemplateID) (domain.Template, bool)
+}
+
+// LogSubscription streams new process log lines until Close is called.
+// Close is idempotent and must unregister the underlying listener.
+type LogSubscription interface {
+	Lines() <-chan string
+	Close()
+}
+
+// LogSource exposes the bounded in-memory log buffer and live subscriptions.
+type LogSource interface {
+	Recent(limit int) []string
+	Subscribe(buffer int) LogSubscription
+}
+
+// ProcessStatus is the observable process state used by status projections.
+type ProcessStatus struct {
+	Running       bool
+	Status        string
+	PID           int
+	CPUPercent    float64
+	MemoryMB      float64
+	UptimeSeconds int
+}
+
+// ProcessStatusProvider reports process state without control authority.
+type ProcessStatusProvider interface {
+	ProcessStatus(context.Context, domain.InstanceID) (ProcessStatus, error)
+}
+
+// InstanceFiles resolves instance data locations and install presence.
+type InstanceFiles interface {
+	InstanceRoot(domain.InstanceID) (string, error)
+	InstallDir(domain.InstanceID) (string, error)
+	CacheDir(domain.InstanceID) (string, error)
+	IsInstalled(domain.InstanceID) bool
+}
+
+// LaunchInput carries the state-derived launch choices for one start request.
+// Executable selection is decided by reviewed artifact evidence, never by
+// template metadata.
+type LaunchInput struct {
+	InstallDir       string
+	CacheDir         string
+	Platform         string
+	ServerName       string
+	AdminPass        string
+	ExecutableName   string
+	DirectExecutable bool
+	EvidenceRef      string
+}
+
+// LaunchSpecBuilder builds a typed launch spec from instance state.
+type LaunchSpecBuilder func(context.Context, domain.InstanceState, LaunchInput) (LaunchSpec, error)
+
+// StateConfigApplier synchronizes persisted instance state into the game's own
+// configuration files (for example the PZ INI).
+type StateConfigApplier func(context.Context, domain.InstanceState) error

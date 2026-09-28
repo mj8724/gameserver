@@ -432,6 +432,33 @@ func mergeState(base map[string]any, state domain.InstanceState) (map[string]any
 		ports[key] = value
 	}
 	updated["ports"] = ports
+	if state.Mods != nil {
+		mods, _ := updated["mods"].(map[string]any)
+		if mods == nil {
+			mods = make(map[string]any)
+		} else {
+			mods = cloneAnyMap(mods)
+		}
+		for key, value := range state.Mods {
+			mods[key] = cloneAny(value)
+		}
+		updated["mods"] = mods
+	}
+	if state.Billing != nil {
+		billing, _ := updated["billing"].(map[string]any)
+		if billing == nil {
+			billing = make(map[string]any)
+		} else {
+			billing = cloneAnyMap(billing)
+		}
+		for key, value := range state.Billing {
+			billing[key] = cloneAny(value)
+		}
+		updated["billing"] = billing
+	}
+	if state.QuotaGB > 0 {
+		updated["quota_gb"] = state.QuotaGB
+	}
 	return updated, nil
 }
 
@@ -454,6 +481,8 @@ func validateDomainState(state domain.InstanceState) error {
 func cloneState(state domain.InstanceState) domain.InstanceState {
 	state.Variables = cloneAnyMap(state.Variables)
 	state.Ports = cloneIntMap(state.Ports)
+	state.Mods = cloneAnyMap(state.Mods)
+	state.Billing = cloneAnyMap(state.Billing)
 	return state
 }
 
