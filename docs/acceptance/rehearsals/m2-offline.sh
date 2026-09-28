@@ -98,17 +98,25 @@ row M2-PROCESS "就绪探测（SERVER_PORT/超时/取消/marker）" 'ReadinessUs
 row M2-API "静态资源安全回退" 'StaticAssetsFallbackAndSafePaths|OpenRejectsTraversalAndAbsoluteNames|OpenRejectsSymlinkEscape'
 
 # ---------- CI 门：目标提交的 GitHub Actions 结果 ----------
+# 判定为三态，保证脚本可重复执行且不被 CI 时序误判：
+#   success            → PASS
+#   失败/取消/超时     → FAIL
+#   运行中/排队/无运行 → BLOCKED（另行记录 run id 与提交）
 CI_SHA="$(git rev-parse HEAD)"
 CI_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-CI_ROW="$(gh run list --branch "$CI_BRANCH" --workflow go --limit 40 --json databaseId,headSha,conclusion,url   --jq "[.[] | select(.headSha==\"$CI_SHA\")][0] | \"\(.databaseId) \(.conclusion) \(.url)\"" 2>/dev/null || true)"
-if echo "$CI_ROW" | grep -q '^[0-9]* success'; then
-  record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS \
-    "run $(echo "$CI_ROW" | awk '{print $1}') success for $CI_SHA $(echo "$CI_ROW" | awk '{print $3}')"
-elif [ -n "$CI_ROW" ]; then
-  record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run 结果: $CI_ROW"
-else
-  record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "gh 不可用或该提交尚无 go workflow 运行（$CI_SHA）"
-fi
+CI_ROW="$(gh run list --branch "$CI_BRANCH" --workflow go --limit 40 --json databaseId,headSha,conclusion,status,url \
+  --jq "[.[] | select(.headSha==\"$CI_SHA\")][0] | \"\(.databaseId) \(.conclusion) \(.status) \(.url)\"" 2>/dev/null || true)"
+CI_ID="$(echo "$CI_ROW" | awk '{print $1}')"
+CI_CONCLUSION="$(echo "$CI_ROW" | awk '{print $2}')"
+CI_STATUS="$(echo "$CI_ROW" | awk '{print $3}')"
+case "$CI_CONCLUSION" in
+  success)
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS "run $CI_ID success for $CI_SHA $(echo "$CI_ROW" | awk '{print $4}')" ;;
+  ""|null)
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown}（提交 $CI_SHA 的 go workflow 尚未完成）" ;;
+  *)
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run $CI_ID conclusion=$CI_CONCLUSION ($CI_SHA)" ;;
+esac
 
 # 真实装配/源码级断言（评估前登记，供单次测试运行后统一判定）
 row M2-API "静态 UI 调用面与路由表一致性（源码级）" 'TestStaticUIContract'
