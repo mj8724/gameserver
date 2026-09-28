@@ -13,7 +13,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mj8724/gameserver/internal/adapters/instancefiles"
+	"github.com/mj8724/gameserver/internal/adapters/localstate"
 	"github.com/mj8724/gameserver/internal/adapters/oslock"
+	"github.com/mj8724/gameserver/internal/adapters/pztemplate"
+	"github.com/mj8724/gameserver/internal/domain"
 )
 
 // legacyFixture writes the Python-era layout an operator would really have:
@@ -424,5 +428,78 @@ func TestM2OfflineRecoveryRequiredReconciliation(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(serversRoot, "pz_01", "state", "instance.json")); !os.IsNotExist(err) {
 		t.Fatalf("fail-closed mutation must not write state (err=%v)", err)
+	}
+}
+
+// TestSteamcmdInstallConfigResolution pins the fail-closed installer wiring:
+// without an executable or app id the service must not pretend installs work,
+// and the SteamCMD tree must stay inside the instance root (ADR §4).
+func TestSteamcmdInstallConfigResolution(t *testing.T) {
+	installDir := func(domain.InstanceID) (string, error) { return "/tmp/install", nil }
+	serversRoot := "/tmp/data/servers"
+
+	if _, ok := steamcmdInstallConfig(runtimeConfig{}, serversRoot, "pz_01", "380870", installDir); ok {
+		t.Fatal("missing executable must not configure the installer")
+	}
+	if _, ok := steamcmdInstallConfig(runtimeConfig{SteamCMDExecutable: "steamcmd"}, serversRoot, "pz_01", "", installDir); ok {
+		t.Fatal("missing app id must not configure the installer")
+	}
+	config, ok := steamcmdInstallConfig(runtimeConfig{SteamCMDExecutable: "steamcmd"}, serversRoot, "pz_01", "380870", installDir)
+	if !ok {
+		t.Fatal("configured installer expected")
+	}
+	if config.SteamDir != "/tmp/data/servers/pz_01/steamcmd" {
+		t.Fatalf("steam dir = %q, want it under the instance root", config.SteamDir)
+	}
+	if config.AppID != "380870" || config.Executable != "steamcmd" {
+		t.Fatalf("config = %+v", config)
+	}
+	override, ok := steamcmdInstallConfig(runtimeConfig{SteamCMDExecutable: "steamcmd", SteamCMDDir: "/opt/steamcmd"},
+		serversRoot, "pz_01", "380870", installDir)
+	if !ok || override.SteamDir != "/opt/steamcmd" {
+		t.Fatalf("explicit steam dir override not honoured: %+v ok=%t", override, ok)
+	}
+}
+
+// TestRuntimeConfiguresInstallerFromTemplate loads the shipped template so the
+// app id is taken from real template metadata, not a hardcoded constant.
+func TestRuntimeConfiguresInstallerFromTemplate(t *testing.T) {
+	dataRoot, _ := legacyFixture(t)
+	cfg := testConfig(t, dataRoot)
+	cfg.SteamCMDExecutable = "steamcmd"
+	rt, err := buildRuntime(cfg)
+	if err != nil {
+		t.Fatalf("buildRuntime: %v", err)
+	}
+	defer rt.handler.Close()
+	templateAppID := ""
+	templates, err := pztemplate.New(cfg.TemplatesDir)
+	if err != nil {
+		t.Fatalf("templates: %v", err)
+	}
+	if template, ok := templates.Get("project_zomboid"); ok {
+		templateAppID = template.Summary.AppID
+	}
+	if templateAppID == "" {
+		t.Fatal("shipped template must carry steam.app_id so the installer can be configured")
+	}
+	defaults, err := localstate.DefaultState("pz_01")
+	if err != nil {
+		t.Fatalf("default state: %v", err)
+	}
+	states, err := localstate.NewStore(dataRoot, defaults)
+	if err != nil {
+		t.Fatalf("state store: %v", err)
+	}
+	files, err := instancefiles.New(filepath.Join(dataRoot, "servers"), "darwin")
+	if err != nil {
+		t.Fatalf("instance files: %v", err)
+	}
+	installer, err := resolveInstaller(cfg, filepath.Join(dataRoot, "servers"), "pz_01", states, templates, files)
+	if err != nil {
+		t.Fatalf("resolveInstaller: %v", err)
+	}
+	if installer == nil {
+		t.Fatal("installer must be wired when executable and template app id are present")
 	}
 }

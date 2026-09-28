@@ -86,6 +86,10 @@ type runtimeConfig struct {
 	LaunchExecutable  string
 	LaunchDirectExec  bool
 	LaunchEvidenceRef string
+
+	SteamCMDExecutable string
+	SteamCMDDir        string
+	SteamAppID         string
 }
 
 func loadConfig() runtimeConfig {
@@ -102,6 +106,10 @@ func loadConfig() runtimeConfig {
 		LaunchExecutable:  os.Getenv("GAMESERVER_LAUNCH_EXECUTABLE"),
 		LaunchDirectExec:  os.Getenv("GAMESERVER_LAUNCH_DIRECT_EXEC") == "1",
 		LaunchEvidenceRef: os.Getenv("GAMESERVER_LAUNCH_EVIDENCE_REF"),
+
+		SteamCMDExecutable: os.Getenv("GAMESERVER_STEAMCMD_EXECUTABLE"),
+		SteamCMDDir:        os.Getenv("GAMESERVER_STEAMCMD_DIR"),
+		SteamAppID:         os.Getenv("GAMESERVER_STEAM_APP_ID"),
 	}
 	return cfg
 }
@@ -180,12 +188,16 @@ func buildRuntime(cfg runtimeConfig) (*appRuntime, error) {
 	}
 	serviceID = fmt.Sprintf("%s-%d", serviceID, os.Getpid())
 
+	installer, err := resolveInstaller(cfg, serversRoot, instance, states, templates, files)
+	if err != nil {
+		return nil, fmt.Errorf("steamcmd installer: %w", err)
+	}
 	control, err := application.NewControlService(application.ServiceDeps{
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
 		Config:        gameConfig,
-		Installer:     steamcmd.New(),
+		Installer:     installer,
 		Processes:     supervisor,
 		ProcessStatus: supervisor,
 		Logs:          supervisor,
@@ -506,6 +518,54 @@ func normalizePermissions(dataRoot string, instance domain.InstanceID) (int, err
 		}
 	}
 	return changed, nil
+}
+
+// steamcmdInstallConfig resolves the real installer configuration. It reports
+// ok=false when the operator has not provided an executable or an app id, so the
+// service fails closed instead of pretending installs can run.
+func steamcmdInstallConfig(cfg runtimeConfig, serversRoot string, instance domain.InstanceID, appID string,
+	installDir func(domain.InstanceID) (string, error)) (steamcmd.InstallConfig, bool) {
+	executable := strings.TrimSpace(cfg.SteamCMDExecutable)
+	appID = strings.TrimSpace(appID)
+	if executable == "" || appID == "" {
+		return steamcmd.InstallConfig{}, false
+	}
+	steamDir := strings.TrimSpace(cfg.SteamCMDDir)
+	if steamDir == "" {
+		// ADR §4: the SteamCMD tree never moves with state promotion.
+		steamDir = filepath.Join(serversRoot, string(instance), "steamcmd")
+	}
+	return steamcmd.InstallConfig{
+		Executable:  executable,
+		SteamDir:    steamDir,
+		InstallPath: installDir,
+		AppID:       appID,
+	}, true
+}
+
+// resolveInstaller prefers template metadata for the app id, with an explicit
+// operator override, and falls back to the fail-closed unconfigured installer.
+func resolveInstaller(cfg runtimeConfig, serversRoot string, instance domain.InstanceID,
+	states ports.StateStore, templates ports.TemplateCatalog, files ports.InstanceFiles) (ports.Installer, error) {
+	appID := strings.TrimSpace(cfg.SteamAppID)
+	if appID == "" {
+		if state, err := states.Load(context.Background(), instance); err == nil {
+			if template, ok := templates.Get(domain.TemplateID(state.TemplateID)); ok {
+				appID = strings.TrimSpace(template.Summary.AppID)
+			}
+		}
+	}
+	config, ok := steamcmdInstallConfig(cfg, serversRoot, instance, appID, files.InstallDir)
+	if !ok {
+		log.Printf("WARNING: SteamCMD installer is not configured (set GAMESERVER_STEAMCMD_EXECUTABLE and either GAMESERVER_STEAM_APP_ID or a template app id); install requests fail closed")
+		return steamcmd.New(), nil
+	}
+	installer, err := steamcmd.NewConfigured(nil, config)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("SteamCMD installer configured (app %s, dir %s)", config.AppID, config.SteamDir)
+	return installer, nil
 }
 
 func fail(err error) {

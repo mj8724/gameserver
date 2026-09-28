@@ -1,4 +1,4 @@
-//go:build !linux && !darwin
+//go:build !linux && !darwin && !windows
 
 package steamcmd
 
@@ -8,6 +8,9 @@ import (
 )
 
 func configureProcessGroup(*exec.Cmd) error { return nil }
+
+// terminateProcessTree is the fallback for platforms without a
+// dedicated implementation: plain signal, no tree semantics.
 func terminateProcessTree(process *os.Process) error {
 	if process == nil {
 		return nil
