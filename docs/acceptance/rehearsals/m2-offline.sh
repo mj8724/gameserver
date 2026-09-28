@@ -141,6 +141,9 @@ row M2-SECRET "口令值不回显（状态与配置投影）" 'TestM2OfflineHTTP
 row M2-PROCESS "Windows 进程树终止 argv（类型化、无 shell；运行仍需目标机）" 'TestTaskkillArgsStayTypedAndExact'
 row M2-INSTALL "SteamCMD 安装器配置解析与未配置时失败关闭" 'TestSteamcmdInstallConfigResolution|TestRuntimeConfiguresInstallerFromTemplate'
 
+row M2-INSTALL "端到端：install → is_installed → start → command → stop（真实 HTTP/装配，注入 fake 游戏适配器）" 'TestM2OfflineInstallStartStopLifecycle'
+row M2-RESTART "端到端停止后状态枚举与 running 语义" 'TestM2OfflineInstallStartStopLifecycle'
+
 # ---------- 单次运行全部 Go 测试并按行判定 ----------
 go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
 python3 - "$ROW_DEFS" "$WORK/all.json" "$ROWS" "$(go version | awk '{print $3}')" <<'PYEVAL'

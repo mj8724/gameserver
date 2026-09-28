@@ -1,9 +1,9 @@
 # M2 离线验收证据（E-OFF，darwin 开发平台）
 
-- **提交**：`1ec48ca85ba933942e8feded14a9f71777eca918`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
-- **被测二进制 SHA-256**：`e4b63401fddfd5527c9c88bf760a1a47d6335e9b90394cfb4c1b09d50a9b61f1`
+- **提交**：`f0f6df7576e5c26c145989bd527fdf1002e26b24`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
+- **被测二进制 SHA-256**：`3f8a69db33f9fbb5503b8c896190e6fdfaeeea50e54bd7b037d5f94447f909e5`
 - **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`；每次运行覆盖本文件与 `m2-offline-latest.json`（逐行证据在 JSON）
-- **统计**：PASS 43 / FAIL 0 / BLOCKED 15
+- **统计**：PASS 45 / FAIL 0 / BLOCKED 15
 - **签核状态**：未签核（见 `docs/acceptance/M2-SIGNOFF.md`）
 
 > 本文件只记录**离线/合成夹具**证据。它不是平台支持声明，也不构成真实 PZ、SteamCMD、
@@ -13,8 +13,8 @@
 
 | 矩阵 ID | 用例 | 结果 | 证据 |
 |---|---|---|---|
-| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=1ec48ca85ba933942e8feded14a9f71777eca918 binary_sha256=e4b63401fddfd5527c9c88bf760a1a47d6335e9b90394cfb4c1b09d50a9b61f1 |
-| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36497938863 success for 1ec48ca85ba933942e8feded14a9f71777eca918 https://github.com/mj8724/gameserver/actions/runs/36497938863 |
+| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=f0f6df7576e5c26c145989bd527fdf1002e26b24 binary_sha256=3f8a69db33f9fbb5503b8c896190e6fdfaeeea50e54bd7b037d5f94447f909e5 |
+| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36498044998 success for f0f6df7576e5c26c145989bd527fdf1002e26b24 https://github.com/mj8724/gameserver/actions/runs/36498044998 |
 | M2-BUILD | archtest 直接导入边界 + 负向注入探针 | PASS | 14 个用例全通过（E-OFF, go1.27.1）: TestImportBoundaries, TestInjectedForbiddenImportFailsArchitectureCheck, TestRulesRejectForbiddenImports… |
 | M2-API | 20 挂载点/严格方法与错误 envelope | PASS | 35 个用例全通过（E-OFF, go1.27.1）: TestApplicationErrorsAndConfigurationRedaction, TestApplicationErrorsAndConfigurationRedaction/install_already_running, TestApplicationErrorsAndConfigurationRedaction/install_while_running… |
 | M2-API | 模板元数据与追加字段（ready/readiness） | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestCatalogLoadsValidTemplates, TestControlStatusProjectsStateAndSecrets |
@@ -40,6 +40,7 @@
 | M2-SECRET | 口令值不回显（状态与配置投影） | PASS | 1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineHTTPBlackBox |
 | M2-INSTALL | 安装成功/失败/冲突/取消/deadline/retry | PASS | 5 个用例全通过（E-OFF, go1.27.1）: TestControlInstallLifecycleAndConflicts, TestInstallCancellationTerminatesWaitsAndClearsBusy, TestInstallDeadlineEscalatesToKillThenReaps… |
 | M2-INSTALL | SteamCMD 安装器配置解析与未配置时失败关闭 | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestRuntimeConfiguresInstallerFromTemplate, TestSteamcmdInstallConfigResolution |
+| M2-INSTALL | 端到端：install → is_installed → start → command → stop（真实 HTTP/装配，注入 fake 游戏适配器） | PASS | 1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineInstallStartStopLifecycle |
 | M2-CONFIG | JSON/INI 原子写 round-trip 与故障注入 | PASS | 38 个用例全通过（E-OFF, go1.27.1）: TestAtomicWriteFaultsNeverReturnSuccessAndLeaveWholeOldOrNewFile, TestAtomicWriteFaultsNeverReturnSuccessAndLeaveWholeOldOrNewFile/backup.chmod, TestAtomicWriteFaultsNeverReturnSuccessAndLeaveWholeOldOrNewFile/backup.close… |
 | M2-CONFIG | INI/状态兼容与未知键保留 | PASS | 3 个用例全通过（E-OFF, go1.27.1）: TestINIReadWritePreservesCommentsUnknownKeysAndOnlyManagedChanges, TestLoadImportsLegacyAndMergesDefaultsWithoutWriting, TestManagedINIUpdatesMapsOnlyManagedKeys |
 | M2-CONFIG | 配置校验边界与可编辑字段 | PASS | 15 个用例全通过（E-OFF, go1.27.1）: TestControlConfigValidationAndConsoleInput, TestINIValidationRejectsTraversalUnknownKeysAndLineInjection, TestValidateConfigUpdateEnforcesDeclaredFieldsTypesAndRanges… |
@@ -56,6 +57,7 @@
 | M2-UI | 未登录/会话过期界面分支（源码级：精确文案分支） | PASS | 1 个用例全通过（E-OFF, go1.27.1）: TestStaticUIContract |
 | M2-RESTART | 陈旧 owner 记录 → 失败关闭、不自动清理、只读可用 | PASS | 1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineRecoveryRequiredReconciliation |
 | M2-RESTART | 重启后读取已提交状态且对账干净（离线部分） | PASS | 1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineRestartPersistence |
+| M2-RESTART | 端到端停止后状态枚举与 running 语义 | PASS | 1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineInstallStartStopLifecycle |
 
 ## 2. BLOCKED 行（未执行，原因见表）
 
@@ -80,10 +82,10 @@
 ## 3. 判定说明
 
 - PASS 判定来自单次 `go test -json ./...` 的具名用例结果（`E-OFF`）、目标提交 GitHub CI 结果（run ID + SHA），
-  以及真实装配集成测试 `cmd/gameserver`（真实 state store、PZ INI 适配器、模板目录、真实 handler；仅 listener 由 httptest 注入）。
+  以及真实装配集成测试 `cmd/gameserver`（真实 HTTP 传输、state store、PZ INI 适配器、模板与锁；仅出站游戏适配器可注入 fake）。
+- 端到端行（install → is_installed → start → command → stop）验证装配与状态机，**不证明**真实 PZ 能启动。
 - 源码级断言（`TestStaticUIContract`）只证明 UI 与路由/文案/帧过滤的一致性，**不替代**浏览器闭环。
-- Windows 进程树终止目前只验证了 argv 形状（类型化、无 shell）；真实运行仍需 Windows 目标机。
-- 跨进程单写者栅栏在 `docs/migration/rehearsals/m1a-rehearsal.sh` 中以**独立 OS 进程**（python `flock` 持锁）验证 409；
-  本文件中的锁判定使用同进程锁持有者，属补充证据。
+- Windows 进程树终止目前只验证 argv 形状（类型化、无 shell）；真实运行仍需 Windows 目标机。
+- 跨进程单写者栅栏在 `docs/migration/rehearsals/m1a-rehearsal.sh` 中以**独立 OS 进程**（python `flock` 持锁）验证 409。
 - 需要 Linux/Windows 目标主机、浏览器或真实 PZ 的行未执行，不得记为 PASS 或 N/A。
 - CI 门为三态：success→PASS、明确失败→FAIL、运行中/无运行→BLOCKED（不误判为失败，脚本可重复执行）。

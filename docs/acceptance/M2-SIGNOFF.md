@@ -2,7 +2,7 @@
 
 - **日期**：2026-09-29
 - **判定**：**M2 未完成、未签核**；不得对外声明任何平台“受支持”。
-- **已完成**：离线矩阵全部可执行行（E-OFF，darwin 开发平台）43 PASS / 0 FAIL；`M2-BUILD` 门（本机门禁 + 目标提交 GitHub CI run 全绿）已满足。
+- **已完成**：离线矩阵全部可执行行（E-OFF，darwin 开发平台）45 PASS / 0 FAIL；`M2-BUILD` 门（本机门禁 + 目标提交 GitHub CI run 全绿）已满足。
 - **未完成**：15 行 BLOCKED（需具名 Linux/Windows 目标主机、真实 PZ、浏览器或逐项授权），以及 M1-A 独立审查（供应商额度耗尽）。
 
 ## 1. 矩阵 ID 状态汇总
@@ -16,8 +16,8 @@
 | `M2-WS` | 6 | 5 | **部分** | 5 行 PASS（含 D3 wire 与源码级 UI 兼容）；浏览器 UI 稳态观察 BLOCKED |
 | `M2-SINGLEWRITER` | 13 | 4 | **部分** | 对账/未持锁/非终态 journal/陈旧记录 PASS；**Linux 双独立进程声明门 BLOCKED**（darwin 已用独立 OS 进程验证 409） |
 | `M2-SECRET` | 4 | 3 | **部分** | 脱敏/边界 PASS；POSIX 秘密权限的 Linux 声明门 BLOCKED |
-| `M2-INSTALL` | 7 | 2 | **部分** | 安装生命周期/取消/deadline/冲突/retry + SteamCMD 配置解析与失败关闭 PASS；真实 helper reap 的声明平台门 BLOCKED |
-| `M2-RESTART` | 3 | 2 | **部分** | 重启持久化 + 陈旧 owner 失败关闭 PASS；E-OS 声明行 BLOCKED |
+| `M2-INSTALL` | 7 | 3 | **部分** | 安装生命周期/取消/deadline/冲突/retry + SteamCMD 配置解析 + 端到端 install→start→stop PASS；真实 helper reap 的声明平台门 BLOCKED |
+| `M2-RESTART` | 3 | 3 | **部分** | 重启持久化 + 陈旧 owner 失败关闭 + 停止后状态枚举 PASS；E-OS 声明行 BLOCKED |
 | `M2-CONFIG` | 6 | 4 | **部分** | 原子写/兼容/校验/损坏 + D8 失败关闭（darwin 补充）PASS；Linux D8 声明门 BLOCKED |
 | `M2-MIGRATE` | 30 | 3 | **部分** | 恢复表 30 个现场、中断注入、备份链路 PASS；目标文件系统 staging/同卷与 Linux 权限门 BLOCKED |
 | `M2-PROCESS` | 6 | 5 | **部分** | 生命周期/日志/就绪/模板隔离 + Windows 树终止 argv（darwin 补充）PASS；Linux/Windows 启动向量与声明平台 helper BLOCKED |

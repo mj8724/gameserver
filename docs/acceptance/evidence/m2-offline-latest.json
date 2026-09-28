@@ -1,11 +1,11 @@
 {
-  "commit": "1ec48ca85ba933942e8feded14a9f71777eca918",
+  "commit": "f0f6df7576e5c26c145989bd527fdf1002e26b24",
   "go": "go1.27.1",
   "goos": "darwin",
   "goarch": "arm64",
-  "binary_sha256": "e4b63401fddfd5527c9c88bf760a1a47d6335e9b90394cfb4c1b09d50a9b61f1",
+  "binary_sha256": "3f8a69db33f9fbb5503b8c896190e6fdfaeeea50e54bd7b037d5f94447f909e5",
   "totals": {
-    "PASS": 43,
+    "PASS": 45,
     "BLOCKED": 15
   },
   "rows": [
@@ -13,13 +13,13 @@
       "id": "M2-BUILD",
       "title": "固定工具链与本机门禁（gofmt/vet/build/tidy）",
       "status": "PASS",
-      "evidence": "go=go1.27.1 commit=1ec48ca85ba933942e8feded14a9f71777eca918 binary_sha256=e4b63401fddfd5527c9c88bf760a1a47d6335e9b90394cfb4c1b09d50a9b61f1"
+      "evidence": "go=go1.27.1 commit=f0f6df7576e5c26c145989bd527fdf1002e26b24 binary_sha256=3f8a69db33f9fbb5503b8c896190e6fdfaeeea50e54bd7b037d5f94447f909e5"
     },
     {
       "id": "M2-BUILD",
       "title": "目标提交 GitHub CI 全绿（含 race 与 archtest）",
       "status": "PASS",
-      "evidence": "run 36497938863 success for 1ec48ca85ba933942e8feded14a9f71777eca918 https://github.com/mj8724/gameserver/actions/runs/36497938863"
+      "evidence": "run 36498044998 success for f0f6df7576e5c26c145989bd527fdf1002e26b24 https://github.com/mj8724/gameserver/actions/runs/36498044998"
     },
     {
       "id": "M2-BUILD",
@@ -266,6 +266,18 @@
       "title": "SteamCMD 安装器配置解析与未配置时失败关闭",
       "status": "PASS",
       "evidence": "2 个用例全通过（E-OFF, go1.27.1）: TestRuntimeConfiguresInstallerFromTemplate, TestSteamcmdInstallConfigResolution"
+    },
+    {
+      "id": "M2-INSTALL",
+      "title": "端到端：install → is_installed → start → command → stop（真实 HTTP/装配，注入 fake 游戏适配器）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineInstallStartStopLifecycle"
+    },
+    {
+      "id": "M2-RESTART",
+      "title": "端到端停止后状态枚举与 running 语义",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineInstallStartStopLifecycle"
     },
     {
       "id": "M2-UI",

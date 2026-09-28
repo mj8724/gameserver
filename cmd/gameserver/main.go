@@ -133,9 +133,24 @@ type appRuntime struct {
 	serviceID   string
 }
 
-// buildRuntime wires adapters into the application services (ADR §2.1: cmd is
-// the only composition root).
+// runtimeOverrides lets integration tests replace individual outbound adapters
+// while keeping the real wiring for everything else (transport, state store,
+// PZ INI adapter, templates, lock manager).
+type runtimeOverrides struct {
+	Installer     ports.Installer
+	Processes     ports.ProcessSupervisor
+	ProcessStatus ports.ProcessStatusProvider
+	Readiness     ports.ReadinessProbe
+	Logs          ports.LogSource
+}
+
 func buildRuntime(cfg runtimeConfig) (*appRuntime, error) {
+	return buildRuntimeWith(cfg, runtimeOverrides{})
+}
+
+// buildRuntimeWith wires adapters into the application services (ADR §2.1: cmd
+// is the only composition root).
+func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntime, error) {
 	absoluteData, err := filepath.Abs(cfg.DataRoot)
 	if err != nil {
 		return nil, fmt.Errorf("resolve data root: %w", err)
@@ -192,15 +207,35 @@ func buildRuntime(cfg runtimeConfig) (*appRuntime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("steamcmd installer: %w", err)
 	}
+	processStatus := ports.ProcessStatusProvider(supervisor)
+	if overrides.ProcessStatus != nil {
+		processStatus = overrides.ProcessStatus
+	}
+	logs := ports.LogSource(supervisor)
+	if overrides.Logs != nil {
+		logs = overrides.Logs
+	}
+	readiness := ports.ReadinessProbe(nil)
+	if overrides.Readiness != nil {
+		readiness = overrides.Readiness
+	}
+	var supervisorPort ports.ProcessSupervisor = supervisor
+	if overrides.Processes != nil {
+		supervisorPort = overrides.Processes
+	}
+	if overrides.Installer != nil {
+		installer = overrides.Installer
+	}
 	control, err := application.NewControlService(application.ServiceDeps{
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
 		Config:        gameConfig,
 		Installer:     installer,
-		Processes:     supervisor,
-		ProcessStatus: supervisor,
-		Logs:          supervisor,
+		Processes:     supervisorPort,
+		ProcessStatus: processStatus,
+		Logs:          logs,
+		Readiness:     readiness,
 		Files:         files,
 		Clock:         clock,
 		Locks:         &oslock.Locks{ServersRoot: serversRoot, ServiceID: serviceID},

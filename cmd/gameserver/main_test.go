@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,12 +13,14 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mj8724/gameserver/internal/adapters/instancefiles"
 	"github.com/mj8724/gameserver/internal/adapters/localstate"
 	"github.com/mj8724/gameserver/internal/adapters/oslock"
 	"github.com/mj8724/gameserver/internal/adapters/pztemplate"
 	"github.com/mj8724/gameserver/internal/domain"
+	"github.com/mj8724/gameserver/internal/ports"
 )
 
 // legacyFixture writes the Python-era layout an operator would really have:
@@ -501,5 +504,195 @@ func TestRuntimeConfiguresInstallerFromTemplate(t *testing.T) {
 	}
 	if installer == nil {
 		t.Fatal("installer must be wired when executable and template app id are present")
+	}
+}
+
+// ---- end-to-end install/start/stop with injected fakes -------------------
+
+type fakeInstaller struct {
+	installed  bool
+	requests   []ports.InstallRequest
+	installDir func(domain.InstanceID) (string, error)
+}
+
+func (f *fakeInstaller) Install(_ context.Context, request ports.InstallRequest, progress func(ports.Progress)) error {
+	f.requests = append(f.requests, request)
+	progress(ports.Progress{Percent: 50, Message: "下载中"})
+	if f.installDir == nil {
+		return nil
+	}
+	installDir, err := f.installDir(request.InstanceID)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(installDir, 0o700); err != nil {
+		return err
+	}
+	// Mirror the real artifact name so the presence check flips to installed.
+	if err := os.WriteFile(filepath.Join(installDir, "ProjectZomboid64"), []byte("stub"), 0o700); err != nil {
+		return err
+	}
+	f.installed = true
+	progress(ports.Progress{Percent: 100, Message: "完成"})
+	return nil
+}
+
+type fakeSupervisor struct {
+	running   bool
+	pid       int
+	specs     []ports.LaunchSpec
+	inputs    []string
+	logs      []string
+	listeners int
+}
+
+func (f *fakeSupervisor) Start(_ context.Context, spec ports.LaunchSpec) (ports.Process, error) {
+	f.specs = append(f.specs, spec)
+	f.running = true
+	f.pid = 4242
+	f.logs = append(f.logs, "fake server started")
+	return ports.Process{PID: f.pid}, nil
+}
+func (f *fakeSupervisor) Stop(context.Context, domain.InstanceID) error {
+	f.running = false
+	f.pid = 0
+	f.logs = append(f.logs, "fake server stopped")
+	return nil
+}
+func (f *fakeSupervisor) Kill(context.Context, domain.InstanceID) error {
+	f.running = false
+	f.pid = 0
+	return nil
+}
+func (f *fakeSupervisor) SendInput(_ context.Context, _ domain.InstanceID, text string) error {
+	f.inputs = append(f.inputs, text)
+	return nil
+}
+func (f *fakeSupervisor) Recent(limit int) []string {
+	if limit > 0 && len(f.logs) > limit {
+		return f.logs[len(f.logs)-limit:]
+	}
+	return append([]string(nil), f.logs...)
+}
+func (f *fakeSupervisor) Subscribe(buffer int) ports.LogSubscription {
+	f.listeners++
+	return &fakeSubscription{lines: make(chan string, buffer), closed: make(chan struct{})}
+}
+func (f *fakeSupervisor) ProcessStatus(context.Context, domain.InstanceID) (ports.ProcessStatus, error) {
+	if f.running {
+		return ports.ProcessStatus{Running: true, Status: "RUNNING", PID: f.pid, CPUPercent: 1.5, MemoryMB: 512}, nil
+	}
+	return ports.ProcessStatus{Running: false, Status: "STOPPED"}, nil
+}
+
+type fakeSubscription struct {
+	lines  chan string
+	closed chan struct{}
+}
+
+func (s *fakeSubscription) Lines() <-chan string { return s.lines }
+func (s *fakeSubscription) Close()               { close(s.closed) }
+
+type fakeReadiness struct{ ready bool }
+
+func (f fakeReadiness) Ready(context.Context, domain.InstanceID) (bool, error) { return f.ready, nil }
+
+// TestM2OfflineInstallStartStopLifecycle drives install -> start -> command ->
+// stop through the real HTTP surface with only the outbound game adapters
+// replaced, so the transport, control service, state store and PZ INI adapter
+// are the production ones.
+func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
+	dataRoot, serversRoot := legacyFixture(t)
+	if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+		t.Fatalf("normalizePermissions: %v", err)
+	}
+	files, err := instancefiles.New(serversRoot, "darwin")
+	if err != nil {
+		t.Fatalf("instance files: %v", err)
+	}
+	installer := &fakeInstaller{installDir: files.InstallDir}
+	supervisor := &fakeSupervisor{}
+	rt, err := buildRuntimeWith(testConfig(t, dataRoot), runtimeOverrides{
+		Installer: installer, Processes: supervisor, ProcessStatus: supervisor, Logs: supervisor,
+		Readiness: fakeReadiness{ready: true},
+	})
+	if err != nil {
+		t.Fatalf("buildRuntimeWith: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	client := server.Client()
+	client.Jar = jar
+	origin := server.URL
+
+	if status, _ := call(t, client, "POST", origin+"/api/auth/login", origin, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+	if status, body := call(t, client, "POST", origin+"/api/server/start", origin, `{}`); status == 200 {
+		t.Fatalf("start before install must fail, got %d %s", status, body)
+	}
+	if status, body := call(t, client, "POST", origin+"/api/server/install", origin, `{}`); status != 202 && status != 200 {
+		t.Fatalf("install = %d %s", status, body)
+	}
+	if len(installer.requests) != 1 {
+		t.Fatalf("installer requests = %d", len(installer.requests))
+	}
+	dir, err := files.InstallDir("pz_01")
+	if err != nil {
+		t.Fatalf("install dir: %v", err)
+	}
+	if !strings.HasSuffix(dir, filepath.Join("pz_01", "server_files")) {
+		t.Fatalf("install dir = %q", dir)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		status, body := call(t, client, "GET", origin+"/api/status", origin, "")
+		if status == 200 && strings.Contains(body, `"is_installed":true`) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	status, body := call(t, client, "GET", origin+"/api/status", origin, "")
+	if status != 200 || !strings.Contains(body, `"is_installed":true`) {
+		t.Fatalf("install did not complete: %d %s", status, body)
+	}
+
+	if status, body := call(t, client, "POST", origin+"/api/server/start", origin, `{}`); status != 200 {
+		t.Fatalf("start = %d %s", status, body)
+	}
+	if len(supervisor.specs) != 1 {
+		t.Fatalf("launch specs = %d", len(supervisor.specs))
+	}
+	spec := supervisor.specs[0]
+	if !strings.HasSuffix(spec.Executable, "ProjectZomboid64") {
+		t.Fatalf("launch executable = %q", spec.Executable)
+	}
+	joined := strings.Join(spec.Args, " ")
+	for _, want := range []string{"-cachedir=", "-servername=servertest", "-adminpassword="} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("launch argv missing %s: %v", want, spec.Args)
+		}
+	}
+	status, body = call(t, client, "GET", origin+"/api/status", origin, "")
+	if status != 200 || !strings.Contains(body, `"running":true`) || !strings.Contains(body, `"pid":4242`) {
+		t.Fatalf("running status = %d %s", status, body)
+	}
+	if status, body := call(t, client, "POST", origin+"/api/server/command", origin, `{"command":"save"}`); status != 200 {
+		t.Fatalf("command = %d %s", status, body)
+	}
+	if len(supervisor.inputs) != 1 || supervisor.inputs[0] != "save" {
+		t.Fatalf("console inputs = %v", supervisor.inputs)
+	}
+	if status, body := call(t, client, "POST", origin+"/api/server/stop", origin, `{}`); status != 200 {
+		t.Fatalf("stop = %d %s", status, body)
+	}
+	status, body = call(t, client, "GET", origin+"/api/status", origin, "")
+	if status != 200 || !strings.Contains(body, `"running":false`) {
+		t.Fatalf("stopped status = %d %s", status, body)
+	}
+	if !strings.Contains(body, `"status":"STOPPED"`) {
+		t.Fatalf("status enum after stop = %s", body)
 	}
 }
