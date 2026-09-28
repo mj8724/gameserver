@@ -9,7 +9,7 @@
 
 | 矩阵 ID | 子案例 | 离线执行 | 状态 | 阻塞原因（若有） |
 |---|---|---|---|---|
-| `M2-BUILD` | 2 | 2 | **PASS** | —（含目标提交 CI run 36456755470 全绿） |
+| `M2-BUILD` | 2 | 2 | **PASS** | —（目标提交 CI 全绿，run/SHA 见证据文件） |
 | `M2-API` | 3 | 4 | **PASS** | — |
 | `M2-UI` | 2 | 0 | **BLOCKED** | 浏览器闭环需 E-BROWSER 人工操作；源码级分支断言已 PASS（`TestStaticUIContract`） |
 | `M2-AUTH` | 3 | 3 | **PASS** | — |

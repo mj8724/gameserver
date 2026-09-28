@@ -106,16 +106,24 @@ CI_SHA="$(git rev-parse HEAD)"
 CI_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 CI_ROW="$(gh run list --branch "$CI_BRANCH" --workflow go --limit 40 --json databaseId,headSha,conclusion,status,url \
   --jq "[.[] | select(.headSha==\"$CI_SHA\")][0] | \"\(.databaseId) \(.conclusion) \(.status) \(.url)\"" 2>/dev/null || true)"
-CI_ID="$(echo "$CI_ROW" | awk '{print $1}')"
-CI_CONCLUSION="$(echo "$CI_ROW" | awk '{print $2}')"
-CI_STATUS="$(echo "$CI_ROW" | awk '{print $3}')"
+# 只取第一行、按字段解析；未知/空值一律 BLOCKED，只有明确的失败结论才记 FAIL。
+CI_LINE="$(printf '%s\n' "$CI_ROW" | head -1 | tr -d '\r')"
+CI_FIELDS="$(printf '%s' "$CI_LINE" | awk '{print NF}')"
+CI_ID="$(printf '%s' "$CI_LINE" | awk '{print $1}')"
+CI_CONCLUSION="$(printf '%s' "$CI_LINE" | awk '{print $2}')"
+CI_STATUS="$(printf '%s' "$CI_LINE" | awk '{print $3}')"
+CI_URL="$(printf '%s' "$CI_LINE" | awk '{print $4}')"
 case "$CI_CONCLUSION" in
   success)
-    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS "run $CI_ID success for $CI_SHA $(echo "$CI_ROW" | awk '{print $4}')" ;;
-  ""|null)
-    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown}（提交 $CI_SHA 的 go workflow 尚未完成）" ;;
-  *)
+    if [ "${CI_FIELDS:-0}" -ge 4 ]; then
+      record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS "run $CI_ID success for $CI_SHA $CI_URL"
+    else
+      record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "CI 输出字段不完整（提交 $CI_SHA）"
+    fi ;;
+  failure|cancelled|timed_out|startup_failure|stale)
     record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run $CI_ID conclusion=$CI_CONCLUSION ($CI_SHA)" ;;
+  *)
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown} conclusion=${CI_CONCLUSION:-none}（提交 $CI_SHA）" ;;
 esac
 
 # 真实装配/源码级断言（评估前登记，供单次测试运行后统一判定）
@@ -206,7 +214,7 @@ b M2-PLATFORM "全部 3 行" "需 Linux 目标主机资格与平台决策证据"
 
 # ---------- 输出 ----------
 if [ -z "$OUT" ]; then
-  OUT="$REPO/docs/acceptance/evidence/m2-offline-${COMMIT:0:8}.json"
+  OUT="$REPO/docs/acceptance/evidence/m2-offline-latest.json"
 fi
 python3 - "$ROWS" "$OUT" "$COMMIT" "$GO_VER" "$(go env GOOS)" "$(go env GOARCH)" "$BIN_SHA" <<'PY'
 import json, sys, collections

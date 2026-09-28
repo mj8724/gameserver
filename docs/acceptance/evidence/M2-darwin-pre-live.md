@@ -1,8 +1,8 @@
 # M2 离线验收证据（E-OFF，darwin 开发平台）
 
-- **提交**：`426e9bade674a8242cf76dd125ebaa02573d3115`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
-- **被测二进制 SHA-256**：`286d7e9f6595f729983a0ffc8f674841c317ab5fbf44e7e94e34f80bed620a7b`
-- **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`（本文件由同名 JSON 生成，JSON 含逐行证据文本）
+- **提交**：`ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
+- **被测二进制 SHA-256**：`2c9a4aba7bd9a2b2305c0f8e5986ef34e13788c65e3b5df80a89743178a6782f`
+- **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`；每次运行会覆盖本文件与 `m2-offline-latest.json`（逐行证据文本在 JSON 中）
 - **统计**：PASS 41 / FAIL 0 / BLOCKED 15
 - **签核状态**：未签核（见 `docs/acceptance/M2-SIGNOFF.md`）
 
@@ -13,8 +13,8 @@
 
 | 矩阵 ID | 用例 | 结果 | 证据 |
 |---|---|---|---|
-| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=426e9bade674a8242cf76dd125ebaa02573d3115 binary_sha256=286d7e9f6595f729983a0ffc8f674841c317ab5fbf44e7e94e34f80bed620a7b |
-| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36457915098 success for 426e9bade674a8242cf76dd125ebaa02573d3115 https://github.com/mj8724/gameserver/actions/runs/36457915098 |
+| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a binary_sha256=2c9a4aba7bd9a2b2305c0f8e5986ef34e13788c65e3b5df80a89743178a6782f |
+| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36458076335 success for ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a https://github.com/mj8724/gameserver/actions/runs/36458076335 |
 | M2-BUILD | archtest 直接导入边界 + 负向注入探针 | PASS | 14 个用例全通过（E-OFF, go1.27.1）: TestImportBoundaries, TestInjectedForbiddenImportFailsArchitectureCheck, TestRulesRejectForbiddenImports… |
 | M2-API | 20 挂载点/严格方法与错误 envelope | PASS | 35 个用例全通过（E-OFF, go1.27.1）: TestApplicationErrorsAndConfigurationRedaction, TestApplicationErrorsAndConfigurationRedaction/install_already_running, TestApplicationErrorsAndConfigurationRedaction/install_while_running… |
 | M2-API | 模板元数据与追加字段（ready/readiness） | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestCatalogLoadsValidTemplates, TestControlStatusProjectsStateAndSecrets |
