@@ -118,12 +118,12 @@ case "$CI_CONCLUSION" in
     if [ "${CI_FIELDS:-0}" -ge 4 ]; then
       record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS "run $CI_ID success for $CI_SHA $CI_URL"
     else
-      record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "CI 输出字段不完整（提交 $CI_SHA）"
+      record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "CI 输出字段不完整（提交 ${CI_SHA}）"
     fi ;;
   failure|cancelled|timed_out|startup_failure|stale)
     record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run $CI_ID conclusion=$CI_CONCLUSION ($CI_SHA)" ;;
   *)
-    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown} conclusion=${CI_CONCLUSION:-none}（提交 $CI_SHA）" ;;
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown} conclusion=${CI_CONCLUSION:-none}（提交 ${CI_SHA}）" ;;
 esac
 
 # 真实装配/源码级断言（评估前登记，供单次测试运行后统一判定）
