@@ -138,6 +138,9 @@ row M2-CONFIG "D8 权限门失败关闭 + 归一后成功（darwin 补充证据�
 row M2-RESTART "重启后读取已提交状态且对账干净（离线部分）" 'TestM2OfflineRestartPersistence'
 row M2-SECRET "口令值不回显（状态与配置投影）" 'TestM2OfflineHTTPBlackBox'
 
+row M2-PROCESS "Windows 进程树终止 argv（类型化、无 shell；运行仍需目标机）" 'TestTaskkillArgsStayTypedAndExact'
+row M2-INSTALL "SteamCMD 安装器配置解析与未配置时失败关闭" 'TestSteamcmdInstallConfigResolution|TestRuntimeConfiguresInstallerFromTemplate'
+
 # ---------- 单次运行全部 Go 测试并按行判定 ----------
 go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
 python3 - "$ROW_DEFS" "$WORK/all.json" "$ROWS" "$(go version | awk '{print $3}')" <<'PYEVAL'

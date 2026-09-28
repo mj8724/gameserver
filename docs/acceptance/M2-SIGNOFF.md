@@ -2,7 +2,7 @@
 
 - **日期**：2026-09-29
 - **判定**：**M2 未完成、未签核**；不得对外声明任何平台“受支持”。
-- **已完成**：离线矩阵全部可执行行（E-OFF，darwin 开发平台）41 PASS / 0 FAIL；`M2-BUILD` 门（本机门禁 + 目标提交 GitHub CI run 全绿）已满足。
+- **已完成**：离线矩阵全部可执行行（E-OFF，darwin 开发平台）43 PASS / 0 FAIL；`M2-BUILD` 门（本机门禁 + 目标提交 GitHub CI run 全绿）已满足。
 - **未完成**：15 行 BLOCKED（需具名 Linux/Windows 目标主机、真实 PZ、浏览器或逐项授权），以及 M1-A 独立审查（供应商额度耗尽）。
 
 ## 1. 矩阵 ID 状态汇总
@@ -16,11 +16,11 @@
 | `M2-WS` | 6 | 5 | **部分** | 5 行 PASS（含 D3 wire 与源码级 UI 兼容）；浏览器 UI 稳态观察 BLOCKED |
 | `M2-SINGLEWRITER` | 13 | 4 | **部分** | 对账/未持锁/非终态 journal/陈旧记录 PASS；**Linux 双独立进程声明门 BLOCKED**（darwin 已用独立 OS 进程验证 409） |
 | `M2-SECRET` | 4 | 3 | **部分** | 脱敏/边界 PASS；POSIX 秘密权限的 Linux 声明门 BLOCKED |
-| `M2-INSTALL` | 7 | 1 | **部分** | 安装生命周期/取消/deadline/冲突/retry PASS；真实 helper reap 的声明平台门 BLOCKED |
+| `M2-INSTALL` | 7 | 2 | **部分** | 安装生命周期/取消/deadline/冲突/retry + SteamCMD 配置解析与失败关闭 PASS；真实 helper reap 的声明平台门 BLOCKED |
 | `M2-RESTART` | 3 | 2 | **部分** | 重启持久化 + 陈旧 owner 失败关闭 PASS；E-OS 声明行 BLOCKED |
 | `M2-CONFIG` | 6 | 4 | **部分** | 原子写/兼容/校验/损坏 + D8 失败关闭（darwin 补充）PASS；Linux D8 声明门 BLOCKED |
 | `M2-MIGRATE` | 30 | 3 | **部分** | 恢复表 30 个现场、中断注入、备份链路 PASS；目标文件系统 staging/同卷与 Linux 权限门 BLOCKED |
-| `M2-PROCESS` | 6 | 4 | **部分** | 生命周期/日志/就绪/模板隔离（darwin 补充）PASS；Linux/Windows 启动向量与声明平台 helper BLOCKED |
+| `M2-PROCESS` | 6 | 5 | **部分** | 生命周期/日志/就绪/模板隔离 + Windows 树终止 argv（darwin 补充）PASS；Linux/Windows 启动向量与声明平台 helper BLOCKED |
 | `M2-PZ-LIVE` | 7 | 0 | **BLOCKED** | 需 Target Manifest + 真实 SteamCMD/PZ + 逐项授权 |
 | `M2-PLATFORM` | 3 | 0 | **BLOCKED** | 需具名 Ubuntu LTS 目标主机资格证据 |
 
@@ -50,6 +50,12 @@
 
 查看候选：`maestro knowledge review ksyn-17cc3f98d029250a --json`。
 
-## 4. 结论
+## 4. 实现侧 Windows 就绪改进（仍需目标机证据）
+
+- **进程树终止**：原 `!linux && !darwin` 分支用 `os.Interrupt`（Windows 必失败）且只杀单进程；现新增 `process_windows.go` / `steamcmd/process_windows.go`，以 `taskkill /PID <pid> /T /F`（类型化 argv、不经 shell）终止整棵树，子进程以 `CREATE_NEW_PROCESS_GROUP` 创建。argv 形状在所有平台有单测（`TestTaskkillArgsStayTypedAndExact*`）。
+- **SteamCMD 安装器接线**：原先 `steamcmd.New()` 未配置，真实安装请求必然失败；现从 `GAMESERVER_STEAMCMD_EXECUTABLE` / `GAMESERVER_STEAM_APP_ID`（缺省取模板 `steam.app_id`）解析，未配置时**失败关闭**并打印告警；SteamCMD 目录固定在 `<实例>/steamcmd`（不随 state promotion 移动）。
+- 以上均为**实现与离线测试**证据；Windows/Linux 的真实运行结论仍需目标机（见 §2）。
+
+## 5. 结论
 
 离线可验证的部分已全部完成并有可复跑证据；**剩余 15 行与独立审查受外部依赖阻塞**。在真实主机证据出现前：不声明平台支持、不宣布 M1/M2 完成、不执行 M1-B。

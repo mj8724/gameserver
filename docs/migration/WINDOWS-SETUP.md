@@ -4,6 +4,33 @@
 > 目标主机：`winssh.liubaitech.cn`（SSH，用户 `admin`）/ `wingame.liubaitech.cn`（RDP，自治代理不可用）。
 > 本文是执行手册，不代表任何步骤已经执行；每项真实副作用仍需在操作前取得用户对该动作的授权。
 
+## 运行配置（环境变量）
+
+服务只读环境变量，不做系统级修改。Windows 目标机上至少需要：
+
+| 变量 | 用途 | 示例 |
+|---|---|---|
+| `GAMESERVER_PORT` | 监听端口 | `8769` |
+| `GAMESERVER_DATA_ROOT` | 数据根（含 `servers/`） | `G:\gameserver-work\data` |
+| `GAMESERVER_ADMIN_PASSWORD` | 管理口令（缺失则登录/受保护操作 503） | 由你设置，勿写入日志或脚本 |
+| `GAMESERVER_STATIC_DIR` | 静态 UI 目录 | `G:\gameserver-work\app\static` |
+| `GAMESERVER_TEMPLATES_DIR` | 模板目录 | `G:\gameserver-work\app\templates` |
+| `GAMESERVER_LAUNCH_EXECUTABLE` | 直接可执行制品名 | `ProjectZomboid64.exe` |
+| `GAMESERVER_LAUNCH_DIRECT_EXEC` | 必须为 `1`（解释器向量被禁用） | `1` |
+| `GAMESERVER_LAUNCH_EVIDENCE_REF` | 启动向量证据引用（Manifest 锚点） | `manifest#win-2026xx` |
+| `GAMESERVER_STEAMCMD_EXECUTABLE` | SteamCMD 可执行文件绝对路径 | `G:\gameserver-work\data\servers\pz_01\steamcmd\steamcmd.exe` |
+| `GAMESERVER_STEAMCMD_DIR` | SteamCMD 工作目录（缺省 `<实例>/steamcmd`） | 同上目录 |
+| `GAMESERVER_STEAM_APP_ID` | 覆盖模板中的 app id（缺省取模板 `steam.app_id` = 380870） | `380870` |
+
+未提供 SteamCMD 可执行文件或 app id 时，服务**失败关闭**：安装请求会返回错误而不是假装在装。
+
+## Windows 进程语义（与 Linux 的差异）
+
+- 停止/强杀都会终止**整棵进程树**（`taskkill /PID <pid> /T /F`，类型化 argv、不经 shell）；Windows 没有 SIGTERM，优雅停止依赖通过控制台 stdin 下发命令，超时后才升级为树终止。
+- 子进程创建时使用 `CREATE_NEW_PROCESS_GROUP`。
+- 存活探测无法枚举命令行：存在陈旧所有权记录时一律**失败关闭**，需显式 `gameserver recover`（默认拒绝活跃 PID，`--force` 才清除并留审计记录）。
+- POSIX 权限位不适用：`fix-permissions` 在 Windows 上不做任何改动（由 ACL 决定）。
+
 ## 首次启动前：权限归一（必须）
 
 legacy/复制过来的数据根通常保留 0755/0644。ADR §1.7 要求秘密相关路径权限不合规时**失败关闭**，服务不会静默 chmod，因此首次启动前必须显式执行一次：
