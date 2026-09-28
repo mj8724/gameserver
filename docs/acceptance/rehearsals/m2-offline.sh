@@ -97,6 +97,31 @@ row M2-PROCESS "进程状态与日志上限" 'LogLimitIsClampedAndStatusDoesNotE
 row M2-PROCESS "就绪探测（SERVER_PORT/超时/取消/marker）" 'ReadinessUsesSERVERPORTAndInjectedProbeAndTimeout|ReadinessRequiresManifestMarkerAndRunningProcess|ReadinessPropagatesCancellation'
 row M2-API "静态资源安全回退" 'StaticAssetsFallbackAndSafePaths|OpenRejectsTraversalAndAbsoluteNames|OpenRejectsSymlinkEscape'
 
+# ---------- CI 门：目标提交的 GitHub Actions 结果 ----------
+CI_SHA="$(git rev-parse HEAD)"
+CI_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+CI_ROW="$(gh run list --branch "$CI_BRANCH" --workflow go --limit 40 --json databaseId,headSha,conclusion,url   --jq "[.[] | select(.headSha==\"$CI_SHA\")][0] | \"\(.databaseId) \(.conclusion) \(.url)\"" 2>/dev/null || true)"
+if echo "$CI_ROW" | grep -q '^[0-9]* success'; then
+  record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS \
+    "run $(echo "$CI_ROW" | awk '{print $1}') success for $CI_SHA $(echo "$CI_ROW" | awk '{print $3}')"
+elif [ -n "$CI_ROW" ]; then
+  record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run 结果: $CI_ROW"
+else
+  record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "gh 不可用或该提交尚无 go workflow 运行（$CI_SHA）"
+fi
+
+# 真实装配/源码级断言（评估前登记，供单次测试运行后统一判定）
+row M2-API "静态 UI 调用面与路由表一致性（源码级）" 'TestStaticUIContract'
+row M2-UI "未登录/会话过期界面分支（源码级：精确文案分支）" 'TestStaticUIContract'
+row M2-WS "D3 error frame 不被渲染为日志（源码级 onmessage 断言）" 'TestStaticUIContract'
+row M2-RESTART "陈旧 owner 记录 → 失败关闭、不自动清理、只读可用" 'TestM2OfflineRecoveryRequiredReconciliation'
+row M2-SINGLEWRITER "陈旧 owner 记录对账（darwin 补充证据）" 'TestM2OfflineRecoveryRequiredReconciliation'
+row M2-PROCESS "环境变量与模板插值隔离（darwin 补充证据）" 'BuildLaunchSpecDoesNotUseTemplateAndPreservesAdversarialArgv|BuildLaunchSpecValidatesNamesAndNeverAcceptsTemplate'
+row M2-API "真实装配黑盒：路由/错误文案/投影/落盘/权限/锁栅栏" 'TestM2OfflineHTTPBlackBox'
+row M2-CONFIG "D8 权限门失败关闭 + 归一后成功（darwin 补充证据）" 'TestM2OfflineHTTPBlackBox'
+row M2-RESTART "重启后读取已提交状态且对账干净（离线部分）" 'TestM2OfflineRestartPersistence'
+row M2-SECRET "口令值不回显（状态与配置投影）" 'TestM2OfflineHTTPBlackBox'
+
 # ---------- 单次运行全部 Go 测试并按行判定 ----------
 go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
 python3 - "$ROW_DEFS" "$WORK/all.json" "$ROWS" "$(go version | awk '{print $3}')" <<'PYEVAL'
@@ -152,26 +177,21 @@ PYSHOW
 
 # 真实装配的黑盒断言以 Go 集成测试执行（计划 §1.2：优先 httptest、不绑定端口）：
 # 真实 state store + PZ INI 适配器 + 模板目录 + 真实 handler，仅 listener 由 httptest 注入。
-row M2-API "真实装配黑盒：路由/错误文案/投影/落盘/权限/锁栅栏" 'TestM2OfflineHTTPBlackBox'
-row M2-CONFIG "D8 权限门失败关闭 + 归一后成功（darwin 补充证据）" 'TestM2OfflineHTTPBlackBox'
-row M2-RESTART "重启后读取已提交状态且对账干净（离线部分）" 'TestM2OfflineRestartPersistence'
-row M2-SECRET "口令值不回显（状态与配置投影）" 'TestM2OfflineHTTPBlackBox'
 
 # ---------- BLOCKED 行（不执行，必须显式记录原因） ----------
 b() { record "$1" "$2" BLOCKED "$3"; }
-b M2-BUILD "目标提交的 GitHub CI 全绿（race/archtest）" "需 GitHub Actions 结果，见 docs/migration/TOOLCHAIN.md 记录（本脚本不联网）"
 b M2-UI "静态 UI 登录/仪表盘浏览器闭环" "需要真实浏览器与人工操作（E-BROWSER），本机离线不执行"
-b M2-UI "未登录/会话过期界面分支" "同上；服务端 401 detail 已由 httpapi 测试与黑盒覆盖，UI 分支未在浏览器中验证"
-b M2-WS "D3 error frame 浏览器互操作" "需要浏览器与 UI 侧观察（E-BROWSER）"
+b M2-UI "未登录/会话过期界面分支（浏览器验证）" "源码级分支与精确文案已由 TestStaticUIContract 验证；浏览器中的人工闭环仍需 E-BROWSER"
+b M2-WS "D3 error frame 浏览器互操作（UI 稳态）" "源码级断言已确认 error 帧不进入日志渲染；浏览器 console 无异常的观察仍需 E-BROWSER"
 b M2-SECRET "POSIX 秘密目录/文件权限（Linux 目标机）" "需 Linux/Ubuntu LTS 目标主机；darwin 证据仅作补充"
 b M2-CONFIG "变更操作的 D8 权限门（Linux）" "需 Linux 目标主机"
 b M2-MIGRATE "staging 边界、同卷与锁（目标文件系统）" "需目标文件系统与授权的一次性根"
 b M2-MIGRATE "仅因权限宽松拒绝提升（Linux）" "需 Linux 目标主机与逐项写权限授权"
-b M2-INSTALL "正常结束/取消后的 reap（真实 helper，Linux）" "需 Linux 目标主机"
+b M2-INSTALL "正常结束/取消后的 reap（声明平台）" "darwin 已用真实 helper 子进程覆盖；Linux 声明仍需目标主机"
 b M2-PROCESS "Linux/Windows 启动向量对抗" "需具名目标 OS 与已编译 safe helper；Manifest 未填"
-b M2-PROCESS "环境变量与模板插值隔离（声明平台）" "需声明平台 runner"
-b M2-SINGLEWRITER "双独立进程争用（Linux 必跑）" "darwin 已补充验证，但矩阵要求 Linux；目标主机缺失"
-b M2-RESTART "控制进程异常退出后的启动对账（E-OS）" "需目标 OS 与隔离 helper child"
+b M2-PROCESS "环境变量与模板插值隔离（声明平台 helper 实测）" "darwin 已用包内测试覆盖构造成本；声明平台仍需具名 runner 与 safe helper"
+b M2-SINGLEWRITER "双独立进程争用（Linux 必跑，声明门）" "darwin 已用独立 OS 进程持锁 + 真实二进制验证 409（m1a-rehearsal.sh）；Linux 声明仍需目标主机"
+b M2-RESTART "控制进程异常退出后的启动对账（E-OS 声明）" "darwin 已由 TestM2OfflineRecoveryRequiredReconciliation 覆盖；目标 OS 声明仍需具名 runner"
 b M2-RESTART "PZ child 意外退出观察（E-OS）" "需真实/受控子进程与目标 OS"
 b M2-PZ-LIVE "全部 7 行" "需 Target Manifest、用户逐项授权与真实 SteamCMD/PZ（BLOCKED）"
 b M2-PLATFORM "全部 3 行" "需 Linux 目标主机资格与平台决策证据"

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -304,5 +305,124 @@ func TestM2OfflineRestartPersistence(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(serversRoot, ".owners", "pz_01.json")); !os.IsNotExist(err) {
 		t.Fatalf("ownership record must not outlive a clean run (err=%v)", err)
+	}
+}
+
+// TestStaticUIContract checks the shipped UI against the served contract:
+// every endpoint the UI calls must exist in the route table, the login-error
+// branch must key off the exact server string, D3 error frames must not be
+// rendered as logs, and password fields must never be prefilled.
+func TestStaticUIContract(t *testing.T) {
+	repo, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	uiRaw, err := os.ReadFile(filepath.Join(repo, "static", "index.html"))
+	if err != nil {
+		t.Fatalf("read static UI: %v", err)
+	}
+	ui := string(uiRaw)
+	server, err := os.ReadFile(filepath.Join(repo, "internal", "adapters", "httpapi", "server.go"))
+	if err != nil {
+		t.Fatalf("read route table: %v", err)
+	}
+	routes := string(server)
+
+	endpointPattern := regexp.MustCompile(`/api/[a-zA-Z0-9_/]+`)
+	seen := map[string]bool{}
+	for _, match := range endpointPattern.FindAllString(ui, -1) {
+		seen[match] = true
+	}
+	if len(seen) < 6 {
+		t.Fatalf("expected the UI to call the legacy endpoints, found %v", seen)
+	}
+	for endpoint := range seen {
+		if !strings.Contains(routes, endpoint) {
+			t.Fatalf("UI calls %s but the route table has no such route", endpoint)
+		}
+	}
+	for _, required := range []string{"/api/auth/status", "/api/auth/login", "/api/auth/logout", "/api/status",
+		"/api/server/config", "/api/server/logs", "/api/server/command", "/ws/console"} {
+		if !strings.Contains(ui, required) {
+			t.Fatalf("UI no longer uses %s (legacy call surface changed)", required)
+		}
+	}
+	if !strings.Contains(ui, `error.message==='请先登录'`) || !strings.Contains(routes, "请先登录") {
+		t.Fatal("login-expiry branch or its exact server string drifted")
+	}
+	if !strings.Contains(ui, `input.value=field.value??''`) || strings.Contains(ui, "input.value=field.default") {
+		t.Fatal("config fields must render from value, never from the template default")
+	}
+	if !strings.Contains(ui, `type==='password'){input.placeholder='留空表示保持当前口令'}`) {
+		t.Fatal("password fields must stay empty and explain the keep-current semantics")
+	}
+
+	handlerStart := strings.Index(ui, "socket.onmessage=")
+	if handlerStart < 0 {
+		t.Fatal("UI has no console onmessage handler")
+	}
+	handlerEnd := strings.Index(ui[handlerStart:], "};")
+	if handlerEnd < 0 {
+		t.Fatal("cannot delimit the onmessage handler")
+	}
+	handler := ui[handlerStart : handlerStart+handlerEnd]
+	if !strings.Contains(handler, `if(message.type==='log')`) {
+		t.Fatal("D3 error frames must be filtered by type==='log'")
+	}
+	if strings.Count(handler, ".textContent+=") != 1 {
+		t.Fatalf("only the log branch may render frames, handler=%s", handler)
+	}
+}
+
+// TestM2OfflineRecoveryRequiredReconciliation covers the offline part of
+// M2-RESTART row 2: a stale ownership record (dead pid) must keep mutations
+// fail-closed, must not be auto-cleaned, and must still allow read-only status.
+func TestM2OfflineRecoveryRequiredReconciliation(t *testing.T) {
+	dataRoot, serversRoot := legacyFixture(t)
+	if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+		t.Fatalf("normalizePermissions: %v", err)
+	}
+	manager, err := oslock.NewManager(serversRoot, "cursor-process")
+	if err != nil {
+		t.Fatalf("lock manager: %v", err)
+	}
+	ownerPath, err := manager.OwnerRecordPath("pz_01")
+	if err != nil {
+		t.Fatalf("owner path: %v", err)
+	}
+	stale := fmt.Sprintf(`{"schema":"gameserver-owner/1","service_id":"crashed-process","pid":%d,"session_token":"stale",
+ "started_at":"2020-01-01T00:00:00Z","root":%q}`, 999999, filepath.Join(serversRoot, "pz_01"))
+	if err := os.MkdirAll(filepath.Dir(ownerPath), 0o700); err != nil {
+		t.Fatalf("mkdir owners: %v", err)
+	}
+	if err := os.WriteFile(ownerPath, []byte(stale), 0o600); err != nil {
+		t.Fatalf("write stale owner: %v", err)
+	}
+
+	rt, err := buildRuntime(testConfig(t, dataRoot))
+	if err != nil {
+		t.Fatalf("buildRuntime: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	client := server.Client()
+	client.Jar = jar
+	if status, _ := call(t, client, "POST", server.URL+"/api/auth/login", server.URL, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+	if status, body := call(t, client, "GET", server.URL+"/api/status", server.URL, ""); status != 200 || !strings.Contains(body, "status") {
+		t.Fatalf("read-only status = %d %s", status, body)
+	}
+	status, body := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"variables":{"MAX_PLAYERS":24}}`)
+	if status != 409 {
+		t.Fatalf("stale owner mutation = %d %s, want 409 fail-closed", status, body)
+	}
+	if _, err := os.Stat(ownerPath); err != nil {
+		t.Fatalf("stale ownership record must not be auto-deleted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(serversRoot, "pz_01", "state", "instance.json")); !os.IsNotExist(err) {
+		t.Fatalf("fail-closed mutation must not write state (err=%v)", err)
 	}
 }

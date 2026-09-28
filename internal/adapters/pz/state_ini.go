@@ -58,6 +58,10 @@ func portText(ports map[string]int, key string, fallback int) string {
 	return strconv.Itoa(value)
 }
 
+// numberText formats a persisted/config variable. Values reaching this adapter
+// from the HTTP layer are json.Number (strict decoding), so that case must be
+// handled explicitly: an unhandled type silently falls back to the default and
+// the INI is never actually updated.
 func numberText(value any, fallback int) string {
 	switch typed := value.(type) {
 	case int:

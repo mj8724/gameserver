@@ -819,6 +819,9 @@ func applicationErrorDetails(err *application.UseCaseError) (int, string) {
 	case application.CodeRecoveryRequired:
 		return http.StatusConflict, "recovery required"
 	case application.CodeOperationFailed:
+		// Operation failures carry their own operator-facing message; falling
+		// through to the generic text would hide the real cause (for example a
+		// fail-closed permission gate) behind "服务器内部错误".
 		if err.Message == "" {
 			return http.StatusInternalServerError, "服务器内部错误"
 		}

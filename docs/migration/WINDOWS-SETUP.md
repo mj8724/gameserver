@@ -4,6 +4,16 @@
 > 目标主机：`winssh.liubaitech.cn`（SSH，用户 `admin`）/ `wingame.liubaitech.cn`（RDP，自治代理不可用）。
 > 本文是执行手册，不代表任何步骤已经执行；每项真实副作用仍需在操作前取得用户对该动作的授权。
 
+## 首次启动前：权限归一（必须）
+
+legacy/复制过来的数据根通常保留 0755/0644。ADR §1.7 要求秘密相关路径权限不合规时**失败关闭**，服务不会静默 chmod，因此首次启动前必须显式执行一次：
+
+```powershell
+G:\gameserver-work\bin\gameserver.exe fix-permissions --data-root G:\gameserver-work\data --instance pz_01
+```
+
+未执行时的典型症状：配置保存返回 500（或“保存配置失败”），HTML/日志看起来一切正常。Windows 上该命令输出说明 POSIX 权限位不适用并**不做任何改动**（Windows 由 ACL 决定），但相同步骤在 Linux 目标机上必须执行。
+
 ## 0. 当前阻塞（必须先解决）
 
 本机访问被 Cloudflare Access 拦截：

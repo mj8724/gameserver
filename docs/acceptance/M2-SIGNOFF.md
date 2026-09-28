@@ -1,0 +1,55 @@
+# M2 签核状态（诚实记录：未签核）
+
+- **日期**：2026-09-29
+- **判定**：**M2 未完成、未签核**；不得对外声明任何平台“受支持”。
+- **已完成**：离线矩阵全部可执行行（E-OFF，darwin 开发平台）41 PASS / 0 FAIL；`M2-BUILD` 门（本机门禁 + 目标提交 GitHub CI run 全绿）已满足。
+- **未完成**：15 行 BLOCKED（需具名 Linux/Windows 目标主机、真实 PZ、浏览器或逐项授权），以及 M1-A 独立审查（供应商额度耗尽）。
+
+## 1. 矩阵 ID 状态汇总
+
+| 矩阵 ID | 子案例 | 离线执行 | 状态 | 阻塞原因（若有） |
+|---|---|---|---|---|
+| `M2-BUILD` | 2 | 2 | **PASS** | —（含目标提交 CI run 36456755470 全绿） |
+| `M2-API` | 3 | 4 | **PASS** | — |
+| `M2-UI` | 2 | 0 | **BLOCKED** | 浏览器闭环需 E-BROWSER 人工操作；源码级分支断言已 PASS（`TestStaticUIContract`） |
+| `M2-AUTH` | 3 | 3 | **PASS** | — |
+| `M2-WS` | 6 | 5 | **部分** | 5 行 PASS（含 D3 wire 与源码级 UI 兼容）；浏览器 UI 稳态观察 BLOCKED |
+| `M2-SINGLEWRITER` | 13 | 4 | **部分** | 对账/未持锁/非终态 journal/陈旧记录 PASS；**Linux 双独立进程声明门 BLOCKED**（darwin 已用独立 OS 进程验证 409） |
+| `M2-SECRET` | 4 | 3 | **部分** | 脱敏/边界 PASS；POSIX 秘密权限的 Linux 声明门 BLOCKED |
+| `M2-INSTALL` | 7 | 1 | **部分** | 安装生命周期/取消/deadline/冲突/retry PASS；真实 helper reap 的声明平台门 BLOCKED |
+| `M2-RESTART` | 3 | 2 | **部分** | 重启持久化 + 陈旧 owner 失败关闭 PASS；E-OS 声明行 BLOCKED |
+| `M2-CONFIG` | 6 | 4 | **部分** | 原子写/兼容/校验/损坏 + D8 失败关闭（darwin 补充）PASS；Linux D8 声明门 BLOCKED |
+| `M2-MIGRATE` | 30 | 3 | **部分** | 恢复表 30 个现场、中断注入、备份链路 PASS；目标文件系统 staging/同卷与 Linux 权限门 BLOCKED |
+| `M2-PROCESS` | 6 | 4 | **部分** | 生命周期/日志/就绪/模板隔离（darwin 补充）PASS；Linux/Windows 启动向量与声明平台 helper BLOCKED |
+| `M2-PZ-LIVE` | 7 | 0 | **BLOCKED** | 需 Target Manifest + 真实 SteamCMD/PZ + 逐项授权 |
+| `M2-PLATFORM` | 3 | 0 | **BLOCKED** | 需具名 Ubuntu LTS 目标主机资格证据 |
+
+证据文件：`docs/acceptance/evidence/M2-darwin-pre-live.md` 与同名 JSON；执行器 `docs/acceptance/rehearsals/m2-offline.sh`。
+
+## 2. 签核所缺（逐条解除条件）
+
+| 缺项 | 解除条件 |
+|---|---|
+| Windows 实机（首选目标） | 隧道 connector 在线 + 本机 `cloudflared access login winssh.liubaitech.cn` + `admin` 密钥登录；随后按 `docs/migration/WINDOWS-SETUP.md` 执行并在该机重跑两个演练脚本 |
+| Linux Ubuntu LTS 实机（次选） | 用户提供具名主机与访问方式；执行 M2-SINGLEWRITER 双进程、D8 权限门、启动向量与 reap 行 |
+| Target Manifest | 填实 `M2-GO-PZ-MVP.md` §4 全部字段（OS/架构、PZ build ID、SteamCMD 版本、oracle、端口/网络、浏览器版本） |
+| 真实副作用授权 | 用户对 SteamCMD 下载、PZ 安装/启动、端口绑定与网络探测、临时数据根写入逐项授权（含绝对路径、时间窗口、停止/恢复办法） |
+| 独立审查 | 恢复 teammate 额度或指定替代审查渠道；当前仅有标注为非独立的复核 |
+| M1-B 生产接管 | 不在本验收授权内；需具名主机 + 维护窗口 + 单独授权 |
+
+## 3. 知识处置（本次新增的可复用经验）
+
+四条经验已 stage 为候选（会话 `ksyn-17cc3f98d029250a`，状态 pending，晋升需用户确认），并在仓库内落地了**使用点可发现**的长期归宿：
+
+| 经验 | 仓库内归宿（长期） | 候选状态 |
+|---|---|---|
+| 演练/验收脚本绝不修改仓库工作树 | `docs/acceptance/README.md` §不变量 + 两个脚本头部注释 | staged pending |
+| HTTP 解码的 `json.Number` 会让适配器静默回退默认值 | `internal/adapters/pz/state_ini.go` 注释 + 回归测试 `TestManagedINIUpdatesAcceptsJSONNumberVariables` | staged pending |
+| 错误映射 `default` 吞掉真实失败原因 | `internal/adapters/httpapi/server.go` 分支 + 表驱动测试 | staged pending |
+| legacy 宽松权限根 → 首次启动失败关闭（`fix-permissions` 运行手册） | `docs/acceptance/README.md` §权限 + `docs/migration/WINDOWS-SETUP.md` | staged pending |
+
+查看候选：`maestro knowledge review ksyn-17cc3f98d029250a --json`。
+
+## 4. 结论
+
+离线可验证的部分已全部完成并有可复跑证据；**剩余 15 行与独立审查受外部依赖阻塞**。在真实主机证据出现前：不声明平台支持、不宣布 M1/M2 完成、不执行 M1-B。
