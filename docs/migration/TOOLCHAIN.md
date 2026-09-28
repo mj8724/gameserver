@@ -25,7 +25,7 @@
 | Run ID | **36421008298**（success） |
 | Job | `go` / 108923436601（success，30s） |
 | Commit | `79de6c080bbc05e6c7619070ef26c5cefa9ea4cd` |
-| Run ID（最新） | **36497938863**（success，commit `1ec48ca`：Windows 进程树终止 + SteamCMD 安装器接线） |
+| Run ID（最新） | **36498489218**（success，commit `271a1a3`：端到端 install/start/stop + 测试 fake 同步修复） |
 | Run ID（离线执行器落地） | `36456593530`（success，commit `dbb7c57`：运维 CLI + M2 离线执行器 + 缺陷修复） |
 | URL | <https://github.com/mj8724/gameserver/actions/runs/36421008298> |
 | 通过步骤 | gofmt、go vet、go test、go test -race、go build、architecture boundaries |

@@ -1,7 +1,7 @@
 # M2 离线验收证据（E-OFF，darwin 开发平台）
 
-- **提交**：`f0f6df7576e5c26c145989bd527fdf1002e26b24`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
-- **被测二进制 SHA-256**：`3f8a69db33f9fbb5503b8c896190e6fdfaeeea50e54bd7b037d5f94447f909e5`
+- **提交**：`271a1a32423ca716a4b0e7e3d7876db45e681cc4`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
+- **被测二进制 SHA-256**：`65e477250796e791d8e6523970f464aef366eae1c0fb27bdd602fd0606b8b8e0`
 - **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`；每次运行覆盖本文件与 `m2-offline-latest.json`（逐行证据在 JSON）
 - **统计**：PASS 45 / FAIL 0 / BLOCKED 15
 - **签核状态**：未签核（见 `docs/acceptance/M2-SIGNOFF.md`）
@@ -13,8 +13,8 @@
 
 | 矩阵 ID | 用例 | 结果 | 证据 |
 |---|---|---|---|
-| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=f0f6df7576e5c26c145989bd527fdf1002e26b24 binary_sha256=3f8a69db33f9fbb5503b8c896190e6fdfaeeea50e54bd7b037d5f94447f909e5 |
-| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36498044998 success for f0f6df7576e5c26c145989bd527fdf1002e26b24 https://github.com/mj8724/gameserver/actions/runs/36498044998 |
+| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=271a1a32423ca716a4b0e7e3d7876db45e681cc4 binary_sha256=65e477250796e791d8e6523970f464aef366eae1c0fb27bdd602fd0606b8b8e0 |
+| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36498489218 success for 271a1a32423ca716a4b0e7e3d7876db45e681cc4 https://github.com/mj8724/gameserver/actions/runs/36498489218 |
 | M2-BUILD | archtest 直接导入边界 + 负向注入探针 | PASS | 14 个用例全通过（E-OFF, go1.27.1）: TestImportBoundaries, TestInjectedForbiddenImportFailsArchitectureCheck, TestRulesRejectForbiddenImports… |
 | M2-API | 20 挂载点/严格方法与错误 envelope | PASS | 35 个用例全通过（E-OFF, go1.27.1）: TestApplicationErrorsAndConfigurationRedaction, TestApplicationErrorsAndConfigurationRedaction/install_already_running, TestApplicationErrorsAndConfigurationRedaction/install_while_running… |
 | M2-API | 模板元数据与追加字段（ready/readiness） | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestCatalogLoadsValidTemplates, TestControlStatusProjectsStateAndSecrets |
