@@ -1,8 +1,8 @@
 # M2 离线验收证据（E-OFF，darwin 开发平台）
 
-- **提交**：`ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
-- **被测二进制 SHA-256**：`2c9a4aba7bd9a2b2305c0f8e5986ef34e13788c65e3b5df80a89743178a6782f`
-- **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`；每次运行会覆盖本文件与 `m2-offline-latest.json`（逐行证据文本在 JSON 中）
+- **提交**：`0f334152426695144299b3eb6e0837c07ab1d911`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
+- **被测二进制 SHA-256**：`b5fb78c20765e676217ca88cc5ef849de14b3968eafa3a0ac41d3797e9d6f2b8`
+- **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`；每次运行覆盖本文件与 `m2-offline-latest.json`（逐行证据在 JSON）
 - **统计**：PASS 41 / FAIL 0 / BLOCKED 15
 - **签核状态**：未签核（见 `docs/acceptance/M2-SIGNOFF.md`）
 
@@ -13,8 +13,8 @@
 
 | 矩阵 ID | 用例 | 结果 | 证据 |
 |---|---|---|---|
-| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a binary_sha256=2c9a4aba7bd9a2b2305c0f8e5986ef34e13788c65e3b5df80a89743178a6782f |
-| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36458076335 success for ad3664de0e09c2d7e67b4fd44e48d8fd8315e83a https://github.com/mj8724/gameserver/actions/runs/36458076335 |
+| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=0f334152426695144299b3eb6e0837c07ab1d911 binary_sha256=b5fb78c20765e676217ca88cc5ef849de14b3968eafa3a0ac41d3797e9d6f2b8 |
+| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36458690985 success for 0f334152426695144299b3eb6e0837c07ab1d911 https://github.com/mj8724/gameserver/actions/runs/36458690985 |
 | M2-BUILD | archtest 直接导入边界 + 负向注入探针 | PASS | 14 个用例全通过（E-OFF, go1.27.1）: TestImportBoundaries, TestInjectedForbiddenImportFailsArchitectureCheck, TestRulesRejectForbiddenImports… |
 | M2-API | 20 挂载点/严格方法与错误 envelope | PASS | 35 个用例全通过（E-OFF, go1.27.1）: TestApplicationErrorsAndConfigurationRedaction, TestApplicationErrorsAndConfigurationRedaction/install_already_running, TestApplicationErrorsAndConfigurationRedaction/install_while_running… |
 | M2-API | 模板元数据与追加字段（ready/readiness） | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestCatalogLoadsValidTemplates, TestControlStatusProjectsStateAndSecrets |
@@ -83,3 +83,4 @@
 - 跨进程单写者栅栏在 `docs/migration/rehearsals/m1a-rehearsal.sh` 中以**独立 OS 进程**（python `flock` 持锁）验证 409；
   本文件中的锁判定使用同进程锁持有者，属补充证据。
 - 需要 Linux/Windows 目标主机、浏览器或真实 PZ 的行未执行，不得记为 PASS 或 N/A。
+- CI 门为三态：success→PASS、明确失败→FAIL、运行中/无运行→BLOCKED（不误判为失败，脚本可重复执行）。
