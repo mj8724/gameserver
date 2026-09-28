@@ -17,7 +17,19 @@
 | 本地校验和 | 与官方一致（2026-09-28 安装时验证） |
 | 来源 URL | `https://dl.google.com/go/go1.27.1.darwin-arm64.tar.gz` |
 
-**说明**：`go.dev/dl/...` 在本机经重定向下载失败（curl 35 TLS 错误），改用其最终地址 `dl.google.com` 成功；校验和使用 go.dev 官方元数据比对通过。
+## GitHub Actions 绿证
+
+| 项 | 值 |
+|---|---|
+| Workflow | `go` |
+| Run ID | **36421008298**（success） |
+| Job | `go` / 108923436601（success，30s） |
+| Commit | `79de6c080bbc05e6c7619070ef26c5cefa9ea4cd` |
+| URL | <https://github.com/mj8724/gameserver/actions/runs/36421008298> |
+| 通过步骤 | gofmt、go vet、go test、go test -race、go build、architecture boundaries |
+| Python 基线 workflow | `tests` run 36421008088，对同一 commit success |
+
+**说明**：`go.dev/dl/...` 在本机经重定向下载失败（curl 35 TLS 错误），改用其最终地址 `dl.google.com` 成功；校验和使用 go.dev 官方元数据比对通过。CI annotations 中的 Node.js 20 弃用与“无 go.sum 因此未恢复 module cache”均为非阻塞 warning，所有工作流步骤通过。
 
 ## 复现步骤（新机器）
 
