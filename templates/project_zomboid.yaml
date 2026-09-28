@@ -1,0 +1,132 @@
+schema_version: "1.0"
+metadata:
+  id: "project_zomboid"
+  name: "Project Zomboid (僵尸毁灭工程)"
+  category: "Survival"
+  icon: "https://cdn.cloudflare.steamstatic.com/steam/apps/108600/header.jpg"
+  author: "Official Template"
+  version: "1.0.0"
+  description: "硬核末日僵尸生存沙盒游戏，支持多人联机、全自由建家与技能养成。"
+  supported_os: ["windows", "linux", "darwin"]
+
+steam:
+  app_id: "380870"
+  anonymous_login: true
+  validate_on_install: true
+  default_branch: "public"
+
+environments:
+  windows:
+    executable: "StartServer64.bat"
+    working_directory: ""
+    start_arguments: "-cachedir=\"{{ .InstanceDir }}/Zomboid\" -servername \"{{ .Variables.SERVER_NAME }}\" -adminpassword \"{{ .Variables.ADMIN_PASSWORD }}\""
+  linux:
+    executable: "start-server.sh"
+    working_directory: ""
+    start_arguments: "-cachedir=\"{{ .InstanceDir }}/Zomboid\" -servername \"{{ .Variables.SERVER_NAME }}\" -adminpassword \"{{ .Variables.ADMIN_PASSWORD }}\""
+  darwin:
+    executable: "ProjectZomboid64"
+    working_directory: ""
+    start_arguments: "-cachedir=\"{{ .InstanceDir }}/Zomboid\" -servername \"{{ .Variables.SERVER_NAME }}\" -adminpassword \"{{ .Variables.ADMIN_PASSWORD }}\""
+
+ports:
+  - key: "SERVER_PORT"
+    label: "主通信端口 (UDP)"
+    type: "UDP"
+    default: 16261
+    is_primary: true
+  - key: "DIRECT_PORT"
+    label: "直连数据端口 (UDP)"
+    type: "UDP"
+    default: 16262
+    is_primary: false
+
+variables:
+  - key: "SERVER_NAME"
+    label: "服务器配置名称"
+    type: "string"
+    default: "servertest"
+    required: true
+    user_editable: true
+    description: "服务器名称（对应存档名和配置文件名，如 servertest）"
+
+  - key: "SERVER_PASSWORD"
+    label: "入服密码"
+    type: "password"
+    default: ""
+    required: false
+    user_editable: true
+    description: "进入服务器所需密码，留空则允许自由加入"
+
+  - key: "ADMIN_PASSWORD"
+    label: "超级管理员密码"
+    type: "password"
+    default: ""
+    required: true
+    user_editable: true
+    description: "管理员账号进入服务器控制台的专属特权密码"
+
+  - key: "MAX_PLAYERS"
+    label: "最大玩家数"
+    type: "number"
+    default: 16
+    validation:
+      min: 1
+      max: 64
+    user_editable: true
+    description: "服务器同时在线最大玩家数量上限"
+
+  - key: "PVP_ENABLED"
+    label: "开启 PvP 玩家伤害"
+    type: "boolean"
+    default: true
+    user_editable: true
+    description: "是否允许玩家之间互相造成伤害与攻击"
+
+  - key: "PUBLIC_SERVER"
+    label: "公开列入 Steam 服务器大厅"
+    type: "boolean"
+    default: true
+    user_editable: true
+    description: "是否在互联网公共服务器列表中公开广播显示"
+
+  - key: "OPEN_REGISTRATION"
+    label: "允许新玩家自由注册入服"
+    type: "boolean"
+    default: true
+    user_editable: true
+    description: "新加入的玩家是否允许自行创建账号进入"
+
+  - key: "PAUSE_EMPTY"
+    label: "空服时暂停游戏时间"
+    type: "boolean"
+    default: true
+    user_editable: true
+    description: "当服务器内没有玩家在线时，暂停世界时间流动以防食物腐烂"
+
+config_bindings:
+  - file_path: "Zomboid/Server/{{ .Variables.SERVER_NAME }}.ini"
+    format: "ini"
+    mappings:
+      Public: "{{ .Variables.PUBLIC_SERVER }}"
+      Password: "{{ .Variables.SERVER_PASSWORD }}"
+      MaxPlayers: "{{ .Variables.MAX_PLAYERS }}"
+      PVP: "{{ .Variables.PVP_ENABLED }}"
+      Open: "{{ .Variables.OPEN_REGISTRATION }}"
+      PauseEmpty: "{{ .Variables.PAUSE_EMPTY }}"
+      DefaultPort: "{{ .Ports.SERVER_PORT }}"
+      UDPPort: "{{ .Ports.DIRECT_PORT }}"
+
+query:
+  type: "a2s"
+  port_key: "SERVER_PORT"
+
+lifecycle:
+  stop_method: "stdin"
+  stop_command: "quit"
+  stop_timeout_seconds: 30
+
+mods:
+  engine_type: "zomboid_workshop"
+  workshop_support: true
+  install_directory: "Zomboid/mods"
