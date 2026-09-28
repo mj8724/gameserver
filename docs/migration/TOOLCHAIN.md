@@ -25,6 +25,7 @@
 | Run ID | **36421008298**（success） |
 | Job | `go` / 108923436601（success，30s） |
 | Commit | `79de6c080bbc05e6c7619070ef26c5cefa9ea4cd` |
+| Run ID（最新） | **36456593530**（success，commit `dbb7c57`） |
 | URL | <https://github.com/mj8724/gameserver/actions/runs/36421008298> |
 | 通过步骤 | gofmt、go vet、go test、go test -race、go build、architecture boundaries |
 | Python 基线 workflow | `tests` run 36421008088，对同一 commit success |

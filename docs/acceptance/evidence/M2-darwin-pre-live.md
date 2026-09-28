@@ -1,7 +1,7 @@
 # M2 离线验收证据（E-OFF，darwin 开发平台）
 
-- **提交**：`8e09eaf25759f49be1e7d65037e03b337931f854`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
-- **被测二进制 SHA-256**：`abcc504a01a3b5bda3a3cab4cd3ff915b507c42855715ab335c5f92424f7e46f`
+- **提交**：`dbb7c57f2a33da8f8c4dda90d9204e3b63d92e0e`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
+- **被测二进制 SHA-256**：`b607c2a7ef713e34850ccb18f1371163e5c6c0e164c78e80d7d595707df8ddaf`
 - **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`（输出本文件的 JSON 版本）
 - **统计**：PASS 30 / FAIL 0 / BLOCKED 16
 
@@ -12,7 +12,7 @@
 
 | 矩阵 ID | 用例 | 结果 | 证据 |
 |---|---|---|---|
-| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=8e09eaf25759f49be1e7d65037e03b337931f854 binary_sha256=abcc504a01a3b5bda3a3cab4cd3ff915b507c42855715ab335c5f92424f7e46f |
+| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=dbb7c57f2a33da8f8c4dda90d9204e3b63d92e0e binary_sha256=b607c2a7ef713e34850ccb18f1371163e5c6c0e164c78e80d7d595707df8ddaf |
 | M2-BUILD | archtest 直接导入边界 + 负向注入探针 | PASS | 14 个用例全通过（E-OFF, go1.27.1）: TestImportBoundaries, TestInjectedForbiddenImportFailsArchitectureCheck, TestRulesRejectForbiddenImports… |
 | M2-API | 20 挂载点/严格方法与错误 envelope | PASS | 35 个用例全通过（E-OFF, go1.27.1）: TestApplicationErrorsAndConfigurationRedaction, TestApplicationErrorsAndConfigurationRedaction/install_already_running, TestApplicationErrorsAndConfigurationRedaction/install_while_running… |
 | M2-API | 模板元数据与追加字段（ready/readiness） | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestCatalogLoadsValidTemplates, TestControlStatusProjectsStateAndSecrets |
@@ -66,8 +66,8 @@
 
 ## 3. 判定说明
 
-- PASS 判定来自单次 `go test -json ./...` 的具名用例结果（`E-OFF`），以及真实装配集成测试
-  `cmd/gameserver`：真实 state store、PZ INI 适配器、模板目录与真实 handler，仅 listener 由 `httptest` 注入。
+- PASS 判定来自单次 `go test -json ./...` 的具名用例结果（`E-OFF`），以及真实装配集成测试 `cmd/gameserver`：
+  真实 state store、PZ INI 适配器、模板目录与真实 handler，仅 listener 由 `httptest` 注入。
 - 跨进程单写者栅栏在 `docs/migration/rehearsals/m1a-rehearsal.sh` 中以**独立 OS 进程**（python `flock` 持锁）验证 409；
-  本文件的锁判定为同进程锁持有者，属补充证据。
+  本文件中的锁判定使用同进程锁持有者，属补充证据。
 - 需要 Linux/Windows 目标主机、浏览器或真实 PZ 的行未执行，不得记为 PASS 或 N/A。

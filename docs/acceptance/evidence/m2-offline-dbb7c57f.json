@@ -1,9 +1,9 @@
 {
-  "commit": "8e09eaf25759f49be1e7d65037e03b337931f854",
+  "commit": "dbb7c57f2a33da8f8c4dda90d9204e3b63d92e0e",
   "go": "go1.27.1",
   "goos": "darwin",
   "goarch": "arm64",
-  "binary_sha256": "abcc504a01a3b5bda3a3cab4cd3ff915b507c42855715ab335c5f92424f7e46f",
+  "binary_sha256": "b607c2a7ef713e34850ccb18f1371163e5c6c0e164c78e80d7d595707df8ddaf",
   "totals": {
     "PASS": 30,
     "BLOCKED": 16
@@ -13,7 +13,7 @@
       "id": "M2-BUILD",
       "title": "固定工具链与本机门禁（gofmt/vet/build/tidy）",
       "status": "PASS",
-      "evidence": "go=go1.27.1 commit=8e09eaf25759f49be1e7d65037e03b337931f854 binary_sha256=abcc504a01a3b5bda3a3cab4cd3ff915b507c42855715ab335c5f92424f7e46f"
+      "evidence": "go=go1.27.1 commit=dbb7c57f2a33da8f8c4dda90d9204e3b63d92e0e binary_sha256=b607c2a7ef713e34850ccb18f1371163e5c6c0e164c78e80d7d595707df8ddaf"
     },
     {
       "id": "M2-BUILD",
