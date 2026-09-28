@@ -39,3 +39,9 @@
 - **Go 基线在本机隔离副本上达到“切换就绪（M1-A）”的可验证状态**：迁移工具、单写者栅栏、备份/恢复、promotion 中断恢复、export-back 对账、优雅关闭与 CI 均有证据。
 - **M1 不得宣布完成**：目标平台（Windows 优先、Linux 次之）实机验收与独立审查仍未完成；未执行任何生产接管。
 - 未验证任何平台支持声明；Windows/Linux 在实机证据出现前保持“未验证”。
+
+## 4. 复现记录（2026-09-29 重新核验）
+
+- 已批准的三个运维命令（`restore`、`export-back`、`fix-permissions`）曾在早期被演练脚本中的一条 `git checkout -- .` 误删（演练脚本不得修改仓库）；已恢复并通过重新演练：`14/14 PASS`，且演练/验收脚本现已不再触碰 git 状态。
+- 期间发现并修复两个真实缺陷：① HTTP 错误映射把 `OPERATION_FAILED` 吞成 `服务器内部错误`，掩盖了真实原因，现按 legacy 语义回显具体文案；② PZ INI 写入不认识 `json.Number`（HTTP 解码形态），导致 `MAX_PLAYERS` 回退默认值而**未真正更新 INI**，现两者均有回归测试。
+- 上述修复后：M1-A 演练 14/14 PASS；`docs/acceptance/evidence/M2-darwin-pre-live.md` 记录的 M2 离线矩阵 30 PASS / 0 FAIL / 16 BLOCKED。

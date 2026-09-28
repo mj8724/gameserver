@@ -116,7 +116,6 @@ BACKUP_DIR=$(find "$DEST/$INSTANCE" -maxdepth 1 -mindepth 1 -type d | head -1)
 printf 'corrupted' >> "$BACKUP_DIR/state/instance.json"
 "$BIN" restore --data-root "$DATA" --instance "$INSTANCE" --backup "$BACKUP_DIR" > "$ROOT/restore-tampered.out" 2>&1 \
   && bad "tampered backup was accepted" || ok "tampered backup rejected"
-git -C "$REPO" checkout -- . 2>/dev/null || true
 # 修复一个字节后走 restore → promote 链路
 python3 - "$BACKUP_DIR" <<'PY2'
 import hashlib, json, sys
@@ -159,3 +158,4 @@ echo "--- summary: pass=$PASS fail=$FAIL ---"
 echo '--- server log tail ---'
 tail -3 "$LOG"
 exit "$FAIL"
+

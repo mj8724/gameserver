@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -53,6 +54,15 @@ func main() {
 		case "backup":
 			runBackup(os.Args[2:])
 			return
+		case "restore":
+			runRestore(os.Args[2:])
+			return
+		case "export-back":
+			runExportBack(os.Args[2:])
+			return
+		case "fix-permissions":
+			runFixPermissions(os.Args[2:])
+			return
 		case "version", "--version", "-v":
 			fmt.Println(version.String())
 			return
@@ -98,28 +108,48 @@ func loadConfig() runtimeConfig {
 
 func serve() error {
 	cfg := loadConfig()
+	rt, err := buildRuntime(cfg)
+	if err != nil {
+		return err
+	}
+	return rt.serveHTTP(cfg)
+}
+
+// runtime carries the wired component graph so integration tests can exercise
+// the real adapters without binding a port.
+type appRuntime struct {
+	handler     *httpapi.Server
+	supervisor  ports.ProcessSupervisor
+	instance    domain.InstanceID
+	serversRoot string
+	serviceID   string
+}
+
+// buildRuntime wires adapters into the application services (ADR §2.1: cmd is
+// the only composition root).
+func buildRuntime(cfg runtimeConfig) (*appRuntime, error) {
 	absoluteData, err := filepath.Abs(cfg.DataRoot)
 	if err != nil {
-		return fmt.Errorf("resolve data root: %w", err)
+		return nil, fmt.Errorf("resolve data root: %w", err)
 	}
 	serversRoot := filepath.Join(absoluteData, "servers")
 	instance := cfg.Instance
 
 	defaults, err := localstate.DefaultState(instance)
 	if err != nil {
-		return fmt.Errorf("prepare default state: %w", err)
+		return nil, fmt.Errorf("prepare default state: %w", err)
 	}
 	states, err := localstate.NewStore(absoluteData, defaults)
 	if err != nil {
-		return fmt.Errorf("state store: %w", err)
+		return nil, fmt.Errorf("state store: %w", err)
 	}
 	files, err := instancefiles.New(serversRoot, runtime.GOOS)
 	if err != nil {
-		return fmt.Errorf("instance files: %w", err)
+		return nil, fmt.Errorf("instance files: %w", err)
 	}
 	templates, err := pztemplate.New(cfg.TemplatesDir)
 	if err != nil {
-		return fmt.Errorf("template catalog: %w", err)
+		return nil, fmt.Errorf("template catalog: %w", err)
 	}
 	for _, warning := range templates.Warnings() {
 		log.Printf("template warning: %s", warning)
@@ -136,11 +166,11 @@ func serve() error {
 		return name, nil
 	})
 	if err != nil {
-		return fmt.Errorf("game config adapter: %w", err)
+		return nil, fmt.Errorf("game config adapter: %w", err)
 	}
 	static, err := staticassets.New(cfg.StaticDir)
 	if err != nil {
-		return fmt.Errorf("static assets: %w", err)
+		return nil, fmt.Errorf("static assets: %w", err)
 	}
 	supervisor := process.NewForInstance(instance)
 	clock := systemclock.New()
@@ -194,17 +224,34 @@ func serve() error {
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("control service: %w", err)
+		return nil, fmt.Errorf("control service: %w", err)
 	}
 
 	authenticator, err := application.NewAuthenticator(application.AuthConfig{AdminPassword: cfg.AdminPass}, clock)
 	if err != nil {
-		return fmt.Errorf("authenticator: %w", err)
+		return nil, fmt.Errorf("authenticator: %w", err)
 	}
 	handler, err := httpapi.NewServer(control, authenticator, static, httpapi.Config{SecureCookies: cfg.SecureCookie})
 	if err != nil {
-		return fmt.Errorf("http server: %w", err)
+		return nil, fmt.Errorf("http server: %w", err)
 	}
+
+	return &appRuntime{
+		handler:     handler,
+		supervisor:  supervisor,
+		instance:    instance,
+		serversRoot: serversRoot,
+		serviceID:   serviceID,
+	}, nil
+}
+
+// serveHTTP runs the wired graph until a signal or a fatal serve error.
+func (r *appRuntime) serveHTTP(cfg runtimeConfig) error {
+	handler := r.handler
+	supervisor := r.supervisor
+	instance := r.instance
+	serversRoot := r.serversRoot
+	serviceID := r.serviceID
 
 	if lockManager, err := oslock.NewManager(serversRoot, serviceID); err == nil {
 		inspection, inspectErr := lockManager.Inspect(instance)
@@ -327,6 +374,138 @@ func runBackup(args []string) {
 		fail(fmt.Errorf("backup: %w", err))
 	}
 	fmt.Printf("backup: path=%s files=%d checksum=%s\n", record.Path, len(record.Files), record.Checksum)
+}
+
+// runRestore verifies a backup and stages its state content, leaving the
+// actual switch to the journaled promotion path.
+func runRestore(args []string) {
+	flags := flag.NewFlagSet("restore", flag.ExitOnError)
+	dataRoot := flags.String("data-root", "data", "data root containing servers/")
+	instance := flags.String("instance", defaultInstance, "instance id")
+	backup := flags.String("backup", "", "backup directory produced by the backup command")
+	_ = flags.Parse(args)
+	if *backup == "" {
+		fail(errors.New("--backup is required"))
+	}
+
+	tool, err := migrate.New(migrate.Layout{ServersRoot: filepath.Join(*dataRoot, "servers"), Instance: domain.InstanceID(*instance)})
+	fail(err)
+	manifest, err := tool.RestoreBackup(*backup)
+	if err != nil {
+		fail(fmt.Errorf("restore: %w", err))
+	}
+	fmt.Printf("restore: staged %d file(s) checksum=%s\n", len(manifest.Files), manifest.Checksum)
+	result, err := tool.Promote()
+	if err != nil {
+		fail(fmt.Errorf("promote after restore: %w", err))
+	}
+	fmt.Printf("restore: promote action=%s state=%s\n", result.Action, result.Journal.State)
+}
+
+// runExportBack writes Go state back into the legacy Python-compatible
+// instance.json so the Python baseline can resume after a rollback. It never
+// deletes the Go state file.
+func runExportBack(args []string) {
+	flags := flag.NewFlagSet("export-back", flag.ExitOnError)
+	dataRoot := flags.String("data-root", "data", "data root containing servers/")
+	instance := flags.String("instance", defaultInstance, "instance id")
+	_ = flags.Parse(args)
+
+	absolute, err := filepath.Abs(*dataRoot)
+	fail(err)
+	id := domain.InstanceID(*instance)
+	defaults, err := localstate.DefaultState(id)
+	fail(err)
+	states, err := localstate.NewStore(absolute, defaults)
+	fail(err)
+	state, err := states.Load(context.Background(), id)
+	fail(err)
+
+	document := map[string]any{
+		"instance_id": string(state.ID),
+		"name":        state.Name,
+		"template_id": state.TemplateID,
+		"variables":   state.Variables,
+		"ports":       state.Ports,
+	}
+	if state.Mods != nil {
+		document["mods"] = state.Mods
+	}
+	if state.Billing != nil {
+		document["billing"] = state.Billing
+	}
+	if state.QuotaGB > 0 {
+		document["quota_gb"] = state.QuotaGB
+	}
+	encoded, err := json.MarshalIndent(document, "", "  ")
+	fail(err)
+	legacy := filepath.Join(absolute, "servers", string(id), "instance.json")
+	fail(os.MkdirAll(filepath.Dir(legacy), 0o700))
+	fail(os.WriteFile(legacy, append(encoded, '\n'), 0o600))
+	fmt.Printf("export-back: wrote %s (fields: %d)\n", legacy, len(document))
+}
+
+// runFixPermissions normalizes the ADR §1.7 modes for an existing data root.
+// It never happens implicitly during normal service operation, which is why
+// this is an explicit operator command with an audit summary.
+func runFixPermissions(args []string) {
+	flags := flag.NewFlagSet("fix-permissions", flag.ExitOnError)
+	dataRoot := flags.String("data-root", "data", "data root containing servers/")
+	instance := flags.String("instance", defaultInstance, "instance id")
+	_ = flags.Parse(args)
+
+	if runtime.GOOS == "windows" {
+		fmt.Println("fix-permissions: POSIX modes do not apply on windows; nothing changed")
+		return
+	}
+	changed, err := normalizePermissions(*dataRoot, domain.InstanceID(*instance))
+	fail(err)
+	fmt.Printf("fix-permissions: %d path(s) updated\n", changed)
+}
+
+// normalizePermissions applies the ADR §1.7 modes to an existing data root and
+// returns how many paths actually changed.
+func normalizePermissions(dataRoot string, instance domain.InstanceID) (int, error) {
+	absolute, err := filepath.Abs(dataRoot)
+	if err != nil {
+		return 0, err
+	}
+	servers := filepath.Join(absolute, "servers")
+	root := filepath.Join(servers, string(instance))
+	changed := 0
+
+	fixDir := func(path string) {
+		if info, err := os.Stat(path); err == nil && info.IsDir() && info.Mode().Perm() != 0o700 {
+			if os.Chmod(path, 0o700) == nil {
+				changed++
+				log.Printf("chmod 0700 %s", path)
+			}
+		}
+	}
+	fixFile := func(path string) {
+		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() && info.Mode().Perm() != 0o600 {
+			if os.Chmod(path, 0o600) == nil {
+				changed++
+				log.Printf("chmod 0600 %s", path)
+			}
+		}
+	}
+
+	for _, dir := range []string{servers, filepath.Join(servers, ".locks"), filepath.Join(servers, ".owners"), root,
+		filepath.Join(root, "state"), filepath.Join(root, "Zomboid"), filepath.Join(root, "Zomboid", "Server")} {
+		fixDir(dir)
+	}
+	for _, file := range []string{filepath.Join(root, "instance.json"), filepath.Join(root, "state", "instance.json")} {
+		fixFile(file)
+	}
+	if entries, err := os.ReadDir(filepath.Join(root, "Zomboid", "Server")); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				fixFile(filepath.Join(root, "Zomboid", "Server", entry.Name()))
+			}
+		}
+	}
+	return changed, nil
 }
 
 func fail(err error) {

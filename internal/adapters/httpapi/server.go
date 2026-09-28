@@ -818,6 +818,11 @@ func applicationErrorDetails(err *application.UseCaseError) (int, string) {
 		return http.StatusConflict, "instance owned by another process"
 	case application.CodeRecoveryRequired:
 		return http.StatusConflict, "recovery required"
+	case application.CodeOperationFailed:
+		if err.Message == "" {
+			return http.StatusInternalServerError, "服务器内部错误"
+		}
+		return http.StatusInternalServerError, err.Message
 	default:
 		return http.StatusInternalServerError, "服务器内部错误"
 	}

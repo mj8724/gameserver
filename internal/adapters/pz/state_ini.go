@@ -1,6 +1,7 @@
 package pz
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -65,6 +66,10 @@ func numberText(value any, fallback int) string {
 		return strconv.FormatInt(typed, 10)
 	case float64:
 		return strconv.Itoa(int(typed))
+	case json.Number:
+		if _, err := typed.Int64(); err == nil {
+			return typed.String()
+		}
 	case string:
 		if _, err := strconv.Atoi(typed); err == nil {
 			return typed
