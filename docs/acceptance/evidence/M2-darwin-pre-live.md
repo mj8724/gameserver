@@ -1,7 +1,7 @@
 # M2 离线验收证据（E-OFF，darwin 开发平台）
 
-- **提交**：`c914c5d7e97e92e54de81b1b265f48d10d1a854a`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
-- **被测二进制 SHA-256**：`698c0f60c4fe4a153741a581adf84fe7a049ee2c4001a271f09d5e05e3999d6d`
+- **提交**：`426e9bade674a8242cf76dd125ebaa02573d3115`；**工具链**：`go1.27.1`；**平台**：`darwin/arm64`
+- **被测二进制 SHA-256**：`286d7e9f6595f729983a0ffc8f674841c317ab5fbf44e7e94e34f80bed620a7b`
 - **执行器（可复跑）**：`bash docs/acceptance/rehearsals/m2-offline.sh`（本文件由同名 JSON 生成，JSON 含逐行证据文本）
 - **统计**：PASS 41 / FAIL 0 / BLOCKED 15
 - **签核状态**：未签核（见 `docs/acceptance/M2-SIGNOFF.md`）
@@ -13,8 +13,8 @@
 
 | 矩阵 ID | 用例 | 结果 | 证据 |
 |---|---|---|---|
-| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=c914c5d7e97e92e54de81b1b265f48d10d1a854a binary_sha256=698c0f60c4fe4a153741a581adf84fe7a049ee2c4001a271f09d5e05e3999d6d |
-| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36457628164 success for c914c5d7e97e92e54de81b1b265f48d10d1a854a https://github.com/mj8724/gameserver/actions/runs/36457628164 |
+| M2-BUILD | 固定工具链与本机门禁（gofmt/vet/build/tidy） | PASS | go=go1.27.1 commit=426e9bade674a8242cf76dd125ebaa02573d3115 binary_sha256=286d7e9f6595f729983a0ffc8f674841c317ab5fbf44e7e94e34f80bed620a7b |
+| M2-BUILD | 目标提交 GitHub CI 全绿（含 race 与 archtest） | PASS | run 36457915098 success for 426e9bade674a8242cf76dd125ebaa02573d3115 https://github.com/mj8724/gameserver/actions/runs/36457915098 |
 | M2-BUILD | archtest 直接导入边界 + 负向注入探针 | PASS | 14 个用例全通过（E-OFF, go1.27.1）: TestImportBoundaries, TestInjectedForbiddenImportFailsArchitectureCheck, TestRulesRejectForbiddenImports… |
 | M2-API | 20 挂载点/严格方法与错误 envelope | PASS | 35 个用例全通过（E-OFF, go1.27.1）: TestApplicationErrorsAndConfigurationRedaction, TestApplicationErrorsAndConfigurationRedaction/install_already_running, TestApplicationErrorsAndConfigurationRedaction/install_while_running… |
 | M2-API | 模板元数据与追加字段（ready/readiness） | PASS | 2 个用例全通过（E-OFF, go1.27.1）: TestCatalogLoadsValidTemplates, TestControlStatusProjectsStateAndSecrets |
