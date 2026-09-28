@@ -1,19 +1,25 @@
 {
-  "commit": "dbb7c57f2a33da8f8c4dda90d9204e3b63d92e0e",
+  "commit": "c914c5d7e97e92e54de81b1b265f48d10d1a854a",
   "go": "go1.27.1",
   "goos": "darwin",
   "goarch": "arm64",
-  "binary_sha256": "b607c2a7ef713e34850ccb18f1371163e5c6c0e164c78e80d7d595707df8ddaf",
+  "binary_sha256": "698c0f60c4fe4a153741a581adf84fe7a049ee2c4001a271f09d5e05e3999d6d",
   "totals": {
-    "PASS": 30,
-    "BLOCKED": 16
+    "PASS": 41,
+    "BLOCKED": 15
   },
   "rows": [
     {
       "id": "M2-BUILD",
       "title": "固定工具链与本机门禁（gofmt/vet/build/tidy）",
       "status": "PASS",
-      "evidence": "go=go1.27.1 commit=dbb7c57f2a33da8f8c4dda90d9204e3b63d92e0e binary_sha256=b607c2a7ef713e34850ccb18f1371163e5c6c0e164c78e80d7d595707df8ddaf"
+      "evidence": "go=go1.27.1 commit=c914c5d7e97e92e54de81b1b265f48d10d1a854a binary_sha256=698c0f60c4fe4a153741a581adf84fe7a049ee2c4001a271f09d5e05e3999d6d"
+    },
+    {
+      "id": "M2-BUILD",
+      "title": "目标提交 GitHub CI 全绿（含 race 与 archtest）",
+      "status": "PASS",
+      "evidence": "run 36457628164 success for c914c5d7e97e92e54de81b1b265f48d10d1a854a https://github.com/mj8724/gameserver/actions/runs/36457628164"
     },
     {
       "id": "M2-BUILD",
@@ -190,10 +196,64 @@
       "evidence": "2 个用例全通过（E-OFF, go1.27.1）: TestOpenRejectsTraversalAndAbsoluteNames, TestStaticAssetsFallbackAndSafePaths"
     },
     {
-      "id": "M2-BUILD",
-      "title": "目标提交的 GitHub CI 全绿（race/archtest）",
-      "status": "BLOCKED",
-      "evidence": "需 GitHub Actions 结果，见 docs/migration/TOOLCHAIN.md 记录（本脚本不联网）"
+      "id": "M2-API",
+      "title": "静态 UI 调用面与路由表一致性（源码级）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestStaticUIContract"
+    },
+    {
+      "id": "M2-UI",
+      "title": "未登录/会话过期界面分支（源码级：精确文案分支）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestStaticUIContract"
+    },
+    {
+      "id": "M2-WS",
+      "title": "D3 error frame 不被渲染为日志（源码级 onmessage 断言）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestStaticUIContract"
+    },
+    {
+      "id": "M2-RESTART",
+      "title": "陈旧 owner 记录 → 失败关闭、不自动清理、只读可用",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineRecoveryRequiredReconciliation"
+    },
+    {
+      "id": "M2-SINGLEWRITER",
+      "title": "陈旧 owner 记录对账（darwin 补充证据）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineRecoveryRequiredReconciliation"
+    },
+    {
+      "id": "M2-PROCESS",
+      "title": "环境变量与模板插值隔离（darwin 补充证据）",
+      "status": "PASS",
+      "evidence": "2 个用例全通过（E-OFF, go1.27.1）: TestBuildLaunchSpecDoesNotUseTemplateAndPreservesAdversarialArgv, TestBuildLaunchSpecValidatesNamesAndNeverAcceptsTemplate"
+    },
+    {
+      "id": "M2-API",
+      "title": "真实装配黑盒：路由/错误文案/投影/落盘/权限/锁栅栏",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineHTTPBlackBox"
+    },
+    {
+      "id": "M2-CONFIG",
+      "title": "D8 权限门失败关闭 + 归一后成功（darwin 补充证据）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineHTTPBlackBox"
+    },
+    {
+      "id": "M2-RESTART",
+      "title": "重启后读取已提交状态且对账干净（离线部分）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineRestartPersistence"
+    },
+    {
+      "id": "M2-SECRET",
+      "title": "口令值不回显（状态与配置投影）",
+      "status": "PASS",
+      "evidence": "1 个用例全通过（E-OFF, go1.27.1）: TestM2OfflineHTTPBlackBox"
     },
     {
       "id": "M2-UI",
@@ -203,15 +263,15 @@
     },
     {
       "id": "M2-UI",
-      "title": "未登录/会话过期界面分支",
+      "title": "未登录/会话过期界面分支（浏览器验证）",
       "status": "BLOCKED",
-      "evidence": "同上；服务端 401 detail 已由 httpapi 测试与黑盒覆盖，UI 分支未在浏览器中验证"
+      "evidence": "源码级分支与精确文案已由 TestStaticUIContract 验证；浏览器中的人工闭环仍需 E-BROWSER"
     },
     {
       "id": "M2-WS",
-      "title": "D3 error frame 浏览器互操作",
+      "title": "D3 error frame 浏览器互操作（UI 稳态）",
       "status": "BLOCKED",
-      "evidence": "需要浏览器与 UI 侧观察（E-BROWSER）"
+      "evidence": "源码级断言已确认 error 帧不进入日志渲染；浏览器 console 无异常的观察仍需 E-BROWSER"
     },
     {
       "id": "M2-SECRET",
@@ -239,9 +299,9 @@
     },
     {
       "id": "M2-INSTALL",
-      "title": "正常结束/取消后的 reap（真实 helper，Linux）",
+      "title": "正常结束/取消后的 reap（声明平台）",
       "status": "BLOCKED",
-      "evidence": "需 Linux 目标主机"
+      "evidence": "darwin 已用真实 helper 子进程覆盖；Linux 声明仍需目标主机"
     },
     {
       "id": "M2-PROCESS",
@@ -251,21 +311,21 @@
     },
     {
       "id": "M2-PROCESS",
-      "title": "环境变量与模板插值隔离（声明平台）",
+      "title": "环境变量与模板插值隔离（声明平台 helper 实测）",
       "status": "BLOCKED",
-      "evidence": "需声明平台 runner"
+      "evidence": "darwin 已用包内测试覆盖构造成本；声明平台仍需具名 runner 与 safe helper"
     },
     {
       "id": "M2-SINGLEWRITER",
-      "title": "双独立进程争用（Linux 必跑）",
+      "title": "双独立进程争用（Linux 必跑，声明门）",
       "status": "BLOCKED",
-      "evidence": "darwin 已补充验证，但矩阵要求 Linux；目标主机缺失"
+      "evidence": "darwin 已用独立 OS 进程持锁 + 真实二进制验证 409（m1a-rehearsal.sh）；Linux 声明仍需目标主机"
     },
     {
       "id": "M2-RESTART",
-      "title": "控制进程异常退出后的启动对账（E-OS）",
+      "title": "控制进程异常退出后的启动对账（E-OS 声明）",
       "status": "BLOCKED",
-      "evidence": "需目标 OS 与隔离 helper child"
+      "evidence": "darwin 已由 TestM2OfflineRecoveryRequiredReconciliation 覆盖；目标 OS 声明仍需具名 runner"
     },
     {
       "id": "M2-RESTART",
