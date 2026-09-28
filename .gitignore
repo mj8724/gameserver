@@ -9,3 +9,8 @@ data/
 .commandcode/
 .DS_Store
 research_repos/
+
+# Go
+/gameserver
+*.test
+coverage.out
