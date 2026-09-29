@@ -51,7 +51,11 @@ COMMIT="$(git rev-parse HEAD)"
 GO_VER="$(go version | awk '{print $3}')"
 printf 'commit=%s\ngo=%s\nplatform=%s/%s\n' "$COMMIT" "$GO_VER" "$(go env GOOS)" "$(go env GOARCH)" >&2
 go build -o "$WORK/gameserver" ./cmd/gameserver || { echo "build failed" >&2; exit 1; }
-BIN_SHA="$(shasum -a 256 "$WORK/gameserver" | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+  BIN_SHA="$(sha256sum "$WORK/gameserver" | awk '{print $1}')"
+else
+  BIN_SHA="$(shasum -a 256 "$WORK/gameserver" | awk '{print $1}')"
+fi
 printf 'binary_sha256=%s\n' "$BIN_SHA" >&2
 
 # ---------- 构建门（M2-BUILD #1：本机部分；CI 部分另记） ----------
@@ -96,6 +100,61 @@ row M2-PROCESS "进程生命周期 helper 与对抗 argv/停止" 'StartFailureAn
 row M2-PROCESS "进程状态与日志上限" 'LogLimitIsClampedAndStatusDoesNotExposeSecrets|WrongInstanceAndCancelledStartAreRejected'
 row M2-PROCESS "就绪探测（SERVER_PORT/超时/取消/marker）" 'ReadinessUsesSERVERPORTAndInjectedProbeAndTimeout|ReadinessRequiresManifestMarkerAndRunningProcess|ReadinessPropagatesCancellation'
 row M2-API "静态资源安全回退" 'StaticAssetsFallbackAndSafePaths|OpenRejectsTraversalAndAbsoluteNames|OpenRejectsSymlinkEscape'
+
+# ---------- CI 门：目标提交的 GitHub Actions 结果 ----------
+# 判定为三态，保证脚本可重复执行且不被 CI 时序误判：
+#   success            → PASS
+#   失败/取消/超时     → FAIL
+#   运行中/排队/无运行 → BLOCKED（另行记录 run id 与提交）
+CI_SHA="$(git rev-parse HEAD)"
+CI_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+CI_ROW="$(gh run list --branch "$CI_BRANCH" --workflow go --limit 40 --json databaseId,headSha,conclusion,status,url \
+  --jq "[.[] | select(.headSha==\"$CI_SHA\")][0] | \"\(.databaseId) \(.conclusion) \(.status) \(.url)\"" 2>/dev/null || true)"
+# 只取第一行、按字段解析；未知/空值一律 BLOCKED，只有明确的失败结论才记 FAIL。
+CI_LINE="$(printf '%s\n' "$CI_ROW" | head -1 | tr -d '\r')"
+CI_FIELDS="$(printf '%s' "$CI_LINE" | awk '{print NF}')"
+CI_ID="$(printf '%s' "$CI_LINE" | awk '{print $1}')"
+CI_CONCLUSION="$(printf '%s' "$CI_LINE" | awk '{print $2}')"
+CI_STATUS="$(printf '%s' "$CI_LINE" | awk '{print $3}')"
+CI_URL="$(printf '%s' "$CI_LINE" | awk '{print $4}')"
+case "$CI_CONCLUSION" in
+  success)
+    if [ "${CI_FIELDS:-0}" -ge 4 ]; then
+      record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS "run $CI_ID success for $CI_SHA $CI_URL"
+    else
+      record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "CI 输出字段不完整（提交 ${CI_SHA}）"
+    fi ;;
+  failure|cancelled|timed_out|startup_failure|stale)
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run $CI_ID conclusion=$CI_CONCLUSION ($CI_SHA)" ;;
+  *)
+    record M2-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown} conclusion=${CI_CONCLUSION:-none}（提交 ${CI_SHA}）" ;;
+esac
+
+# 真实装配/源码级断言（评估前登记，供单次测试运行后统一判定）
+row M2-API "静态 UI 调用面与路由表一致性（源码级）" 'TestStaticUIContract'
+row M2-UI "未登录/会话过期界面分支（源码级：精确文案分支）" 'TestStaticUIContract'
+row M2-WS "D3 error frame 不被渲染为日志（源码级 onmessage 断言）" 'TestStaticUIContract'
+row M2-RESTART "陈旧 owner 记录 → 失败关闭、不自动清理、只读可用" 'TestM2OfflineRecoveryRequiredReconciliation'
+row M2-SINGLEWRITER "陈旧 owner 记录对账（darwin 补充证据）" 'TestM2OfflineRecoveryRequiredReconciliation'
+row M2-PROCESS "环境变量与模板插值隔离（darwin 补充证据）" 'BuildLaunchSpecDoesNotUseTemplateAndPreservesAdversarialArgv|BuildLaunchSpecValidatesNamesAndNeverAcceptsTemplate'
+row M2-API "真实装配黑盒：路由/错误文案/投影/落盘/权限/锁栅栏" 'TestM2OfflineHTTPBlackBox'
+row M2-CONFIG "D8 权限门失败关闭 + 归一后成功（darwin 补充证据）" 'TestM2OfflineHTTPBlackBox'
+row M2-RESTART "重启后读取已提交状态且对账干净（离线部分）" 'TestM2OfflineRestartPersistence'
+row M2-SECRET "口令值不回显（状态与配置投影）" 'TestM2OfflineHTTPBlackBox'
+
+row M2-PROCESS "Windows 进程树终止 argv（类型化、无 shell；运行仍需目标机）" 'TestTaskkillArgsStayTypedAndExact'
+row M2-INSTALL "SteamCMD 安装器配置解析与未配置时失败关闭" 'TestSteamcmdInstallConfigResolution|TestRuntimeConfiguresInstallerFromTemplate'
+
+row M2-INSTALL "端到端：install → is_installed → start → command → stop（真实 HTTP/装配，注入 fake 游戏适配器）" 'TestM2OfflineInstallStartStopLifecycle'
+row M2-RESTART "端到端停止后状态枚举与 running 语义" 'TestM2OfflineInstallStartStopLifecycle'
+
+# ---------- 单次运行全部 Go 测试并按行判定 ----------
+go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
+go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$(go version | awk '{print $3}')" || {
+  echo "m2eval failed; see $WORK/all.err" >&2
+  exit 1
+}
+grep -o '"id":"[^"]*","title":"[^"]*","status":"[^"]*"' "$ROWS" | sed 's/"id":"//; s/","title":"/ | /; s/","status":"/ | /' >&2
 
 # ---------- CI 门：目标提交的 GitHub Actions 结果 ----------
 # 判定为三态，保证脚本可重复执行且不被 CI 时序误判：
@@ -222,19 +281,20 @@ b M2-PLATFORM "全部 3 行" "需 Linux 目标主机资格与平台决策证据"
 if [ -z "$OUT" ]; then
   OUT="$REPO/docs/acceptance/evidence/m2-offline-latest.json"
 fi
-python3 - "$ROWS" "$OUT" "$COMMIT" "$GO_VER" "$(go env GOOS)" "$(go env GOARCH)" "$BIN_SHA" <<'PY'
-import json, sys, collections
-rows_path, out, commit, gov, goos, goarch, sha = sys.argv[1:8]
-rows = [json.loads(l) for l in open(rows_path) if l.strip()]
-by_status = collections.Counter(r["status"] for r in rows)
-doc = {"commit": commit, "go": gov, "goos": goos, "goarch": goarch, "binary_sha256": sha,
-       "totals": dict(by_status), "rows": rows}
-import os
-os.makedirs(os.path.dirname(out), exist_ok=True)
-open(out, "w").write(json.dumps(doc, ensure_ascii=False, indent=2) + "\n")
-print(f"\n== 已执行行: PASS={by_status.get('PASS',0)} FAIL={by_status.get('FAIL',0)}；BLOCKED={by_status.get('BLOCKED',0)} ==")
-print(f"证据: {out}")
-PY
+mkdir -p "$(dirname "$OUT")"
+PASS_N="$(grep -c '"status":"PASS"' "$ROWS" || true)"
+FAIL_N="$(grep -c '"status":"FAIL"' "$ROWS" || true)"
+BLOCK_N="$(grep -c '"status":"BLOCKED"' "$ROWS" || true)"
+{
+  printf '{"commit":"%s","go":"%s","goos":"%s","goarch":"%s","binary_sha256":"%s","totals":{"PASS":%s,"FAIL":%s,"BLOCKED":%s},"rows":[' \
+    "${COMMIT}" "${GO_VER}" "$(go env GOOS)" "$(go env GOARCH)" "${BIN_SHA}" "${PASS_N}" "${FAIL_N}" "${BLOCK_N}"
+  awk 'BEGIN{first=1} { if (!first) printf ","; first=0; printf "%s", $0 }' "$ROWS"
+  printf ']}\n'
+} > "$OUT"
 
-[ "$FAIL_N" -eq 0 ] || exit 1
+echo ""
+echo "== 已执行行: PASS=${PASS_N} FAIL=${FAIL_N}；BLOCKED=${BLOCK_N} =="
+echo "证据: $OUT"
+
+[ "${FAIL_N}" -eq 0 ] || exit 1
 exit 0
