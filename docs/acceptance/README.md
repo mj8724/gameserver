@@ -39,3 +39,6 @@
 3. **陈旧 cachedir → `QueuedQuit`**：反复 `taskkill /F` 后 PZ 会**主动排队退出**（`ServerMap.QueuedQuit`），日志尾部只有 tier0 断言噪音、看起来像崩溃。排障时先去掉 `tier0|Assertion` 行看真实尾部；处理方式是清理/重建实例缓存目录，运行手册要求停止优先走优雅路径。
 4. **厂商描述文件可能自相矛盾**：`ProjectZomboid64.json` 的 classpath 首项 `java/.` 是笔误（其自身批处理用 `java/`），必须确定性纠正并记录，不可原样透传。
 5. **PZ 只在退出时以运行时状态重写 sandbox**：API 回读（文件）与游戏内生效值可能短暂不一致，验收需在停止后再次回读。
+
+6. **日志源的非正 limit 返回空**：`Supervisor.Logs(limit)` 对 `limit < 1` 返回空切片，因此「读取全部缓冲」必须显式传正数（如 `scanAll = 1000`）。就绪探针曾用 `Recent(0)`，导致 marker 永远读不到、`ready` 永不翻转，而 HTTP 日志端点（传正 limit）同时能看到 marker——排查此类问题必须对比"探针读取路径"与"展示路径"的同一数据源。
+7. **超时窗口不要硬编码**：PZ marker 到达时间随机器/存档波动（本机实测冷 40s / warm 34s），oracle 窗口需可经 Manifest 覆盖（`GAMESERVER_READINESS_TIMEOUT`，缺省 60s），否则慢机器会出现"服务已就绪但 ready 永远 false"。

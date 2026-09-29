@@ -93,7 +93,7 @@
 
 ## 6. r4 签核（2026-09-29）：声明边界落定
 
-**声明对象（用户确认，D-R4-3）**：Windows 10 x64 + `launcher-descriptor` 向量 + PZ 42.21（buildid 25485538）。支持声明**仅对该目标成立**，且必须随附两条已记录差异：① 首次冷启动（生成首张地图）实测超出默认 60s 就绪窗口，而进程与端口当时已就绪；② PZ 在退出时以运行时状态重写 `*_SandboxVars.lua`（文件回读与 API 回读可能短暂不一致）。证据：`docs/acceptance/evidence/M2-windows-live.md`（§12 五段闭环）+ `TARGET-MANIFEST-windows.md`。
+**声明对象（用户确认，D-R4-3）**：Windows 10 x64 + `launcher-descriptor` 向量 + PZ 42.21（buildid 25485538）。支持声明**仅对该目标成立**，且必须随附当前唯一未收敛的已记录差异：PZ 在退出时以运行时状态重写 `*_SandboxVars.lua`（文件回读与 API 回读可能短暂不一致）。原列差异①（冷启动超 60s 就绪窗口）经定位为两个代码缺陷（`Logs(limit<1)` 返回空导致探针读不到 marker；marker 窗口硬编码 60s 不可覆盖）叠加的假象，修复后实测冷启动 40s / warm 34s 均 `ready=true`（见 `evidence/M2-windows-live.md` §13，提交 `5cb4b3b`/`d06ba49`）。证据：`docs/acceptance/evidence/M2-windows-live.md`（§12 五段闭环）+ `TARGET-MANIFEST-windows.md`。
 
 **未实测平台**：Linux（Ubuntu LTS）与 macOS 在本矩阵内保持**未验证**，不得因元数据或交叉编译而声称支持。
 
@@ -103,4 +103,4 @@
 
 **范围修订（已确认归档）**：M2 子案例计数调整；CI/演练脚本 gofmt 口径扩到 `cmd internal tools`。
 
-**仍未解除**：① warm-start 就绪窗口复测（差异①的收敛证据）；② 独立审查（teammate 额度受限，当前为非独立复核）；③ M1-B 生产接管（未授权）；④ Linux 实机验收（不阻塞 Windows 声明，阻塞 Linux 声明）。
+**仍未解除**：① 就绪窗口复测已闭环（冷 40s / warm 34s）；剩余为 sandbox 重写差异的下一轮复核；② 独立审查（teammate 额度受限，当前为非独立复核）；③ M1-B 生产接管（未授权）；④ Linux 实机验收（不阻塞 Windows 声明，阻塞 Linux 声明）。

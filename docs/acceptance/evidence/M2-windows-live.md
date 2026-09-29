@@ -160,3 +160,22 @@ at zombie.network.GameServer$1.run(GameServer.java:380)
 | PZ 重写后回读 | 部分 | 停止后 profile 的 `servertest_SandboxVars.lua` 中 `Zombies = 4`，与启动前 API 回读的 7 不一致（PZ 退出时以自身运行时状态重写 sandbox 文件）；需在下一轮核对 PZ 的 sandbox 落盘源（存档 DB vs 文件）与写回语义 |
 
 **结论**：下载 → 配置 → 启动 → 控制台 → 停止 的五段闭环在 Windows 真机成立（条件性证据，不产生支持声明；E-LIVE 目标仍为 Ubuntu LTS）。「就绪 oracle 冷启动窗口」与「PZ 退出重写 sandbox」两条差异已记录，属下一轮（隔离方案定案后）的复核项。
+
+## 13. 就绪 oracle 缺陷定位与差异①收敛（2026-09-29，提交 `5cb4b3b`）
+
+**症状**：五段闭环中启动成功、端口监听、日志可见，但 `/api/status.ready` 永不翻转（`readiness` 先后呈现 `timeout`（冷）与 `failed`（warm））。
+
+**定位（两个叠加缺陷）**：
+1. `Supervisor.Logs(limit)` 在 `limit < 1` 时返回空切片；而 marker 探针调用的正是 `logs.Recent(0)`（`cmd/gameserver/main.go:695`）→ **探针永远读不到 marker**。同一时刻 HTTP `/api/server/logs` 能正常看到 marker（走正 limit），形成"日志里有、探针看不见"的错觉。修复：探针改为显式扫描整个环形缓冲（`scanAll = 1000`，提交 `5cb4b3b`）。
+2. marker 窗口硬编码 60s（`newLogMarkerReadiness`），无 Manifest 级覆盖；叠加缺陷 1 后表现为 60s 后 `timeout`，warm 路径则在调用方 90s 上限后转 `failed`。修复：新增 `GAMESERVER_READINESS_TIMEOUT`（秒，缺省仍 60s，上限 3600s，提交 `d06ba49`）。
+
+**收敛实测**（同机、同向量、默认 60s 窗口；脚本 `/tmp/gs-cold1.sh`、`/tmp/gs-warm4.sh`）：
+
+| 场景 | marker 出现 | 端口监听 | `ready=true` | 证据 |
+|---|---|---|---|---|
+| **冷启动**（清空实例缓存目录） | **40s** | 40s | **40s**（`readiness:"ready"`） | `G:\gameserver-work\logs\cold1.txt` |
+| **warm 启动**（保留缓存） | **34s** | 34s | **34s**（`readiness:"ready"`） | `G:\gameserver-work\logs\warm4.txt` |
+
+两次运行停止后进程 0 / 端口 0。
+
+**结论**：差异①（"冷启动超出 60s 就绪窗口"）**不成立**——此前观测是上述两个缺陷的叠加假象；修好后冷/热启动均在默认窗口内就绪。PZ 42.21 的 `*** SERVER STARTED ***` marker 在 Windows 上稳定出现，A2S 非必需（`SERVER_PORT` 为 UDP，marker 为批准回退）。窗口仍可经 Manifest 用 `GAMESERVER_READINESS_TIMEOUT` 放宽（供更慢的机器/更大存档）。

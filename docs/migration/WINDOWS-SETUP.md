@@ -203,3 +203,5 @@ sc.exe config gameserver-pz_01 obj= ".\gs-pz" password= "<pw>" start= auto
 |---|---|
 | 冷启动地图生成超出 60s 就绪窗口 | 与账户无关（属 PZ 冷启动特性）；按 Manifest 记录的窗口与首次/再次启动分别判定 |
 | PZ 退出时以运行时状态重写 sandbox 文件 | 与账户无关；隔离后仍需在停止后复读并核对（配置根单一写入者已由 `gs-pz` 独占强化） |
+
+`GAMESERVER_READINESS_TIMEOUT`（秒，缺省 60，上限 3600）：Manifest 记录的就绪窗口覆盖，用于 marker 到达晚于 60s 的机器。

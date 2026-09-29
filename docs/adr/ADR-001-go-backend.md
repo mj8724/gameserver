@@ -90,7 +90,7 @@
 
 | 平台 | 状态 | 允许的声明 |
 |---|---|---|
-| **Windows 10 x64（第一候选，r4 起为声明对象）** | 用户于 2026-09-28 明确要求优先支持；测试主机 `DESKTOP-9M8FOG7`（10.0.19045.6466）；r4 前保持“未验证” | **r4（2026-09-29）**：实机 M2 五段闭环（安装/配置/启动/控制台/停止）+ 启动向量对抗已通过（descriptor 向量 + `jre64\bin\java.exe`；证据 `docs/acceptance/evidence/M2-windows-live.md`），允许声明对象为 **Windows 10 x64 + launcher-descriptor 向量**；两条已知差异（冷启动超 60s 就绪窗口、PZ 退出重写 sandbox）必须随声明引用；声明不扩展到其它 Windows 版本/启动方式 |
+| **Windows 10 x64（第一候选，r4 起为声明对象）** | 用户于 2026-09-28 明确要求优先支持；测试主机 `DESKTOP-9M8FOG7`（10.0.19045.6466）；r4 前保持“未验证” | **r4（2026-09-29）**：实机 M2 五段闭环（安装/配置/启动/控制台/停止）+ 启动向量对抗已通过（descriptor 向量 + `jre64\bin\java.exe`；证据 `docs/acceptance/evidence/M2-windows-live.md`），允许声明对象为 **Windows 10 x64 + launcher-descriptor 向量**；已知差异（PZ 退出重写 sandbox；就绪窗口已实测冷 40s / warm 34s，并新增 Manifest 级 `GAMESERVER_READINESS_TIMEOUT`）必须随声明引用；声明不扩展到其它 Windows 版本/启动方式 |
 | Linux（Ubuntu LTS） | 第二候选；需 M2-PZ-LIVE 实机 + 启动向量对抗测试通过 | 通过后可声明支持 |
 | macOS（darwin） | 开发/离线测试平台（掉电级原子性不保证，见 §1.4） | 仅“开发验证”；服务端支持需实机 PZ 验收 |
 
