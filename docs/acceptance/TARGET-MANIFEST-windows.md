@@ -71,5 +71,5 @@ PAUSE
   2. **PZ 读取路径**：模板声明 mod 安装目录为 `Zomboid/mods`（`templates/project_zomboid.yaml:153`），而 Workshop 内容落在 `server_files/steamapps/workshop/content/...`；PZ 官方推荐**把 workshop 目录加入 Mods 加载路径**（INI `Mods=`/steam launch 选项），故实现需**确认 PZ 42.21 读取 Workshop 缓存目录的行为**——**实机行 BLOCKED（需启动含该 mod 的服务器观察加载日志）**。
   3. **用量与备份关系**：`DiskUsageMB`（`internal/adapters/instancefiles/files.go:91` 实例根递归）**会包含** workshop 下载内容；备份默认排除 `server_files/` 与存档（M3.2 决策），故 workshop 内容不进备份——容量与备份口径均以"实例根包括、备份排除"为准，M3.5 复用该口径。
   4. **Runner 单在飞互斥**：`Runner.busy`/`startGate` 只允许一个在飞命令（`runner.go:93-169`，"steamcmd task already running"）；install 与 mod 下载共用该槽 → 在飞时新请求必须 409（m3 矩阵 M3.3 单在飞行以 `TestModDownloadConflictsWithInstall` 断言）。
-- **M3.4 A2S 取证填写位**：声明目标 PZ 42.21 是否响应 A2S_INFO（首字节 + info 字段解析），影响查询面分支（info 解析 vs marker 时间线 + `unavailable`）。结论由 M3.4 取证任务填写。
+- **M3.4 A2S 取证结论（2026-09-30）**：解析器已实现并单测覆盖（`internal/adapters/pz/a2s.go`，校验 0x49 头 + name/map/players/max 字段）；**声明目标 PZ 42.21 的实机可达性为 BLOCKED（待授权的一次 UDP A2S_INFO 探测）**——在可达性结论落地前，查询面以 `game_query{players,map,name}=unavailable` 降级（M3.4 分支设计），ready/readiness 语义不受影响；就绪时间线已实现（`readiness_timeline{state,since}` 追加字段）。探测计划：服务器 ready 后发 A2S_INFO 至 127.0.0.1:16261，2s 超时。
 - **证据口径**：所有 M3 证据标注「隔离数据根基线验收」。

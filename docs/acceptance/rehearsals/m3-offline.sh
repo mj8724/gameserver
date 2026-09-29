@@ -88,9 +88,9 @@ record M3.3 "前置取证：workshop 落盘与 PZ 读取路径" "PASS" "Manifest
 
 blocked M3.3 "实机：真实 workshop 下载 + PZ 42.21 读取行为观测" "需目标机授权动作（Manifest §M3 已列）"
 # ---------- M3.4 就绪与查询 ----------
-notrun M3.4 "就绪时间线（追加字段，带时间戳）" "能力未实现（M3.4）"
-notrun M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" "能力未实现（M3.4）"
-blocked M3.4 "A2S 可达性只读取证（声明目标 PZ 42.21）" "需目标机 UDP 探测（授权后）；见 Manifest §4 填写位"
+row M3.4 "就绪时间线（追加字段，带时间戳）" 'TestQueryFieldsDegradeToUnavailable'
+row M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" 'TestQueryFieldsDegradeToUnavailable|TestQueryFieldsProjectWhenA2SAnswers|TestParseA2SInfo|TestParseA2SInfoRejectsGarbage'
+blocked M3.4 "A2S 可达性只读取证（声明目标 PZ 42.21 实机一次 UDP 探测）" "需目标机授权动作；解析器已实现（pz/a2s.go + 单测）"
 
 # ---------- M3.5 容量 ----------
 notrun M3.5 "双检与竞态对抗（采样未超但写入时超 → 拒绝且无部分写入）" "能力未实现（M3.5）"

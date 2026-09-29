@@ -592,3 +592,58 @@ func (f *fakeWorkshop) DownloadWorkshopItem(_ context.Context, _ domain.Instance
 	}
 	return f.contentDir + "/" + workshopID, nil
 }
+
+// M3.4: the query fields degrade to "unavailable" when the game is unreachable
+// and ready/readiness semantics stay untouched (additive projection only).
+func TestQueryFieldsDegradeToUnavailable(t *testing.T) {
+	h := newHarness(t)
+	query := &fakeQuery{err: errors.New("no A2S")}
+	h.service.deps.Query = query
+	h.status.status = ports.ProcessStatus{Running: true, Status: "RUNNING", PID: 7}
+	response, err := h.service.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	queryFields, ok := response["game_query"].(map[string]any)
+	if !ok || queryFields["players"] != "unavailable" || queryFields["map"] != "unavailable" {
+		t.Fatalf("unreachable game must degrade to unavailable: %+v", response["game_query"])
+	}
+	if response["ready"] != false || response["readiness"] != "unknown" {
+		t.Fatalf("query must not touch ready/readiness: %+v", response)
+	}
+	timeline, ok := response["readiness_timeline"].(map[string]any)
+	if !ok {
+		t.Fatalf("readiness timeline missing: %+v", response)
+	}
+	if _, hasSince := timeline["since"]; !hasSince {
+		t.Fatalf("timeline must carry a timestamp: %+v", timeline)
+	}
+}
+
+// With an answering game the query surface projects the parsed A2S fields.
+func TestQueryFieldsProjectWhenA2SAnswers(t *testing.T) {
+	h := newHarness(t)
+	query := &fakeQuery{info: ports.GameQueryInfo{Name: "servertest", Map: "Muldraugh, KY", Players: 3, Max: 49}}
+	h.service.deps.Query = query
+	h.status.status = ports.ProcessStatus{Running: true, Status: "RUNNING", PID: 7}
+	response, err := h.service.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	queryFields := response["game_query"].(map[string]any)
+	if queryFields["players"] != 3 || queryFields["name"] != "servertest" || queryFields["map"] != "Muldraugh, KY" {
+		t.Fatalf("A2S fields not projected: %+v", queryFields)
+	}
+}
+
+type fakeQuery struct {
+	info ports.GameQueryInfo
+	err  error
+}
+
+func (f *fakeQuery) Query(context.Context, string, int) (ports.GameQueryInfo, error) {
+	if f.err != nil {
+		return ports.GameQueryInfo{}, f.err
+	}
+	return f.info, nil
+}

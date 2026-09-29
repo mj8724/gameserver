@@ -293,6 +293,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Intents:       intentLog,
 		Backup:        autoBackup,
 		Workshop:      workshopDownloader,
+		Query:         pzQueryAdapter{},
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
@@ -874,4 +875,15 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+// pzQueryAdapter adapts the pz A2S query parser to ports.GameQuerier.
+type pzQueryAdapter struct{}
+
+func (pzQueryAdapter) Query(ctx context.Context, host string, port int) (ports.GameQueryInfo, error) {
+	info, err := pz.QueryA2SInfo(ctx, host, port)
+	if err != nil {
+		return ports.GameQueryInfo{}, err
+	}
+	return ports.GameQueryInfo{Name: info.Name, Map: info.Map, Players: info.Players, Max: info.Max}, nil
 }

@@ -46,6 +46,7 @@ type ServiceDeps struct {
 	Intents         ports.IntentLog
 	Backup          ports.BackupOperator
 	Workshop        ports.WorkshopDownloader
+	Query           ports.GameQuerier
 }
 
 type diskUsageProvider interface {
@@ -60,6 +61,8 @@ type ControlService struct {
 	install   installTask
 	ready     bool
 	readiness string
+	// readinessAt records when the current readiness state was entered.
+	readinessAt string
 	// pendingRestart records that a restart-requiring option was saved while the
 	// server was running; it is cleared on the next successful start.
 	pendingRestart atomic.Bool
@@ -218,6 +221,7 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 	s.mu.Lock()
 	ready := s.ready
 	readiness := s.readiness
+	readinessTimeline := map[string]any{"state": readiness, "since": s.readinessAt}
 	s.mu.Unlock()
 
 	return StatusResponse{
@@ -242,10 +246,12 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 			"progress":    install.Progress,
 			"status_text": install.Message,
 		},
-		"platform":        s.deps.Platform,
-		"ready":           ready,
-		"readiness":       readiness,
-		"pending_restart": s.pendingRestart.Load(),
+		"platform":           s.deps.Platform,
+		"ready":              ready,
+		"readiness":          readiness,
+		"readiness_timeline": readinessTimeline,
+		"game_query":         s.queryGame(ctx),
+		"pending_restart":    s.pendingRestart.Load(),
 	}, nil
 }
 
@@ -501,6 +507,7 @@ func (s *ControlService) scheduleReadiness(ctx context.Context) {
 	s.mu.Lock()
 	s.ready = false
 	s.readiness = "checking"
+	s.readinessAt = s.deps.Clock.Now().Format(time.RFC3339)
 	s.mu.Unlock()
 	go func() {
 		probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 90*time.Second)
@@ -508,8 +515,10 @@ func (s *ControlService) scheduleReadiness(ctx context.Context) {
 		ready, err := s.deps.Readiness.Ready(probeCtx, s.deps.Instance)
 		s.mu.Lock()
 		defer s.mu.Unlock()
+		now := s.deps.Clock.Now().Format(time.RFC3339)
 		if err != nil {
 			s.readiness = "failed"
+			s.readinessAt = now
 			return
 		}
 		s.ready = ready
@@ -518,6 +527,7 @@ func (s *ControlService) scheduleReadiness(ctx context.Context) {
 		} else {
 			s.readiness = "timeout"
 		}
+		s.readinessAt = now
 	}()
 }
 
@@ -1068,4 +1078,36 @@ func branchBuildID(branch string, template domain.Template) string {
 		}
 	}
 	return ""
+}
+
+// queryGame reports the live game query fields (players, map, name) when the
+// declaration target answers A2S; otherwise every field is "unavailable". The
+// projection is strictly additive and never changes ready/readiness semantics.
+func (s *ControlService) queryGame(ctx context.Context) map[string]any {
+	result := map[string]any{"players": "unavailable", "map": "unavailable", "name": "unavailable"}
+	if s.deps.Query == nil || !s.processStatus(context.Background()).Running {
+		return result
+	}
+	state, err := s.load(ctx)
+	if err != nil {
+		return result
+	}
+	port := 0
+	if value, ok := state.Ports["SERVER_PORT"]; ok {
+		port = value
+	}
+	if port < 1 || port > 65535 {
+		return result
+	}
+	probeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+	defer cancel()
+	info, err := s.deps.Query.Query(probeCtx, "127.0.0.1", port)
+	if err != nil {
+		return result
+	}
+	result["players"] = info.Players
+	result["max"] = info.Max
+	result["map"] = info.Map
+	result["name"] = info.Name
+	return result
 }
