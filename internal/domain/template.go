@@ -46,6 +46,17 @@ type Template struct {
 	Summary   TemplateSummary
 	Variables []TemplateVariable
 	Ports     []TemplatePort
+	// Versions are the evidence-backed server branches an operator may install.
+	Versions []TemplateVersion
+}
+
+// TemplateVersion is one selectable server version (Steam branch).
+type TemplateVersion struct {
+	Label       string
+	Branch      string
+	BuildID     string
+	Default     bool
+	EvidenceRef string
 }
 
 // Variable returns the variable definition for key.

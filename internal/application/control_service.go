@@ -230,7 +230,7 @@ func (s *ControlService) Templates(context.Context) ([]TemplateSummary, error) {
 	summaries := s.deps.Templates.List()
 	result := make([]TemplateSummary, 0, len(summaries))
 	for _, summary := range summaries {
-		result = append(result, TemplateSummary{
+		entry := TemplateSummary{
 			ID:          string(summary.ID),
 			Name:        summary.Name,
 			Category:    summary.Category,
@@ -240,7 +240,16 @@ func (s *ControlService) Templates(context.Context) ([]TemplateSummary, error) {
 			Description: summary.Description,
 			SupportedOS: summary.SupportedOS,
 			AppID:       summary.AppID,
-		})
+		}
+		if template, ok := s.deps.Templates.Get(summary.ID); ok {
+			for _, version := range template.Versions {
+				entry.Versions = append(entry.Versions, TemplateVersion{
+					Label: version.Label, Branch: version.Branch, BuildID: version.BuildID,
+					Default: version.Default, EvidenceRef: version.EvidenceRef,
+				})
+			}
+		}
+		result = append(result, entry)
 	}
 	return result, nil
 }

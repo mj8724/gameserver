@@ -30,18 +30,28 @@ type Control interface {
 // it to a client.
 type StatusResponse map[string]any
 
+// TemplateVersion is one selectable server branch (evidence-backed).
+type TemplateVersion struct {
+	Label       string `json:"label"`
+	Branch      string `json:"branch"`
+	BuildID     string `json:"build_id,omitempty"`
+	Default     bool   `json:"default"`
+	EvidenceRef string `json:"evidence_ref"`
+}
+
 // TemplateSummary is the legacy template list projection. supported_os is
 // compatibility metadata, not a platform support claim.
 type TemplateSummary struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Category    string   `json:"category"`
-	Icon        string   `json:"icon"`
-	Author      string   `json:"author"`
-	Version     string   `json:"version"`
-	Description string   `json:"description"`
-	SupportedOS []string `json:"supported_os"`
-	AppID       string   `json:"app_id"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Category    string            `json:"category"`
+	Icon        string            `json:"icon"`
+	Author      string            `json:"author"`
+	Version     string            `json:"version"`
+	Description string            `json:"description"`
+	SupportedOS []string          `json:"supported_os"`
+	AppID       string            `json:"app_id"`
+	Versions    []TemplateVersion `json:"versions,omitempty"`
 }
 
 // InstallAccepted is the accepted (HTTP 202) response for asynchronous install.

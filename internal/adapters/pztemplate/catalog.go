@@ -21,6 +21,8 @@ const supportedSchema = "1.0"
 
 var templateIDPattern = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
 
+var branchPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+
 type document struct {
 	SchemaVersion string `yaml:"schema_version"`
 	Metadata      struct {
@@ -34,7 +36,14 @@ type document struct {
 		SupportedOS []string `yaml:"supported_os"`
 	} `yaml:"metadata"`
 	Steam struct {
-		AppID any `yaml:"app_id"`
+		AppID    any `yaml:"app_id"`
+		Versions []struct {
+			Label       string `yaml:"label"`
+			Branch      string `yaml:"branch"`
+			BuildID     string `yaml:"build_id"`
+			Default     bool   `yaml:"default"`
+			EvidenceRef string `yaml:"evidence_ref"`
+		} `yaml:"versions"`
 	} `yaml:"steam"`
 	Ports []struct {
 		Key         string `yaml:"key"`
@@ -163,6 +172,31 @@ func loadFile(path string) (domain.Template, error) {
 			SupportedOS: append([]string(nil), doc.Metadata.SupportedOS...),
 			AppID:       appIDString(doc.Steam.AppID),
 		},
+	}
+	seenBranch := map[string]bool{}
+	defaultSeen := false
+	for _, version := range doc.Steam.Versions {
+		branch := strings.TrimSpace(version.Branch)
+		if strings.TrimSpace(version.Label) == "" || branch == "" || strings.TrimSpace(version.EvidenceRef) == "" {
+			return domain.Template{}, errors.New("template versions need label, branch and evidence_ref")
+		}
+		if !branchPattern.MatchString(branch) {
+			return domain.Template{}, fmt.Errorf("invalid template version branch %q", branch)
+		}
+		if seenBranch[branch] {
+			return domain.Template{}, fmt.Errorf("duplicate template version branch %q", branch)
+		}
+		seenBranch[branch] = true
+		if version.Default {
+			if defaultSeen {
+				return domain.Template{}, errors.New("only one template version may be the default")
+			}
+			defaultSeen = true
+		}
+		template.Versions = append(template.Versions, domain.TemplateVersion{
+			Label: version.Label, Branch: branch, BuildID: version.BuildID,
+			Default: version.Default, EvidenceRef: version.EvidenceRef,
+		})
 	}
 	for _, variable := range doc.Variables {
 		if strings.TrimSpace(variable.Key) == "" {
