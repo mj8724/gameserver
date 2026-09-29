@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -143,25 +144,27 @@ func TestM2OfflineHTTPBlackBox(t *testing.T) {
 		t.Fatalf("unknown field = %d, want 422", status)
 	}
 
-	// D8 gate: a legacy root with permissive modes must fail closed (no partial
-	// write, no silent chmod) until the operator normalizes it.
-	status, body := call(t, client, "POST", server.URL+"/api/server/config", origin, `{"variables":{"MAX_PLAYERS":24}}`)
-	if status != 500 || body != `{"detail":"保存配置失败"}` {
-		t.Fatalf("permissive root update = %d %s, want fail-closed 500", status, body)
-	}
-	if _, err := os.Stat(filepath.Join(serversRoot, "pz_01", "state", "instance.json")); !os.IsNotExist(err) {
-		t.Fatalf("fail-closed update still wrote state (err=%v)", err)
-	}
-	if info, err := os.Stat(filepath.Join(serversRoot, "pz_01")); err != nil {
-		t.Fatalf("stat instance dir: %v", err)
-	} else if info.Mode().Perm() != 0o755 {
-		t.Fatalf("instance dir mode changed implicitly to %o", info.Mode().Perm())
-	}
-	if changed, err := normalizePermissions(dataRoot, "pz_01"); err != nil || changed == 0 {
-		t.Fatalf("normalizePermissions = %d, %v", changed, err)
+	// D8 gate is POSIX-only: Windows has no POSIX modes and the adapters exempt
+	// it, so the fail-closed phase and the chmod normalization only run on POSIX.
+	if runtime.GOOS != "windows" {
+		status, body := call(t, client, "POST", server.URL+"/api/server/config", origin, `{"variables":{"MAX_PLAYERS":24}}`)
+		if status != 500 || body != `{"detail":"保存配置失败"}` {
+			t.Fatalf("permissive root update = %d %s, want fail-closed 500", status, body)
+		}
+		if _, err := os.Stat(filepath.Join(serversRoot, "pz_01", "state", "instance.json")); !os.IsNotExist(err) {
+			t.Fatalf("fail-closed update still wrote state (err=%v)", err)
+		}
+		if info, err := os.Stat(filepath.Join(serversRoot, "pz_01")); err != nil {
+			t.Fatalf("stat instance dir: %v", err)
+		} else if info.Mode().Perm() != 0o755 {
+			t.Fatalf("instance dir mode changed implicitly to %o", info.Mode().Perm())
+		}
+		if changed, err := normalizePermissions(dataRoot, "pz_01"); err != nil || changed == 0 {
+			t.Fatalf("normalizePermissions = %d, %v", changed, err)
+		}
 	}
 
-	status, body = call(t, client, "POST", server.URL+"/api/server/config", origin, `{"variables":{"MAX_PLAYERS":24}}`)
+	status, body := call(t, client, "POST", server.URL+"/api/server/config", origin, `{"variables":{"MAX_PLAYERS":24}}`)
 	if status != 200 || !strings.Contains(body, "配置已保存并同步") {
 		t.Fatalf("valid update after normalize = %d %s", status, body)
 	}
@@ -175,7 +178,7 @@ func TestM2OfflineHTTPBlackBox(t *testing.T) {
 	}
 	if info, err := os.Stat(filepath.Join(serversRoot, "pz_01", "state", "instance.json")); err != nil {
 		t.Fatalf("stat state: %v", err)
-	} else if perm := info.Mode().Perm(); perm != 0o600 {
+	} else if perm := info.Mode().Perm(); runtime.GOOS != "windows" && perm != 0o600 {
 		t.Fatalf("state file mode = %o, want 600", perm)
 	}
 	ini, err := os.ReadFile(filepath.Join(serversRoot, "pz_01", "Zomboid", "Server", "servertest.ini"))
@@ -270,8 +273,10 @@ func TestM2OfflineHTTPBlackBox(t *testing.T) {
 // committed state back and must start with a clean ownership reconciliation.
 func TestM2OfflineRestartPersistence(t *testing.T) {
 	dataRoot, serversRoot := legacyFixture(t)
-	if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
-		t.Fatalf("normalizePermissions: %v", err)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
 	}
 
 	first, err := buildRuntime(testConfig(t, dataRoot))
@@ -387,8 +392,10 @@ func TestStaticUIContract(t *testing.T) {
 // fail-closed, must not be auto-cleaned, and must still allow read-only status.
 func TestM2OfflineRecoveryRequiredReconciliation(t *testing.T) {
 	dataRoot, serversRoot := legacyFixture(t)
-	if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
-		t.Fatalf("normalizePermissions: %v", err)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
 	}
 	manager, err := oslock.NewManager(serversRoot, "cursor-process")
 	if err != nil {
@@ -654,10 +661,13 @@ func (f fakeReadiness) Ready(context.Context, domain.InstanceID) (bool, error) {
 // are the production ones.
 func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 	dataRoot, serversRoot := legacyFixture(t)
-	if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
-		t.Fatalf("normalizePermissions: %v", err)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
 	}
-	files, err := instancefiles.New(serversRoot, "darwin")
+	platform := runtime.GOOS
+	files, err := instancefiles.New(serversRoot, platform)
 	if err != nil {
 		t.Fatalf("instance files: %v", err)
 	}
@@ -723,7 +733,7 @@ func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 		t.Fatalf("launch specs = %d", supervisor.specCount())
 	}
 	spec := supervisor.spec(0)
-	if !strings.HasSuffix(spec.Executable, "ProjectZomboid64") {
+	if !strings.HasSuffix(spec.Executable, "ProjectZomboid64") && !strings.HasSuffix(spec.Executable, "ProjectZomboid64.exe") {
 		t.Fatalf("launch executable = %q", spec.Executable)
 	}
 	joined := strings.Join(spec.Args, " ")
