@@ -90,6 +90,9 @@ type runtimeConfig struct {
 	SteamCMDExecutable string
 	SteamCMDDir        string
 	SteamAppID         string
+
+	ReadinessMarker string
+	ReadinessPort   int
 }
 
 func loadConfig() runtimeConfig {
@@ -110,6 +113,9 @@ func loadConfig() runtimeConfig {
 		SteamCMDExecutable: os.Getenv("GAMESERVER_STEAMCMD_EXECUTABLE"),
 		SteamCMDDir:        os.Getenv("GAMESERVER_STEAMCMD_DIR"),
 		SteamAppID:         os.Getenv("GAMESERVER_STEAM_APP_ID"),
+
+		ReadinessMarker: os.Getenv("GAMESERVER_READINESS_MARKER"),
+		ReadinessPort:   envInt("GAMESERVER_READINESS_PORT", 0),
 	}
 	return cfg
 }
@@ -216,6 +222,9 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		logs = overrides.Logs
 	}
 	readiness := ports.ReadinessProbe(nil)
+	if marker := strings.TrimSpace(cfg.ReadinessMarker); marker != "" {
+		readiness = newLogMarkerReadiness(marker, supervisor)
+	}
 	if overrides.Readiness != nil {
 		readiness = overrides.Readiness
 	}
@@ -601,6 +610,43 @@ func resolveInstaller(cfg runtimeConfig, serversRoot string, instance domain.Ins
 	}
 	log.Printf("SteamCMD installer configured (app %s, dir %s)", config.AppID, config.SteamDir)
 	return installer, nil
+}
+
+// newLogMarkerReadiness builds the Target-Manifest-approved log fallback oracle:
+// PZ's SERVER_PORT is UDP, so the approved oracle is the console marker recorded
+// in the manifest, observed within the same 60-second window used for A2S.
+func newLogMarkerReadiness(marker string, logs ports.LogSource) ports.ReadinessProbe {
+	const (
+		window   = 60 * time.Second
+		interval = 2 * time.Second
+	)
+	return readinessFunc(func(ctx context.Context, _ domain.InstanceID) (bool, error) {
+		deadline := time.Now().Add(window)
+		for {
+			if ctx.Err() != nil {
+				return false, ctx.Err()
+			}
+			for _, line := range logs.Recent(0) {
+				if strings.Contains(line, marker) {
+					return true, nil
+				}
+			}
+			if time.Now().After(deadline) {
+				return false, nil
+			}
+			select {
+			case <-ctx.Done():
+				return false, ctx.Err()
+			case <-time.After(interval):
+			}
+		}
+	})
+}
+
+type readinessFunc func(context.Context, domain.InstanceID) (bool, error)
+
+func (f readinessFunc) Ready(ctx context.Context, instance domain.InstanceID) (bool, error) {
+	return f(ctx, instance)
 }
 
 func fail(err error) {
