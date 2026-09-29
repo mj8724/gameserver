@@ -26,6 +26,49 @@ func ManagedINIUpdates(variables map[string]any, ports map[string]int, mods map[
 	}
 }
 
+// VariableOwnedINIKeys are the INI keys written through the legacy variables
+// path (template variables). Everything else in the catalogue belongs to the
+// options path: one physical key, exactly one writer (plan D-C).
+func VariableOwnedINIKeys() map[string]bool {
+	return map[string]bool{
+		"Public":        true,
+		"Password":      true,
+		"MaxPlayers":    true,
+		"PVP":           true,
+		"Open":          true,
+		"PauseEmpty":    true,
+		"DefaultPort":   true,
+		"UDPPort":       true,
+		"WorkshopItems": true,
+		"Mods":          true,
+	}
+}
+
+// VariableOwnedUpdates keeps only the keys the variables path owns, so a
+// variable save can never overwrite an option-owned value (and vice versa).
+func VariableOwnedUpdates(updates map[string]string) map[string]string {
+	owned := VariableOwnedINIKeys()
+	filtered := make(map[string]string, len(owned))
+	for key, value := range updates {
+		if owned[key] {
+			filtered[key] = value
+		}
+	}
+	return filtered
+}
+
+// OptionOwnedUpdates is the complement: the keys the options path owns.
+func OptionOwnedUpdates(updates map[string]string) map[string]string {
+	owned := VariableOwnedINIKeys()
+	filtered := make(map[string]string, len(updates))
+	for key, value := range updates {
+		if !owned[key] {
+			filtered[key] = value
+		}
+	}
+	return filtered
+}
+
 // ReadinessPortKey reports the template's primary port key used for probes.
 func ReadinessPortKey(template domain.Template) string {
 	for _, port := range template.Ports {

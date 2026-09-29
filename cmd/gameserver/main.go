@@ -305,7 +305,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 			if name == "" {
 				name = "servertest"
 			}
-			return gameConfig.ApplyNamed(ctx, state.ID, name, pz.ManagedINIUpdates(state.Variables, state.Ports, state.Mods))
+			return gameConfig.ApplyNamed(ctx, state.ID, name, pz.VariableOwnedUpdates(pz.ManagedINIUpdates(state.Variables, state.Ports, state.Mods)))
 		},
 		LaunchEvidence: application.LaunchEvidence{
 			ExecutableName:   launchExecutableName(cfg),

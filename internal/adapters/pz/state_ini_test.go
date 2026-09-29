@@ -87,3 +87,40 @@ func TestReadinessPortKeyPrefersPrimaryPort(t *testing.T) {
 		t.Fatalf("fallback port key = %q", key)
 	}
 }
+
+// The variables path owns a fixed key set; the options path owns the rest.
+// A variable save must never be able to rewrite an option-owned key.
+func TestOwnershipSplitKeepsOneWriterPerKey(t *testing.T) {
+	all := ManagedINIUpdates(
+		map[string]any{"PUBLIC_SERVER": false, "SERVER_PASSWORD": "pw", "MAX_PLAYERS": 24, "PVP_ENABLED": false,
+			"OPEN_REGISTRATION": false, "PAUSE_EMPTY": false},
+		map[string]int{"SERVER_PORT": 16261, "DIRECT_PORT": 16262},
+		map[string]any{"workshop_ids": []string{"1"}, "mod_names": []string{"m"}},
+	)
+	variableOwned := VariableOwnedUpdates(all)
+	optionOwned := OptionOwnedUpdates(all)
+	if len(variableOwned)+len(optionOwned) != len(all) {
+		t.Fatalf("ownership must partition the managed keys: %d + %d != %d", len(variableOwned), len(optionOwned), len(all))
+	}
+	for key := range variableOwned {
+		if !VariableOwnedINIKeys()[key] {
+			t.Fatalf("variable path must not own %q", key)
+		}
+	}
+	for _, key := range []string{"Public", "Password", "MaxPlayers", "PVP", "Open", "PauseEmpty", "DefaultPort", "UDPPort", "WorkshopItems", "Mods"} {
+		if _, ok := variableOwned[key]; !ok {
+			t.Fatalf("variable path must own %q", key)
+		}
+	}
+	if len(optionOwned) != 0 {
+		t.Fatalf("unexpected option-owned keys in this fixture: %v", optionOwned)
+	}
+	// A variable save never emits an option-owned key.
+	optionOnly := map[string]string{"SomeOtherKey": "x"}
+	if got := VariableOwnedUpdates(optionOnly); len(got) != 0 {
+		t.Fatalf("variable path leaked option-owned keys: %v", got)
+	}
+	if got := OptionOwnedUpdates(optionOnly); got["SomeOtherKey"] != "x" {
+		t.Fatalf("option path must own the rest: %v", got)
+	}
+}
