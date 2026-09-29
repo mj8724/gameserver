@@ -187,6 +187,11 @@
 | D6 | 无跨进程所有权 | OS 级独占锁 + 所有权记录 + 启动对账 + 失败关闭 | M2-SINGLEWRITER / M2-RESTART |
 | D7 | 三平台均经脚本/解释器中转启动（`.bat` / `/bin/bash start-server.sh`）且秘密经 argv | 按 ADR 逐 OS 声明启动向量；脚本中转必须做特殊字符/引号/参数注入对抗测试；**管理员密码不得经解释器重解析** | 启动向量注入（M2-PROCESS） |
 
+
+## 8.1 Go 新增受管文件（非 legacy 行为）
+
+`<instance_root>/Zomboid/Server/<name>_SandboxVars.lua`：legacy Python 实现**从不读写**该文件（`ZomboidConfigHandler` 只处理 `Server/<name>.ini`）。Go 版本按 `catalogs/<template>.options.yaml`（由 `tools/pzoptions` 从厂商产物生成）托管其顶层与嵌套赋值：规范化写入、保留注释与未受管键、`.bak1..3` 轮转、读回校验、非法值失败关闭。该差异属**新增能力**，不改变既有 INI/状态契约。
+
 ## 9. Go 兼容清单（逐项勾选）
 
 - [ ] 20 个路由/挂载点全部存在且方法、状态码、响应字段一致（差异仅限 §8）。

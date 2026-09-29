@@ -70,6 +70,7 @@
 |---|---|
 | `<instance_root>/state/instance.json` | 临时文件 → `fsync(file)` → 将当前 target 复制为同目录 `instance.json.bak` 并 `fsync` → `os.Rename(tmp, target)` → `fsync(dir)` → 读回校验 |
 | `<instance_root>/Zomboid/Server/<name>.ini` | 同上（`.ini.bak`），保留注释与未知键；空 Mod 列表写空串 |
+| `<instance_root>/Zomboid/Server/<name>_SandboxVars.lua` | **r3 新增受管文件（Go 新增，legacy 无对应行为）**：规范化写入 + 保留可识别注释与未受管赋值；值必须是单 token 字面量/数值（裸词仅在原赋值为字符串字面量时自动加引号），控制字符/引号破坏/非字面量一律**拒绝写入**；`.bak` 多代（`.bak1..3`）轮转；写入后读回逐字节比对；与 `<name>.ini` 共用原子写协议 |
 
 - 失败语义：写失败必须返回失败（5xx）或明确 `recovery required`，**不得**先响应成功（对齐 D5）。
 - 读回校验失败、`.bak` 缺失且 target 损坏 → `RECOVERY_REQUIRED`。
@@ -346,7 +347,7 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 
 | 项 | 决策 |
 |---|---|
-| 范围 | **默认**：`state/` + `Zomboid/Server/*.ini` + 实例元数据（manifest）。`Zomboid/` 存档与 `server_files/` **默认排除**，需显式 `--include-saves` / `--include-server-files` 选择 |
+| 范围 | **默认**：`state/` + `Zomboid/Server/*.ini` 与 `Zomboid/Server/<name>_SandboxVars.lua` + 实例元数据（manifest）。`Zomboid/` 存档与 `server_files/` **默认排除**，需显式 `--include-saves` / `--include-server-files` 选择 |
 | 目标位置 | `<data_root>/backups/<instance>/<UTC ts>/` + `manifest.json`（相对路径、大小、sha256、mtime） |
 | 校验 | 备份完成后逐文件重新读取并比对 sha256；任一失败即删除该备份并返回失败 |
 | 恢复 | **只恢复到 staging 并通过 §4 状态机提升**；禁止就地覆盖活动数据根 |
