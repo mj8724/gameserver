@@ -76,3 +76,29 @@
 以当前登录用户（admin）运行同一任务（`schtasks /tn gs-live7`，无 `/ru SYSTEM`）：结果与 SYSTEM 一致——选项写入 200、只读 409、启动 200，但 java 进程**立即退出**，`readiness:"timeout"`，日志同为 `src\tier0\threadtools.cpp (3807) : Assertion Failed: Illegal termination of worker thread`，停止后残留 0/0。
 
 **结论修正**：失败与运行账户无关。对照组差异只剩两点：① 成功的手工直跑**保持 stdin 打开**（管道/控制台），而服务侧子进程的 stdin 在服务上下文中可能立即 EOF → PZ 控制台循环退出 → 进程终止并在关闭路径触发 tier0 断言；② 手工直跑未传 `-adminpassword`（本轮传了）。下一轮按 ① 优先验证：为子进程提供**长期打开的 stdin 管道**（同时作为控制台输入通道），确认 PZ 达到 `SERVER STARTED`。
+
+## 9. 退出原因定位（2026-09-29，argv 对照实验）
+
+三个对照实验（同一 argv、同一安装目录、stdin 与 stdout 组合不同）：
+
+| 实验 | stdin | 结果 |
+|---|---|---|
+| A：带 `-adminpassword`，stdin `/dev/null` | EOF | 立即退出（tier0 断言） |
+| B：不带 `-adminpassword`，stdin `/dev/null` | EOF | 立即退出（同上） |
+| C：stdin 保持打开（`sleep 240; quit`） | 打开 | 立即退出（同上） |
+
+**决定性证据**：C 的日志（去掉 tier0 断言行后）最后是
+
+```
+at zombie.network.ServerMap.QueuedQuit(ServerMap.java:784)
+at zombie.network.GameServer$1.run(GameServer.java:380)
+```
+
+即 PZ 是**主动排队退出**（`QueuedQuit`），不是崩溃；tier0 断言只是退出路径上的线程清理噪音。与 `-adminpassword`、stdin 是否 EOF 均无关。
+
+**最可能的原因**：反复 `taskkill /F` 之后遗留的实例/数据库锁状态——PZ 检测到同一 cachedir/DB 已有实例（或锁未释放）便自行退出。日志同时出现 `unknown option "-statistic" / "-servername=..." / "-adminpassword=..."`，说明 42.21 对这些参数只记警告不解析，参数面不是退出原因。
+
+**下一轮验证顺序**：
+1. 用**全新的 cachedir**（例如 `G:\gameserver-work\data\servers\pz_01\Zomboid2`）启动，排除残留锁/DB 状态；
+2. 若通过，则把「实例锁/DB 清理」写入运行手册（停止必须走优雅路径；`taskkill /F` 后需清理锁）；
+3. 之后再回到隔离方案定案与「PZ 重写后回读」验收。
