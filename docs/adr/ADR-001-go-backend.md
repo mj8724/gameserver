@@ -365,12 +365,20 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 |---|---|---|
 | Linux | 若制品证据表明存在可直接执行的二进制入口 → 直接执行 + 类型化 argv | `/bin/bash start-server.sh` + argv 数组（**不得**拼接为字符串）；若该脚本本身是包装器，仍视为解释器中转，须通过对抗测试 |
 | macOS | 同上（legacy 已有直接执行 `ProjectZomboid64` 的分支） | 同上 |
-| Windows | 直接执行 `ProjectZomboid64.exe` + argv（legacy 已有该分支） | `cmd.exe /c StartServer64.bat`（**仅当无法直接执行时**） |
+| Windows | **launcher-descriptor**（r3）：若制品含 `ProjectZomboid64.json` + `jre64\bin\java(.exe)`（实测 PZ 专用服务端包即如此，且不含 `ProjectZomboid64.exe`），则解析厂商启动描述、经代码侧白名单后以类型化 argv 直接执行内置 JRE | 仅当制品确实含 `ProjectZomboid64.exe` 时可用 direct-executable。`cmd.exe /c StartServer64.bat` **不再是可选向量**（实测三项缺陷：结尾 `PAUSE` 挂住壳进程、`%1 %2` 未引号可致破句/注入、硬编码 `-Xms16g -Xmx16g` 与主机绑死并覆盖描述文件值）。 |
 
 **通用规则**
 - 一律 `execve`/`CreateProcess` 直接传递 argv；禁止 `sh -c "..."`、`cmd /c "..."` 字符串拼接与插值。
 - 环境变量：沿用“继承服务进程环境 + 显式覆盖必需变量（如 `LD_LIBRARY_PATH`）”（`core/instance_manager.py:211-213`）；禁止把**用户可控值**注入环境变量。
 - `-adminpassword=<value>` 作为**单个 argv 元素**传递（此形态为权威；不要拆成两个 token）；密码值永不进入日志。
+
+**第三向量（launcher-descriptor）附加规则（r3 新增，2026-09-29 签核）**
+- **代码侧 argv 仍是唯一权威**：厂商描述文件只提供 `mainClass`/`classpath`/`vmArgs`/`windows.<ver>.vmArgs` 数据，必须经代码侧白名单（Manifest 逐字 token 集合 + 形态白名单）；拒绝 `-javaagent`/`-agentlib`/`-agentpath`/`-cp`/`-classpath`/`-jar`/`@argfile`/`-Xbootclasspath`、空 token、控制字符、重复键。描述文件哈希记入 Target Manifest，运行期不匹配即拒绝启动。
+- **内存参数由代码接管**：`-Xms/-Xmx`（Xms==Xmx）来自实例配置（缺省取描述文件 `-Xmx`），描述文件同名项先剔除；范围 1024–65536 MB。
+- **`windows.<ver>.vmArgs` 为追加合并**（实测 Win10 → `-XX:+UseZGC`，与厂商批处理逐字一致）；`-statistic 0` 为代码常量（来源批处理），差异记入 Manifest。
+- **classpath 确定性纠正**：描述文件的 `java/.` 为厂商笔误（其批处理用 `java/`），按固定映射 `java/. → java/` 处理并记录 Rewrites；不一致即拒绝并提示重新抽取。
+- **WorkDir 固定为安装目录**；`java` 或描述文件缺失、字段非法、白名单违规一律**失败关闭**，任何情况下不得回退 `.bat`/`cmd.exe`（负向测试断言执行文件集合 == {`jre64\bin\java(.exe)`}）。
+- Linux/macOS 的 `ProjectZomboid64` 直接执行路径不受影响，仍是支持门平台向量。
 
 ### 5.2 反模板插值（r1 H8 关闭）
 
@@ -432,6 +440,7 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 ### 6.4 Target Manifest（r1 M2 关闭）
 
 - **位置**：`docs/acceptance/M2-GO-PZ-MVP.md` 内的 “Target Manifest” 章节（执行时填写），逐次验收一份；证据文件 `docs/acceptance/evidence/M2-OS-PZBUILD-TEMPLATE.md`。
+- **Windows 条件验收 Manifest 例外（r3）**：`docs/acceptance/TARGET-MANIFEST-windows.md` 是 Windows 的**条件性**基线（制品哈希、向量事实、端口/路径），**不构成平台支持声明**，也不计入 `M2-PZ-LIVE` 的 E-LIVE 子案例；E-LIVE 目标仍为 Ubuntu LTS 具名主机。
 - **最小字段**：Go commit/版本（来自 `TOOLCHAIN.md`）；PZ 版本与 Steam build ID；SteamCMD 版本；OS/发行版/版本/架构；数据隔离根目录绝对路径；网络/端口与防火墙状态；浏览器版本（若保留 UI）；**启动向量的制品证据**（§5.1）；就绪 oracle 选择（A2S 或日志标记）。
 - **owner**：目标环境 operator 填写；reviewer 复核；用户对“真实副作用”单独授权后方可执行。
 
@@ -499,6 +508,13 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 | 追加矛盾：模板 `supported_os` vs 不声称支持 | — | §1.6 模板元数据例外 + M2-API 记录要求 |
 
 ---
+
+## 11.1 r3 修订记录（2026-09-29）
+
+- **背景**：Windows 实机取证（`docs/acceptance/TARGET-MANIFEST-windows.md`）证明 PZ 专用服务端包**不含** `ProjectZomboid64.exe`，只有 `ProjectZomboid64.json` + `jre64\bin\java.exe` + 两个 `.bat`；原 §5.1 首选向量不可满足，次选 `.bat` 实测三项缺陷（`PAUSE`、未引号 `%1 %2`、16g 硬编码）。
+- **变更**：§5.1 增第三向量 launcher-descriptor 及附加规则；§6.4 增 Windows 条件验收 Manifest 例外。
+- **等价性证据**：descriptor 与厂商 `.bat` 对照运行——启动里程碑 `SERVER STARTED` 均达成、端口自述一致（16261/16262）、INI 键集合与 SandboxVars 路径集合双向差集为 0、产物字节一致（`docs/acceptance/evidence/M2-windows-vendor-config-extraction.md` §6）。
+- **签核**：与 `M2-GO-PZ-MVP.md` Windows 启动向量行文本修订同一提交；复核人 = reviewer + 用户。
 
 ## 11. r2 复审闭环记录
 
