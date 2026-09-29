@@ -40,6 +40,8 @@ func classify(importPath string) packageInfo {
 		return packageInfo{layer: layerVersion, known: true}
 	case modulePrefix + "/cmd/gameserver", modulePrefix + "/cmd/gs-lockhold":
 		return packageInfo{layer: layerCommand, known: true}
+	case modulePrefix + "/tools/pzoptions":
+		return packageInfo{layer: layerCommand, known: true}
 	case modulePrefix + "/tools/m2eval":
 		// Acceptance tooling: a command-style package that reads test output.
 		// It must stay free of project imports so the runner keeps working even

@@ -35,3 +35,42 @@
 2. 集合相等校验（INI 键集合、SandboxVars 表路径集合与厂商文件逐一相等，差集为空）
 3. 抽样 ≥20 项人工核对默认值（含 enum/float/secret 各 ≥1：`Password`/`RCONPassword` 属 secret）
 4. 登记 `archtest` 的 `tools/pzoptions`、gofmt 口径扩到 `tools`（属范围修订，需用户确认）
+
+## 4. 目录生成与校验（已完成）
+
+工具：`tools/pzoptions`（新增，已登记 `internal/archtest` 分类）
+
+```
+go run ./tools/pzoptions -ini docs/acceptance/evidence/vendor-config/servertest.ini \
+  -sandbox docs/acceptance/evidence/vendor-config/servertest_SandboxVars.lua \
+  -template project_zomboid -build 42.21 -out catalogs/project_zomboid.options.yaml
+```
+
+| 校验项 | 结果 |
+|---|---|
+| 集合相等（INI 键 / SandboxVars 路径） | **PASS**：`ini_keys=144 sandbox_paths=272 options=416`，差集为空（缺失即工具 exit≠0） |
+| 类型分布 | bool 118 / int 167 / float 101 / string 30 |
+| secret 分类 | `Password`、`RCONPassword`（值不落目录：`default: ""`） |
+| 抽样核对（24 项，含 secret/float/enum-ish） | **0 不匹配**（与厂商文件逐项一致，脚本见提交说明） |
+| 可复现性 | **PASS**：同参数重跑后 `git diff` 为空（时间戳由 `PZOPTIONS_TIMESTAMP` 固定） |
+| 单写者标记 | 与模板变量绑定键（`Public/Password/MaxPlayers/PVP/Open/PauseEmpty/DefaultPort/UDPPort`）及 mods 键标记 `writable: ro`；`WorkshopItems/Mods` 归 mods API |
+| 负向测试 | `TestOptionCatalogStaysOutOfTemplates`：目录文件不出现在 `/api/templates`，模板加载零 warning |
+
+**范围修订待确认**：gofmt 口径需从 `cmd internal` 扩到 `cmd internal tools`（本地门禁已按新口径执行；CI 与 `m2-offline.sh` 待用户确认后同步）。
+
+## 5. 重定向实验结论（2026-09-29 07:16–07:19 UTC）
+
+三个变体（均在隔离目录、每轮 ~70s、事后 `taskkill /F /IM java.exe /T`）：
+
+| 变体 | 参数 | 服务启动 | 实例 profile 内 INI | 真实 profile INI |
+|---|---|---|---|---|
+| A | `-cachedir=<实例>\Zomboid` | 未启动（MARKER=0，参数传递受 shell 影响） | 0 行 | 420 行 |
+| B | `-cachedir=<实例>\Zomboid\`（尾反斜杠） | 未启动 | 0 行 | 420 行 |
+| C | 无 `-cachedir`，仅 `USERPROFILE`/`APPDATA`/`LOCALAPPDATA` 重定向 | **启动成功（MARKER=1）** | 0 行 | 420 行 |
+
+**结论**：PZ 42.21 的 Zomboid 目录由 **Windows 用户 profile** 决定；`-cachedir` 不改变配置写入位置，环境变量重定向也不影响（Java `user.home` 不取自这些变量）。
+
+**可选隔离方案（需用户决策）**：
+1. **专用服务账户**（每实例一个 Windows 用户）→ profile 天然隔离（最干净，运维成本最高）
+2. **共享 profile + `-servername` 分实例**：PZ 原生支持同一 Zomboid 目录下多套 `<servername>.ini`/`<servername>_SandboxVars.lua`/存档；把「实例」映射为 `servername`，我们的文件管理作用域改为 `<home>/Server/<servername>*`（改动最小，但实例不再拥有独立目录树，需同步修订 ADR 的布局假设）
+3. 目录联接（junction）把 profile 的 `Zomboid` 指向实例目录（全局切换，仅适合同时只跑一个实例）

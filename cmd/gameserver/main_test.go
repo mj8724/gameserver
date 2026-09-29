@@ -854,3 +854,32 @@ func TestLauncherDescriptorVectorUsesBundledJRE(t *testing.T) {
 		}
 	}
 }
+
+// TestOptionCatalogStaysOutOfTemplates pins two catalogue guarantees: the
+// catalogue is not a game template (it must never surface in /api/templates),
+// and the template loader stays warning-free.
+func TestOptionCatalogStaysOutOfTemplates(t *testing.T) {
+	repo, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+	catalogPath := filepath.Join(repo, "catalogs", "project_zomboid.options.yaml")
+	if _, err := os.Stat(catalogPath); err != nil {
+		t.Fatalf("option catalogue missing: %v", err)
+	}
+	templates, err := pztemplate.New(filepath.Join(repo, "templates"))
+	if err != nil {
+		t.Fatalf("template catalog: %v", err)
+	}
+	if warnings := templates.Warnings(); len(warnings) != 0 {
+		t.Fatalf("template loader must stay warning-free: %v", warnings)
+	}
+	if _, ok := templates.Get("project_zomboid.options"); ok {
+		t.Fatal("the option catalogue must not be loaded as a game template")
+	}
+	for _, summary := range templates.List() {
+		if strings.Contains(string(summary.ID), "options") {
+			t.Fatalf("catalogue leaked into templates: %s", summary.ID)
+		}
+	}
+}
