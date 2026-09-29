@@ -97,7 +97,7 @@
 
 **未实测平台**：Linux（Ubuntu LTS）与 macOS 在本矩阵内保持**未验证**，不得因元数据或交叉编译而声称支持。
 
-**本轮实测**：`bash docs/acceptance/rehearsals/m2-offline.sh` → exit 0，PASS **52** / FAIL **0** / BLOCKED **16**（行级 134 行；`m2-offline-latest.json` 已提交）。
+**本轮实测**：`bash docs/acceptance/rehearsals/m2-offline.sh` → exit 0，PASS **53** / FAIL **0** / BLOCKED **15**（行级 134 行；`m2-offline-latest.json` 已提交，commit 钉在 HEAD）。
 
 **实例隔离**：定案专用服务账户（`docs/migration/WINDOWS-SETUP.md` §8），执行属系统级动作、需逐项授权；`GAMESERVER_PZ_HOME` 作为配置根对齐机制保留。
 
