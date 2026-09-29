@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mj8724/gameserver/internal/domain"
@@ -56,6 +57,9 @@ type ControlService struct {
 	install   installTask
 	ready     bool
 	readiness string
+	// pendingRestart records that a restart-requiring option was saved while the
+	// server was running; it is cleared on the next successful start.
+	pendingRestart atomic.Bool
 }
 
 type installTask struct {
@@ -214,9 +218,10 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 			"progress":    install.Progress,
 			"status_text": install.Message,
 		},
-		"platform":  s.deps.Platform,
-		"ready":     ready,
-		"readiness": readiness,
+		"platform":        s.deps.Platform,
+		"ready":           ready,
+		"readiness":       readiness,
+		"pending_restart": s.pendingRestart.Load(),
 	}, nil
 }
 
@@ -393,6 +398,7 @@ func (s *ControlService) Start(ctx context.Context) (StartResult, error) {
 	if _, err := s.deps.Processes.Start(ctx, spec); err != nil {
 		return StartResult{}, WrapError(CodeStartFailed, "", err)
 	}
+	s.pendingRestart.Store(false)
 	s.scheduleReadiness(ctx)
 	return StartResult{Message: "启动指令已执行", Running: true}, nil
 }
@@ -620,6 +626,11 @@ func (s *ControlService) UpdateConfig(ctx context.Context, update ConfigUpdate) 
 	if err := ValidateConfigUpdate(snapshot, update); err != nil {
 		return ConfigUpdateResult{}, err
 	}
+	if len(update.Options) > 0 {
+		if err := ValidateOptionUpdate(s.deps.Options, update.Options); err != nil {
+			return ConfigUpdateResult{}, err
+		}
+	}
 	state, err := s.load(ctx)
 	if err != nil {
 		return ConfigUpdateResult{}, err
@@ -647,6 +658,18 @@ func (s *ControlService) UpdateConfig(ctx context.Context, update ConfigUpdate) 
 	}
 	if err := s.deps.ApplyGameConfig(ctx, updated); err != nil {
 		return ConfigUpdateResult{}, WrapError(CodeOperationFailed, "同步游戏配置失败", err)
+	}
+	if len(update.Options) > 0 {
+		values := make(map[string]string, len(update.Options))
+		for name, value := range update.Options {
+			values[name] = value
+		}
+		if err := s.deps.Config.ApplyOptionValues(ctx, updated.ID, values); err != nil {
+			return ConfigUpdateResult{}, WrapError(CodeOperationFailed, "保存配置项失败", err)
+		}
+		if OptionRequiresRestart(s.deps.Options, update.Options) && s.processStatus(ctx).Status == "RUNNING" {
+			s.pendingRestart.Store(true)
+		}
 	}
 	return ConfigUpdateResult{Message: "配置已保存并同步", State: stateMap(updated)}, nil
 }

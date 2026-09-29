@@ -25,6 +25,11 @@ const (
 	CodeInstanceOwned         ErrorCode = "instance_owned_by_another_process"
 	CodeRecoveryRequired      ErrorCode = "recovery_required"
 	CodeOperationFailed       ErrorCode = "operation_failed"
+
+	// Option-path outcomes of the catalogue ownership rules (plan D-C/D-D).
+	CodeOptionReadOnly ErrorCode = "option_read_only"
+	CodeOptionUnknown  ErrorCode = "option_unknown"
+	CodeOptionValue    ErrorCode = "option_value"
 )
 
 // UseCaseError carries a stable code and, when safe, a public validation

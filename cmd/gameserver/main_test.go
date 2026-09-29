@@ -977,3 +977,79 @@ func TestM2OfflineConfigExposesCatalogueOptions(t *testing.T) {
 		t.Fatalf("expected read-only/secret/sandbox entries: ro=%d secret=%d sandbox=%d", readonly, secret, sandbox)
 	}
 }
+
+// The options write path is independent from the legacy variables path: it is
+// catalogue-validated, refuses foreign writers with 409 and reports unknown or
+// invalid entries as 422, while still accepting a secret left blank.
+func TestM2OfflineOptionsWritePath(t *testing.T) {
+	dataRoot, serversRoot := legacyFixture(t)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
+	}
+	serverDir := filepath.Join(serversRoot, "pz_01", "Zomboid", "Server")
+	sandbox := filepath.Join(serverDir, "servertest_SandboxVars.lua")
+	if err := os.WriteFile(sandbox, []byte("SandboxVars = {\n    -- keep me\n    Zombies = 4,\n    Basement = \"None\",\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := testConfig(t, dataRoot)
+	repo, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.CatalogsDir = filepath.Join(repo, "catalogs")
+	supervisor := &fakeSupervisor{}
+	rt, err := buildRuntimeWith(cfg, runtimeOverrides{Processes: supervisor, ProcessStatus: supervisor, Logs: supervisor})
+	if err != nil {
+		t.Fatalf("buildRuntimeWith: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	client := server.Client()
+	client.Jar = jar
+	if status, _ := call(t, client, "POST", server.URL+"/api/auth/login", server.URL, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+
+	// A read-only (variables-owned) key is refused by the options path.
+	if status, body := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"options":{"MaxPlayers":"32"}}`); status != 409 {
+		t.Fatalf("read-only option = %d %s, want 409", status, body)
+	} else if !strings.Contains(body, "MaxPlayers") {
+		t.Fatalf("read-only detail must name the option: %s", body)
+	}
+	// Unknown and invalid entries are 422.
+	if status, _ := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"options":{"NotAnOption":"1"}}`); status != 422 {
+		t.Fatalf("unknown option = %d, want 422", status)
+	}
+	if status, body := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"options":{"Zombies":"many"}}`); status != 422 {
+		t.Fatalf("invalid value = %d %s, want 422", status, body)
+	}
+	// A valid sandbox value is written to the vendor file and read back.
+	if status, body := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"options":{"Zombies":"7"}}`); status != 200 {
+		t.Fatalf("valid option = %d %s", status, body)
+	}
+	raw, err := os.ReadFile(sandbox)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "Zombies = 7") || !strings.Contains(string(raw), "-- keep me") {
+		t.Fatalf("sandbox write wrong:\n%s", raw)
+	}
+	// A blank secret means "keep the current value" and must not fail.
+	if status, body := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"options":{"RCONPassword":""}}`); status != 200 {
+		t.Fatalf("blank secret = %d %s", status, body)
+	}
+	// The legacy variables path still works and keeps its own response shape.
+	status, body := call(t, client, "POST", server.URL+"/api/server/config", server.URL, `{"variables":{"MAX_PLAYERS":24}}`)
+	if status != 200 || !strings.Contains(body, "配置已保存并同步") {
+		t.Fatalf("legacy variables update = %d %s", status, body)
+	}
+	// Status reports the restart hint field without breaking legacy fields.
+	status, body = call(t, client, "GET", server.URL+"/api/status", server.URL, "")
+	if status != 200 || !strings.Contains(body, `"pending_restart"`) {
+		t.Fatalf("status must expose pending_restart: %d %s", status, body)
+	}
+}

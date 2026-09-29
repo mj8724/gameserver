@@ -422,6 +422,15 @@ func (s *Server) updateConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		update.Ports = values
 	}
+	if len(req.Options) != 0 && string(req.Options) != "null" {
+		decoder := json.NewDecoder(bytes.NewReader(req.Options))
+		options := map[string]string{}
+		if err := decoder.Decode(&options); err != nil {
+			writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+			return
+		}
+		update.Options = options
+	}
 	snapshot, err := s.control.Config(r.Context())
 	if err != nil {
 		writeApplicationError(w, err)
@@ -675,6 +684,7 @@ type commandRequest struct {
 type configRequest struct {
 	Variables json.RawMessage `json:"variables"`
 	Ports     json.RawMessage `json:"ports"`
+	Options   json.RawMessage `json:"options"`
 }
 
 type addModRequest struct {
@@ -814,6 +824,12 @@ func applicationErrorDetails(err *application.UseCaseError) (int, string) {
 			return http.StatusUnprocessableEntity, "请求数据无效"
 		}
 		return http.StatusUnprocessableEntity, err.Message
+	case application.CodeOptionReadOnly:
+		return http.StatusConflict, messageOr(err, "配置项由其他页面管理")
+	case application.CodeOptionUnknown:
+		return http.StatusUnprocessableEntity, messageOr(err, "未知配置项")
+	case application.CodeOptionValue:
+		return http.StatusUnprocessableEntity, messageOr(err, "配置项取值无效")
 	case application.CodeInstanceOwned:
 		return http.StatusConflict, "instance owned by another process"
 	case application.CodeRecoveryRequired:
@@ -829,6 +845,15 @@ func applicationErrorDetails(err *application.UseCaseError) (int, string) {
 	default:
 		return http.StatusInternalServerError, "服务器内部错误"
 	}
+}
+
+// messageOr prefers the operator-facing message and falls back to a stable
+// default, so new coded errors never surface as a generic 500.
+func messageOr(err *application.UseCaseError, fallback string) string {
+	if err != nil && err.Message != "" {
+		return err.Message
+	}
+	return fallback
 }
 
 func writeDetail(w http.ResponseWriter, status int, detail string) {

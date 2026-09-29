@@ -170,3 +170,67 @@ func (c *Config) ReadOptions(ctx context.Context, id domain.InstanceID) (map[str
 	}
 	return values, nil
 }
+
+// ApplyOptionValues routes validated values to the file that currently defines
+// each name: INI keys go through the catalogue-authorised INI writer, sandbox
+// paths through the sandbox writer. A name that exists in neither file is
+// rejected rather than created, so a typo can never add a new vendor key.
+func (c *Config) ApplyOptionValues(ctx context.Context, id domain.InstanceID, values map[string]string) error {
+	if len(values) == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	name, err := c.serverName(ctx, id)
+	if err != nil {
+		return err
+	}
+	current, err := c.ReadOptions(ctx, id)
+	if err != nil {
+		return err
+	}
+	iniUpdates := map[string]string{}
+	sandboxUpdates := map[string]string{}
+	for key, value := range values {
+		if _, ok := current[key]; !ok {
+			return fmt.Errorf("option %q is not present in the instance configuration", key)
+		}
+		if _, err := SandboxVarsPath(c.dataRoot, string(id), name); err != nil {
+			return err
+		}
+		iniUpdates[key] = value
+	}
+	// Names that live only in the sandbox file must not be written to the INI.
+	iniOnly := map[string]bool{}
+	iniValues, err := c.Read(ctx, id)
+	if err != nil {
+		return err
+	}
+	for key := range iniValues {
+		iniOnly[key] = true
+	}
+	for key, value := range iniUpdates {
+		if iniOnly[key] {
+			continue
+		}
+		sandboxUpdates[key] = value
+		delete(iniUpdates, key)
+	}
+	if len(iniUpdates) > 0 {
+		allow := func(key string) bool { return iniOnly[key] }
+		if err := c.ApplyNamedAllowed(ctx, id, name, iniUpdates, allow); err != nil {
+			return err
+		}
+	}
+	if len(sandboxUpdates) > 0 {
+		path, err := SandboxVarsPath(c.dataRoot, string(id), name)
+		if err != nil {
+			return err
+		}
+		if err := ApplySandbox(path, sandboxUpdates); err != nil {
+			return err
+		}
+	}
+	return nil
+}

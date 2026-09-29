@@ -88,6 +88,10 @@ type ConfigSnapshot struct {
 	// configuration. fields[] keeps its legacy shape for existing consumers.
 	Options []ConfigOption `json:"options,omitempty"`
 	Groups  []string       `json:"groups,omitempty"`
+	// PendingRestart reports that an option requiring a restart was saved while
+	// the server was running; the console must say so instead of implying the
+	// change is already live.
+	PendingRestart bool `json:"pending_restart"`
 	// CatalogDegraded reports that the option catalogue could not be loaded.
 	CatalogDegraded bool `json:"catalog_degraded,omitempty"`
 }
@@ -137,6 +141,9 @@ type ConfigTemplate struct {
 type ConfigUpdate struct {
 	Variables map[string]any
 	Ports     map[string]int
+	// Options carries catalogue-driven values (plan D-D). It is a separate
+	// write path from Variables: one physical key, one writer.
+	Options map[string]string
 }
 
 // ConfigUpdateResult preserves the legacy update response fields.
