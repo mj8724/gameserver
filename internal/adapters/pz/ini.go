@@ -371,19 +371,33 @@ func updateINILines(data []byte, updates map[string]string) []byte {
 }
 
 func (c *Config) ensureSecurePath(path string) error {
-	serverDir := filepath.Join(c.dataRoot, "servers")
-	relative, err := filepath.Rel(serverDir, path)
+	canonical := filepath.Join(c.dataRoot, "servers")
+	partsNeeded := 4
+	if c.home != "" {
+		// Home override: the game keeps its own directory (PZ on Windows writes
+		// configuration to the user profile), so the canonical shape is
+		// <home>/Server/<name>.ini.
+		canonical = filepath.Join(c.home, "Server")
+		partsNeeded = 2
+	}
+	relative, err := filepath.Rel(canonical, path)
 	if err != nil || filepath.IsAbs(relative) || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 		return errors.New("PZ config path escaped the configured data root")
 	}
 	parts := strings.Split(relative, string(filepath.Separator))
-	if len(parts) != 4 || parts[0] == "" || parts[1] != "Zomboid" || parts[2] != "Server" {
+	lengthOK := len(parts) == partsNeeded && parts[0] != ""
+	if c.home == "" && !(lengthOK && parts[1] == "Zomboid" && parts[2] == "Server") {
 		return errors.New("PZ config path is not canonical")
 	}
-	instanceDir := filepath.Join(serverDir, parts[0])
+	instanceDir := filepath.Join(c.dataRoot, "servers", parts[0])
 	zomboidDir := filepath.Join(instanceDir, "Zomboid")
 	iniDir := filepath.Join(zomboidDir, "Server")
-	for _, dir := range []string{serverDir, instanceDir, zomboidDir, iniDir} {
+	if c.home != "" {
+		instanceDir = filepath.Join(c.home)
+		zomboidDir = filepath.Join(c.home, "Server")
+		iniDir = filepath.Join(c.home, "Server")
+	}
+	for _, dir := range []string{canonical, instanceDir, zomboidDir, iniDir} {
 		if err := c.ops.MkdirAll(dir, 0o700); err != nil {
 			return fmt.Errorf("create PZ config directory: %w", err)
 		}
