@@ -14,3 +14,5 @@ research_repos/
 /gameserver
 *.test
 coverage.out
+/m2eval
+/pzoptions
