@@ -9,6 +9,66 @@ import (
 	"github.com/mj8724/gameserver/internal/domain"
 )
 
+// OptionTarget names the physical file an option lives in.
+type OptionTarget string
+
+const (
+	OptionTargetINI         OptionTarget = "ini"
+	OptionTargetSandboxVars OptionTarget = "sandboxvars"
+	OptionTargetLaunch      OptionTarget = "launch"
+)
+
+// Writable class of a catalogue entry. Exactly one writer owns a physical key:
+// rw = the options path, ro = another path (variables/mods API), hidden = never.
+const (
+	OptionWritableRW     = "rw"
+	OptionWritableRO     = "ro"
+	OptionWritableHidden = "hidden"
+)
+
+// OptionSpec is one catalogue entry generated from the vendor configuration.
+type OptionSpec struct {
+	Target          OptionTarget
+	Key             string // INI key
+	Path            string // SandboxVars table path
+	Label           string
+	Type            string // bool|int|float|enum|string
+	Secret          bool
+	Default         string
+	Min             *float64
+	Max             *float64
+	Enum            []string
+	Group           string
+	Description     string
+	RequiresRestart bool
+	Writable        string
+	Clearable       bool
+}
+
+// Name is the physical key within its target.
+func (o OptionSpec) Name() string {
+	if o.Key != "" {
+		return o.Key
+	}
+	return o.Path
+}
+
+// CatalogSource records where the catalogue came from so it can be re-verified.
+type CatalogSource struct {
+	BuildID     string
+	Files       []string
+	SHA256      []string
+	ExtractedAt string
+	Command     string
+}
+
+// OptionCatalog exposes the validated option catalogue for a template.
+type OptionCatalog interface {
+	Options() []OptionSpec
+	Get(target OptionTarget, name string) (OptionSpec, bool)
+	Source() CatalogSource
+}
+
 // StateStore loads and atomically persists one instance's domain state.
 type StateStore interface {
 	Load(context.Context, domain.InstanceID) (domain.InstanceState, error)
