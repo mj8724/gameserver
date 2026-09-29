@@ -225,8 +225,20 @@ func (c *Config) Apply(ctx context.Context, id domain.InstanceID, updates map[st
 // ApplyNamed applies keys to an explicitly named server INI. It is useful for
 // adapters which already have a validated state snapshot at hand.
 func (c *Config) ApplyNamed(ctx context.Context, id domain.InstanceID, serverName string, updates map[string]string) error {
+	return c.ApplyNamedAllowed(ctx, id, serverName, updates, isManagedINIKey)
+}
+
+// ApplyNamedAllowed applies updates whose keys are authorised by the caller. The
+// legacy variables path passes the code-owned allow-list; the options path
+// passes an allow function derived from the validated option catalogue, so the
+// writable set stays explicit and reviewable instead of implicit.
+func (c *Config) ApplyNamedAllowed(ctx context.Context, id domain.InstanceID, serverName string,
+	updates map[string]string, allow func(string) bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if allow == nil {
+		return errors.New("an INI key authoriser is required")
 	}
 	path, err := c.Path(id, serverName)
 	if err != nil {
@@ -234,7 +246,7 @@ func (c *Config) ApplyNamed(ctx context.Context, id domain.InstanceID, serverNam
 	}
 	managedUpdates := make(map[string]string, len(updates))
 	for key, value := range updates {
-		if !isManagedINIKey(key) {
+		if !allow(key) {
 			return fmt.Errorf("unmanaged PZ INI key %q", key)
 		}
 		if strings.ContainsAny(value, "\x00\r\n") {

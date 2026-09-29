@@ -363,3 +363,50 @@ func TestReadinessPropagatesCancellation(t *testing.T) {
 
 var _ ports.GameConfig = (*Config)(nil)
 var _ ports.ReadinessProbe = Readiness{}
+
+// The options path may write catalogue-authorised keys (for example the RCON
+// password), while the legacy variables path keeps its code-owned allow-list.
+func TestApplyNamedAllowedUsesCallerAuthorisation(t *testing.T) {
+	root := t.TempDir()
+	config, err := NewConfig(root, func(context.Context, domain.InstanceID) (string, error) { return "servertest", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := config.Path("pz_01", "servertest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("# keep\nPublic=true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	if err := config.ApplyNamed(ctx, "pz_01", "servertest", map[string]string{"RCONPassword": "x"}); err == nil {
+		t.Fatal("the legacy path must keep rejecting unmanaged keys")
+	}
+	allowed := map[string]bool{"RCONPassword": true}
+	if err := config.ApplyNamedAllowed(ctx, "pz_01", "servertest",
+		map[string]string{"RCONPassword": "s3cret"}, func(key string) bool { return allowed[key] }); err != nil {
+		t.Fatalf("catalogue-authorised write must succeed: %v", err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), "RCONPassword=s3cret") {
+		t.Fatalf("authorised key missing from the INI:\n%s", raw)
+	}
+	if !strings.Contains(string(raw), "# keep") || !strings.Contains(string(raw), "Public=true") {
+		t.Fatal("comments and untouched keys must survive")
+	}
+	if err := config.ApplyNamedAllowed(ctx, "pz_01", "servertest",
+		map[string]string{"Other": "1"}, func(string) bool { return false }); err == nil {
+		t.Fatal("unauthorised keys must still be rejected")
+	}
+	if err := config.ApplyNamedAllowed(ctx, "pz_01", "servertest", map[string]string{"Public": "true"}, nil); err == nil {
+		t.Fatal("a missing authoriser must be rejected")
+	}
+}
