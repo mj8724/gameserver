@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# M2 离线矩阵执行器（E-OFF / 本机 darwin 作为开发平台）
+# M2 离线矩阵执行器（回归不变式）
+#
+# 定位（r5 起）：本脚本作为 **M2 回归不变式**——证明 M2 矩阵不因 M3 及其后的
+# 变更而退化；M3 及后续里程碑的验收由 docs/acceptance/rehearsals/m3-offline.sh
+# 及各里程碑矩阵承担。
 #
 # 只执行 docs/acceptance/M2-GO-PZ-MVP.md 中不依赖真实 PZ、SteamCMD、远端主机、
 # 浏览器或网络探测的矩阵行；其余行一律记为 BLOCKED 并说明原因，绝不记 PASS。

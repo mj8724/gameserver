@@ -42,3 +42,11 @@
 
 6. **日志源的非正 limit 返回空**：`Supervisor.Logs(limit)` 对 `limit < 1` 返回空切片，因此「读取全部缓冲」必须显式传正数（如 `scanAll = 1000`）。就绪探针曾用 `Recent(0)`，导致 marker 永远读不到、`ready` 永不翻转，而 HTTP 日志端点（传正 limit）同时能看到 marker——排查此类问题必须对比"探针读取路径"与"展示路径"的同一数据源。
 7. **超时窗口不要硬编码**：PZ marker 到达时间随机器/存档波动（本机实测冷 40s / warm 34s），oracle 窗口需可经 Manifest 覆盖（`GAMESERVER_READINESS_TIMEOUT`，缺省 60s），否则慢机器会出现"服务已就绪但 ready 永远 false"。
+
+## M3（单实例可靠性）：矩阵与执行器
+
+- 矩阵：`docs/acceptance/M3-GO-PZ-RELIABILITY.md`（四态判定与门禁规则）。
+- 执行器：`bash docs/acceptance/rehearsals/m3-offline.sh` → `docs/acceptance/evidence/m3-offline-latest.json`。
+- 定位：`m2-offline.sh` = **回归不变式**（M2 不退化）；`m3-offline.sh` = M3 里程碑验收。
+- 计数：PASS/FAIL/BLOCKED/NOT RUN；FAIL>0 阻断；BLOCKED/NOT RUN 允许存在但必须逐 ID 列出。
+- 证据口径：实机证据一律标注「隔离数据根基线验收」。
