@@ -45,3 +45,12 @@
 - 已批准的三个运维命令（`restore`、`export-back`、`fix-permissions`）曾在早期被演练脚本中的一条 `git checkout -- .` 误删（演练脚本不得修改仓库）；已恢复并通过重新演练：`14/14 PASS`，且演练/验收脚本现已不再触碰 git 状态。
 - 期间发现并修复两个真实缺陷：① HTTP 错误映射把 `OPERATION_FAILED` 吞成 `服务器内部错误`，掩盖了真实原因，现按 legacy 语义回显具体文案；② PZ INI 写入不认识 `json.Number`（HTTP 解码形态），导致 `MAX_PLAYERS` 回退默认值而**未真正更新 INI**，现两者均有回归测试。
 - 上述修复后：M1-A 演练 14/14 PASS；`docs/acceptance/evidence/M2-darwin-pre-live.md` 记录的 M2 离线矩阵 30 PASS / 0 FAIL / 16 BLOCKED。
+
+## 5. 条件关闭注记（r5，2026-09-29）
+
+按 ADR §11.3（r5）：**M1-B 退役**（Python 原型不回生产、不做维护窗口切换与 Python 回滚演练），M1 以「**条件关闭**」处理——M1-A 14/14 + M2 Windows 声明达成即关闭。本节取代 §2/§3 中「M1 不得宣布完成」的原措辞（该措辞在 M1-B 仍在范围内时成立）。
+
+**条件关闭的前置与豁免**：
+- 独立 reviewer 签署门**豁免**（豁免人=用户 2026-09-29 计划批准；补做触发=teammate 额度恢复或指定替代渠道后对 M1-A + M2 证据补审）。
+- Windows 实机项已由 M2 的实机证据承接（`docs/acceptance/evidence/M2-windows-live.md`），不再以「隧道无 connector」为阻塞理由。
+- Linux 实机项按 r5 平台决策改判 `N/A—平台未声明`（NOT PASS/NOT BLOCKED，证据保留可追溯）。

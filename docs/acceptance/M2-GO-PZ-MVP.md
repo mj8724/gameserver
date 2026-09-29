@@ -58,6 +58,7 @@ M1-A 是切换就绪门槛，不等同于 M1 完成或 M1-B。按 ADR §6.3，M1
 - **E-LIVE（r4 修订，D-R4-3）**：已完成且获授权的 Target Manifest 中的精确目标与 Go commit、PZ 版本/Steam build ID、SteamCMD 版本、数据根、网络/端口和浏览器版本。任一值未知即 BLOCKED。不得拿其它主机或离线夹具补位。
   - **r4 声明对象**：Windows 10 x64（`DESKTOP-9M8FOG7`，10.0.19045.6466）+ launcher-descriptor 向量 + PZ 42.21（buildid 25485538）——实机五段闭环证据见 `docs/acceptance/evidence/M2-windows-live.md`；**声明引用必须包含当前唯一未收敛差异**（PZ 退出时重写 sandbox 文件；就绪窗口差异已修复并实测冷 40s / warm 34s）。
   - **未实测平台**：Linux（Ubuntu LTS）与 macOS 在本矩阵内**保持未验证**；不得因本行定义变化或元数据而声称其受支持。
+  - **r5 改判**：`N/A—平台未声明（r5，P2）`——E-LIVE 的 Linux 目标与 `M2-PLATFORM` Linux 资格行按用户 r5 决策改判为 **N/A**（既非 PASS 也非 BLOCKED），证据保留可追溯；不得据此声称 Linux 受支持。
 
 ### 3.2 证据路径与秘密处理
 

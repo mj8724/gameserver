@@ -59,3 +59,13 @@ PAUSE
 | oracle 证据（该 build 不支持 A2S + 逐字 marker `*** SERVER STARTED ***` + 匹配规则） | **待阶段 2 实机取证**（需先有可用向量） |
 | 全量 `servertest.ini` / `servertest_SandboxVars.lua`（含 PZ 重写样本） | 待阶段 2 |
 | 版本清单（`app_info_print 380870` 分支/build） | 待 #22 |
+
+## M3 章节（剩余里程碑：单实例可靠性，隔离数据根）
+
+- **目标机**：DESKTOP-9M8FOG7（10.0.19045.6466，x64）；工作根 `G:\gameserver-work`（隔离数据根）。
+- **启动向量**：launcher-descriptor（`jre64\bin\java.exe`）；口令两 token；配置根 `GAMESERVER_PZ_HOME=C:\Users\admin\Zomboid`。
+- **就绪口径**：marker `*** SERVER STARTED ***`；窗口 `GAMESERVER_READINESS_TIMEOUT`（缺省 60s，M3 验证用 300s 亦可）；实测基线冷 40s / warm 34s。
+- **授权动作表（M3）**：连续启动/停止（10 轮）、一次 taskkill 强杀、崩溃注入（二进程争锁、端口占用、缺制品、外部改写配置）、8h 运行观测、真实 workshop 下载（若做）、备份创建与显式 include 存档的恢复演练、服务账户/ACL（若落地，属系统级授权）。每项执行前在证据文件中记录授权。
+- **M3.3 workshop 取证填写位**：steamcmd `workshop_download_item` 落盘路径；PZ 读取路径（`Zomboid/mods` vs `server_files/steamapps/workshop/...`）；与 `DiskUsageMB`/备份排除的关系；Runner 单在飞互斥与 409 语义。结论由 M3.3 前置取证任务填写。
+- **M3.4 A2S 取证填写位**：声明目标 PZ 42.21 是否响应 A2S_INFO（首字节 + info 字段解析），影响查询面分支（info 解析 vs marker 时间线 + `unavailable`）。结论由 M3.4 取证任务填写。
+- **证据口径**：所有 M3 证据标注「隔离数据根基线验收」。
