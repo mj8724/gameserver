@@ -15,7 +15,7 @@ jobs:
           cache: true
       - name: gofmt
         run: |
-          out="$(gofmt -l cmd internal)"
+          out="$(gofmt -l cmd internal tools)"
           if [ -n "$out" ]; then
             echo "gofmt reported unformatted files:"
             echo "$out"

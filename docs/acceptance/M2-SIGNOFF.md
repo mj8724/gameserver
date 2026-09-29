@@ -67,3 +67,26 @@
 - **该记录为 Windows 条件证据，非 E-LIVE**：按 M2-GO-PZ-MVP §3.1，`M2-PZ-LIVE` 的 E-LIVE 目标是 Ubuntu LTS 主机；Windows 结果**不计入该 ID 的 7 行子案例**，也不产生平台支持声明。
 - **启动子项仍为 BLOCKED（当时）**：Windows 服务端包不含 `ProjectZomboid64.exe`，原向量不可满足 → 现在由 `launcher-descriptor` 第三向量承接（见计划 r4 与 `TARGET-MANIFEST-windows.md` §3）。
 - **授权偏差记录**：该次安装执行时未按 M2 §2 的"逐项授权并写入证据记录"流程先行落档；按门禁记为该动作的**偏差**，补救 = 在 `docs/acceptance/evidence/M2-windows-live-auth.md` 补齐授权记录后，在门内复跑 validate（见计划阶段 6）。
+
+## 5. r3 收尾状态（2026-09-29，本计划执行后）
+
+离线矩阵实测（`bash docs/acceptance/rehearsals/m2-offline.sh` → exit 0，共 116 行）：
+
+- `M2-API`：离线 PASS **14** 行，BLOCKED **0** 行
+- `M2-AUTH`：离线 PASS **6** 行，BLOCKED **0** 行
+- `M2-BUILD`：离线 PASS **3** 行，BLOCKED **0** 行
+- `M2-CONFIG`：离线 PASS **11** 行，BLOCKED **1** 行
+- `M2-INSTALL`：离线 PASS **8** 行，BLOCKED **1** 行
+- `M2-MIGRATE`：离线 PASS **6** 行，BLOCKED **2** 行
+- `M2-PLATFORM`：离线 PASS **0** 行，BLOCKED **1** 行
+- `M2-PROCESS`：离线 PASS **12** 行，BLOCKED **2** 行
+- `M2-PZ-LIVE`：离线 PASS **0** 行，BLOCKED **1** 行
+- `M2-RESTART`：离线 PASS **9** 行，BLOCKED **2** 行
+- `M2-SECRET`：离线 PASS **7** 行，BLOCKED **1** 行
+- `M2-SINGLEWRITER`：离线 PASS **9** 行，BLOCKED **1** 行
+- `M2-UI`：离线 PASS **3** 行，BLOCKED **2** 行
+- `M2-WS`：离线 PASS **13** 行，BLOCKED **1** 行
+
+**Windows 条件性实机证据**（`docs/acceptance/evidence/M2-windows-live.md`，非支持声明）：下载→配置→启动→控制台→停止 五段闭环真机跑通（启动 PID 15848、端口 16261/16262 监听、停止后 0 残留），并修复三个真实缺陷（PZ 42.21 口令两 token、Windows 配置根在用户 profile、陈旧 cachedir 触发 QueuedQuit）。已记录的差异：冷启动超出 60s 就绪窗口；PZ 退出时以运行时状态重写 sandbox 文件。
+
+**仍未解除**：`M2-PZ-LIVE`/`M2-PLATFORM`（E-LIVE = Ubuntu LTS 具名主机）保持 BLOCKED；独立审查 BLOCKED；M1-B 未授权；实例隔离方案（专用服务账户 / 共享 profile + `-servername` / junction）待用户定案。

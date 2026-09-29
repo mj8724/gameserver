@@ -60,7 +60,7 @@ printf 'binary_sha256=%s\n' "$BIN_SHA" >&2
 
 # ---------- 构建门（M2-BUILD #1：本机部分；CI 部分另记） ----------
 BUILD_OK=1
-test -z "$(gofmt -l cmd internal)" || BUILD_OK=0
+test -z "$(gofmt -l cmd internal tools)" || BUILD_OK=0
 go vet ./... >/dev/null 2>&1 || BUILD_OK=0
 go build ./... >/dev/null 2>&1 || BUILD_OK=0
 go mod tidy -diff >/dev/null 2>&1 || BUILD_OK=0
