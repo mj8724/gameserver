@@ -98,6 +98,10 @@ type runtimeConfig struct {
 	ReadinessPort   int
 
 	CatalogsDir string
+	// PZHome points at the game's own configuration directory when the game
+	// keeps it outside the instance tree (PZ on Windows uses the user profile
+	// and ignores -cachedir for configuration).
+	PZHome string
 
 	LaunchVector   string
 	ServerMemoryMB int
@@ -126,6 +130,7 @@ func loadConfig() runtimeConfig {
 		ReadinessPort:   envInt("GAMESERVER_READINESS_PORT", 0),
 
 		CatalogsDir: os.Getenv("GAMESERVER_CATALOGS_DIR"),
+		PZHome:      os.Getenv("GAMESERVER_PZ_HOME"),
 
 		LaunchVector:   os.Getenv("GAMESERVER_LAUNCH_VECTOR"),
 		ServerMemoryMB: envInt("GAMESERVER_SERVER_MEMORY_MB", 0),
@@ -210,6 +215,10 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if err != nil {
 		return nil, fmt.Errorf("game config adapter: %w", err)
 	}
+	if home := strings.TrimSpace(cfg.PZHome); home != "" {
+		gameConfig.SetHome(home)
+		log.Printf("PZ configuration home override: %s", home)
+	}
 	if dir := strings.TrimSpace(cfg.CatalogsDir); dir != "" {
 		seed := filepath.Join(dir, "project_zomboid.SandboxVars.lua")
 		if _, err := os.Stat(seed); err == nil {
@@ -281,7 +290,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 				}
 				spec, err := pz.DescriptorLaunchSpec(descriptor, pz.DescriptorConfig{
 					InstallDir: input.InstallDir,
-					CacheDir:   input.CacheDir,
+					CacheDir:   firstNonEmpty(cfg.PZHome, input.CacheDir),
 					ServerName: input.ServerName,
 					AdminPass:  input.AdminPass,
 					MemoryMB:   serverMemoryMB(cfg, input.InstallDir),
@@ -303,7 +312,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 			return pz.BuildLaunchSpec(pz.LaunchConfig{
 				InstanceID: instance,
 				InstallDir: input.InstallDir,
-				CacheDir:   input.CacheDir,
+				CacheDir:   firstNonEmpty(cfg.PZHome, input.CacheDir),
 				Platform:   input.Platform,
 				ServerName: input.ServerName,
 				AdminPass:  input.AdminPass,

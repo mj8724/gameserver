@@ -38,6 +38,23 @@ var defaultINIValues = map[string]string{
 	"RCONPassword":              "",
 }
 
+// SetHome overrides where the game keeps its configuration. It is the honest
+// mapping for hosts where the game ignores -cachedir (PZ on Windows uses the
+// user profile), so writes reach the file the server actually reads.
+func (c *Config) SetHome(home string) { c.home = home }
+
+// Home reports the effective configuration root.
+func (c *Config) Home() string {
+	if c.home != "" {
+		return c.home
+	}
+	root := c.root()
+	return filepath.Join(root, "servers")
+}
+
+// root reports the data root used for instance layout.
+func (c *Config) root() string { return c.dataRoot }
+
 // isManagedINIKey is the code-owned allow-list. Other entries in a PZ INI are
 // preserved byte-for-byte and cannot be overwritten via Apply.
 func isManagedINIKey(key string) bool {
@@ -106,6 +123,10 @@ type Config struct {
 	resolve  NameResolver
 	ops      iniFileOps
 	seedPath string
+	// home overrides the config location when the game keeps its own directory
+	// outside the instance tree (PZ on Windows writes to the user profile and
+	// ignores -cachedir for configuration).
+	home string
 }
 
 // NewConfig constructs an INI adapter rooted at dataRoot. If resolve is nil,
@@ -139,6 +160,9 @@ func (c *Config) Path(id domain.InstanceID, serverName string) (string, error) {
 	}
 	if !serverNamePattern.MatchString(serverName) {
 		return "", errors.New("invalid server name")
+	}
+	if c.home != "" {
+		return filepath.Join(c.home, "Server", serverName+".ini"), nil
 	}
 	return filepath.Join(c.dataRoot, "servers", string(id), "Zomboid", "Server", serverName+".ini"), nil
 }

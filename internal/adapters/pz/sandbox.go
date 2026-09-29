@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+
+	"github.com/mj8724/gameserver/internal/domain"
 	"strings"
 )
 
@@ -197,6 +199,18 @@ func rotateSandboxBackups(path string) error {
 // time its sandbox file is needed. PZ writes the runtime file itself, so a fresh
 // instance has none until the game runs; without a seed the options path would
 // have to fail closed on every sandbox key.
+// sandboxPath resolves the sandbox file for this instance, honouring an
+// explicit configuration home when the game keeps its own directory.
+func (c *Config) sandboxPath(id domain.InstanceID, serverName string) (string, error) {
+	if c.home != "" {
+		if !instancePattern.MatchString(string(id)) || !serverNamePattern.MatchString(serverName) {
+			return "", errors.New("invalid instance id or server name")
+		}
+		return filepath.Join(c.home, "Server", serverName+"_SandboxVars.lua"), nil
+	}
+	return SandboxVarsPath(c.dataRoot, string(id), serverName)
+}
+
 func (c *Config) sandboxSeedPath() string {
 	return c.seedPath
 }

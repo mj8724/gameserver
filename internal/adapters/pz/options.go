@@ -152,7 +152,7 @@ func (c *Config) ReadOptions(ctx context.Context, id domain.InstanceID) (map[str
 	if err != nil {
 		return nil, err
 	}
-	path, err := SandboxVarsPath(c.dataRoot, string(id), name)
+	path, err := c.sandboxPath(id, name)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (c *Config) ApplyOptionValues(ctx context.Context, id domain.InstanceID, va
 	if err != nil {
 		return err
 	}
-	sandboxPath, err := SandboxVarsPath(c.dataRoot, string(id), name)
+	sandboxPath, err := c.sandboxPath(id, name)
 	if err != nil {
 		return err
 	}
