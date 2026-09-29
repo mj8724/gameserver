@@ -190,3 +190,36 @@ func rotateSandboxBackups(path string) error {
 	}
 	return os.WriteFile(path+".bak1", current, 0o600)
 }
+
+// sandboxSeedPath is the vendor-baseline file copied into an instance the first
+// time its sandbox file is needed. PZ writes the runtime file itself, so a fresh
+// instance has none until the game runs; without a seed the options path would
+// have to fail closed on every sandbox key.
+func (c *Config) sandboxSeedPath() string {
+	return c.seedPath
+}
+
+// SetSandboxSeed registers the baseline file used to seed missing instances.
+func (c *Config) SetSandboxSeed(path string) { c.seedPath = path }
+
+// ensureSandboxFile creates the instance sandbox file from the seed when it is
+// missing, using the same atomic write protocol as every other write.
+func (c *Config) ensureSandboxFile(path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	seed := c.sandboxSeedPath()
+	if seed == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(seed)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return atomicINIWrite(osINIFileOps{}, path, raw)
+}

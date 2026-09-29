@@ -156,6 +156,11 @@ func (c *Config) ReadOptions(ctx context.Context, id domain.InstanceID) (map[str
 	if err != nil {
 		return nil, err
 	}
+	// A fresh instance has no sandbox file until the game runs; seed it from the
+	// vendor baseline so the console can show and edit the full catalogue.
+	if err := c.ensureSandboxFile(path); err != nil {
+		return nil, err
+	}
 	sandbox, err := ReadSandbox(path)
 	if err != nil {
 		if os.IsNotExist(err) {

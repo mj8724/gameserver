@@ -210,6 +210,12 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if err != nil {
 		return nil, fmt.Errorf("game config adapter: %w", err)
 	}
+	if dir := strings.TrimSpace(cfg.CatalogsDir); dir != "" {
+		seed := filepath.Join(dir, "project_zomboid.SandboxVars.lua")
+		if _, err := os.Stat(seed); err == nil {
+			gameConfig.SetSandboxSeed(seed)
+		}
+	}
 	static, err := staticassets.New(cfg.StaticDir)
 	if err != nil {
 		return nil, fmt.Errorf("static assets: %w", err)

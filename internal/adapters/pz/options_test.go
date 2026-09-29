@@ -1,10 +1,14 @@
 package pz
 
 import (
+	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
 )
 
@@ -138,5 +142,42 @@ func TestValidateOptionValueEnforcesTypesAndRanges(t *testing.T) {
 	}
 	if !strings.Contains(OptionError{Name: "X", Kind: ErrOptionValue}.Error(), "X") {
 		t.Fatal("OptionError must name the option")
+	}
+}
+
+// A fresh instance has no sandbox file until the game runs; the adapter seeds it
+// from the vendor baseline so the options path does not have to fail closed.
+func TestSandboxSeedingFromVendorBaseline(t *testing.T) {
+	root := t.TempDir()
+	seed := filepath.Join(root, "seed_SandboxVars.lua")
+	if err := os.WriteFile(seed, []byte("SandboxVars = {\n    -- vendor baseline\n    Zombies = 4,\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config, err := NewConfig(root, func(context.Context, domain.InstanceID) (string, error) { return "servertest", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.SetSandboxSeed(seed)
+	values, err := config.ReadOptions(context.Background(), "pz_01")
+	if err != nil {
+		t.Fatalf("ReadOptions: %v", err)
+	}
+	if values["Zombies"] != "4" {
+		t.Fatalf("seeded value missing: %v", values["Zombies"])
+	}
+	path, err := SandboxVarsPath(root, "pz_01", "servertest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(raw), "-- vendor baseline") {
+		t.Fatalf("seed must be copied verbatim: %v\n%s", err, raw)
+	}
+	if err := config.ApplyOptionValues(context.Background(), "pz_01", map[string]string{"Zombies": "9"}); err != nil {
+		t.Fatalf("write after seeding: %v", err)
+	}
+	after, err := ReadSandbox(path)
+	if err != nil || after["Zombies"] != "9" {
+		t.Fatalf("write after seeding did not apply: %v %v", after, err)
 	}
 }

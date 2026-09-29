@@ -105,6 +105,7 @@ type Config struct {
 	dataRoot string
 	resolve  NameResolver
 	ops      iniFileOps
+	seedPath string
 }
 
 // NewConfig constructs an INI adapter rooted at dataRoot. If resolve is nil,
