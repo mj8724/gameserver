@@ -72,7 +72,7 @@ func TestDescriptorLaunchSpecMatchesVendorShape(t *testing.T) {
 	wantClasspath := "java/" + string(filepath.ListSeparator) + "java/projectzomboid.jar"
 	joined := strings.Join(result.Args, " ")
 	for _, want := range []string{"-cp " + wantClasspath, "zombie/network/GameServer", "-statistic 0",
-		"-cachedir=", "-servername=servertest", "-adminpassword=secret-pass"} {
+		"-cachedir=", "-servername=servertest", "-adminpassword secret-pass"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("argv missing %q: %v", want, result.Args)
 		}

@@ -39,7 +39,8 @@ type LaunchConfig struct {
 }
 
 // BuildLaunchSpec creates the direct executable + typed argv. The admin
-// password is a single -adminpassword=<value> element and is never serialized
+// password travels as two argv tokens (-adminpassword <value>) because PZ
+// 42.21 rejects the single-token form; the value is redacted from logs
 // to logs by this package. Environment template strings are not accepted.
 func BuildLaunchSpec(config LaunchConfig) (ports.LaunchSpec, error) {
 	if !instancePattern.MatchString(string(config.InstanceID)) {
@@ -87,7 +88,10 @@ func BuildLaunchSpec(config LaunchConfig) (ports.LaunchSpec, error) {
 	args := []string{
 		"-cachedir=" + cacheDir,
 		"-servername=" + config.ServerName,
-		"-adminpassword=" + config.AdminPass,
+		// PZ 42.21 accepts the two-token form only: the single-token form is
+		// logged as "unknown option" and the server then blocks on an
+		// interactive password prompt (verified on the Windows target).
+		"-adminpassword", config.AdminPass,
 	}
 	env := make(map[string]string, 1)
 	if platform == "linux" {

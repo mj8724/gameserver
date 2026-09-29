@@ -765,7 +765,7 @@ func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 		t.Fatalf("launch executable = %q", spec.Executable)
 	}
 	joined := strings.Join(spec.Args, " ")
-	for _, want := range []string{"-cachedir=", "-servername=servertest", "-adminpassword="} {
+	for _, want := range []string{"-cachedir=", "-servername=servertest", "-adminpassword"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("launch argv missing %s: %v", want, spec.Args)
 		}
@@ -862,7 +862,7 @@ func TestLauncherDescriptorVectorUsesBundledJRE(t *testing.T) {
 		t.Fatalf("workdir = %q, want %q", spec.WorkDir, dir)
 	}
 	joined := strings.Join(spec.Args, " ")
-	for _, want := range []string{"-cp java/", "zombie/network/GameServer", "-statistic 0", "-cachedir=", "-adminpassword="} {
+	for _, want := range []string{"-cp java/", "zombie/network/GameServer", "-statistic 0", "-cachedir=", "-adminpassword"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("argv missing %q: %v", want, spec.Args)
 		}

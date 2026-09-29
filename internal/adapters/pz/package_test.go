@@ -250,14 +250,17 @@ func TestBuildLaunchSpecDoesNotUseTemplateAndPreservesAdversarialArgv(t *testing
 	if spec.Executable != filepath.Join(filepath.Clean(spec.WorkDir), "ProjectZomboid64") {
 		t.Fatalf("unexpected direct executable: %q", spec.Executable)
 	}
-	wantAdmin := "-adminpassword=" + password
+	// PZ 42.21 requires two tokens: -adminpassword <value>.
 	found := 0
-	for _, arg := range spec.Args {
-		if strings.HasPrefix(arg, "-adminpassword=") {
+	for index, arg := range spec.Args {
+		if arg == "-adminpassword" {
 			found++
-			if arg != wantAdmin {
-				t.Fatalf("admin arg was changed/split: %#v", arg)
+			if index+1 >= len(spec.Args) || spec.Args[index+1] != password {
+				t.Fatalf("admin password token missing after -adminpassword: %#v", spec.Args)
 			}
+		}
+		if strings.HasPrefix(arg, "-adminpassword=") {
+			t.Fatalf("single-token admin password form must not be used: %#v", arg)
 		}
 		if strings.Contains(arg, "start_arguments") {
 			t.Fatal("template launch text was included")
@@ -266,11 +269,21 @@ func TestBuildLaunchSpecDoesNotUseTemplateAndPreservesAdversarialArgv(t *testing
 	if found != 1 {
 		t.Fatalf("expected one admin argv element, got %#v", spec.Args)
 	}
-	if strings.Contains(spec.Args[0], "{{") || strings.Contains(spec.Args[1], "{{") || strings.Contains(spec.Args[2], "{{") {
-		t.Fatal("template environment string was used")
+	for _, arg := range spec.Args {
+		if strings.Contains(arg, "{{") {
+			t.Fatal("template environment string was used")
+		}
 	}
-	if strings.Contains(spec.Args[2], " ") != true {
-		t.Fatalf("admin token unexpectedly split: %q", spec.Args[2])
+	// The adversarial value must stay one argv element (a space inside it does
+	// not split it) and the password must never be joined with its flag.
+	spaceKept := false
+	for _, arg := range spec.Args {
+		if strings.Contains(arg, " ") {
+			spaceKept = true
+		}
+	}
+	if !spaceKept {
+		t.Fatalf("adversarial value lost its internal space: %#v", spec.Args)
 	}
 }
 

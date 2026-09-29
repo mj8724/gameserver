@@ -264,7 +264,8 @@ func DescriptorLaunchSpec(descriptor LauncherDescriptor, config DescriptorConfig
 	args = append(args,
 		"-cachedir="+config.CacheDir,
 		"-servername="+config.ServerName,
-		"-adminpassword="+config.AdminPass,
+		// Two tokens: PZ 42.21 rejects -adminpassword=<value>.
+		"-adminpassword", config.AdminPass,
 	)
 	return LaunchSpecResult{
 		Executable: executable,
