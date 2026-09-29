@@ -290,7 +290,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 				}
 				spec, err := pz.DescriptorLaunchSpec(descriptor, pz.DescriptorConfig{
 					InstallDir: input.InstallDir,
-					CacheDir:   firstNonEmpty(cfg.PZHome, input.CacheDir),
+					CacheDir:   input.CacheDir,
 					ServerName: input.ServerName,
 					AdminPass:  input.AdminPass,
 					MemoryMB:   serverMemoryMB(cfg, input.InstallDir),
@@ -312,7 +312,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 			return pz.BuildLaunchSpec(pz.LaunchConfig{
 				InstanceID: instance,
 				InstallDir: input.InstallDir,
-				CacheDir:   firstNonEmpty(cfg.PZHome, input.CacheDir),
+				CacheDir:   input.CacheDir,
 				Platform:   input.Platform,
 				ServerName: input.ServerName,
 				AdminPass:  input.AdminPass,
