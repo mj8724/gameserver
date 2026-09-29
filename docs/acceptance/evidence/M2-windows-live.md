@@ -70,3 +70,9 @@
 1. 以**用户上下文**重跑（去掉 `/ru SYSTEM`），确认 PZ 达到 `SERVER STARTED` 并 `ready=true`；
 2. 定案隔离方案后，把实例配置写入点与 PZ 读取点对齐（或按 `-servername` 映射），再验证「PZ 重写后回读 + 仍能写入新值」；
 3. 全部通过后补齐本节表格与 Target Manifest 实值，并把 `M2-PZ-LIVE`/`M2-PLATFORM` 保持 BLOCKED（E-LIVE = Ubuntu LTS）。
+
+## 8. 用户上下文复跑（2026-09-29，非 SYSTEM）
+
+以当前登录用户（admin）运行同一任务（`schtasks /tn gs-live7`，无 `/ru SYSTEM`）：结果与 SYSTEM 一致——选项写入 200、只读 409、启动 200，但 java 进程**立即退出**，`readiness:"timeout"`，日志同为 `src\tier0\threadtools.cpp (3807) : Assertion Failed: Illegal termination of worker thread`，停止后残留 0/0。
+
+**结论修正**：失败与运行账户无关。对照组差异只剩两点：① 成功的手工直跑**保持 stdin 打开**（管道/控制台），而服务侧子进程的 stdin 在服务上下文中可能立即 EOF → PZ 控制台循环退出 → 进程终止并在关闭路径触发 tier0 断言；② 手工直跑未传 `-adminpassword`（本轮传了）。下一轮按 ① 优先验证：为子进程提供**长期打开的 stdin 管道**（同时作为控制台输入通道），确认 PZ 达到 `SERVER STARTED`。
