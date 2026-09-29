@@ -26,6 +26,7 @@ import (
 	"github.com/mj8724/gameserver/internal/adapters/instancefiles"
 	"github.com/mj8724/gameserver/internal/adapters/localstate"
 	"github.com/mj8724/gameserver/internal/adapters/migrate"
+	"github.com/mj8724/gameserver/internal/adapters/optioncatalog"
 	"github.com/mj8724/gameserver/internal/adapters/oslock"
 	"github.com/mj8724/gameserver/internal/adapters/process"
 	"github.com/mj8724/gameserver/internal/adapters/pz"
@@ -96,6 +97,8 @@ type runtimeConfig struct {
 	ReadinessMarker string
 	ReadinessPort   int
 
+	CatalogsDir string
+
 	LaunchVector   string
 	ServerMemoryMB int
 }
@@ -121,6 +124,8 @@ func loadConfig() runtimeConfig {
 
 		ReadinessMarker: os.Getenv("GAMESERVER_READINESS_MARKER"),
 		ReadinessPort:   envInt("GAMESERVER_READINESS_PORT", 0),
+
+		CatalogsDir: os.Getenv("GAMESERVER_CATALOGS_DIR"),
 
 		LaunchVector:   os.Getenv("GAMESERVER_LAUNCH_VECTOR"),
 		ServerMemoryMB: envInt("GAMESERVER_SERVER_MEMORY_MB", 0),
@@ -243,7 +248,12 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if overrides.Installer != nil {
 		installer = overrides.Installer
 	}
+	optionCatalog, catalogErr := loadOptionCatalog(cfg, states, templates)
+	if catalogErr != nil {
+		log.Printf("WARNING: option catalogue unavailable (%v); the console shows options as degraded", catalogErr)
+	}
 	control, err := application.NewControlService(application.ServiceDeps{
+		Options:       optionCatalog,
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
@@ -730,6 +740,37 @@ func windowsVersion() string {
 		}
 	}
 	return ""
+}
+
+// loadOptionCatalog resolves the option catalogue for the instance's template.
+// A missing catalogue is not fatal: the console degrades and says so.
+func loadOptionCatalog(cfg runtimeConfig, states ports.StateStore, templates ports.TemplateCatalog) (ports.OptionCatalog, error) {
+	dir := strings.TrimSpace(cfg.CatalogsDir)
+	if dir == "" {
+		exe, err := os.Executable()
+		if err != nil {
+			return nil, err
+		}
+		dir = filepath.Join(filepath.Dir(exe), "catalogs")
+		if _, err := os.Stat(dir); err != nil {
+			dir = filepath.Join("catalogs")
+		}
+	}
+	state, err := states.Load(context.Background(), cfg.Instance)
+	if err != nil {
+		return nil, err
+	}
+	templateID := strings.TrimSpace(state.TemplateID)
+	if templateID == "" {
+		if template, ok := templates.Get("project_zomboid"); ok {
+			templateID = string(template.Summary.ID)
+		}
+	}
+	catalog, err := optioncatalog.New(dir, templateID)
+	if err != nil {
+		return nil, err
+	}
+	return catalog, nil
 }
 
 func fail(err error) {

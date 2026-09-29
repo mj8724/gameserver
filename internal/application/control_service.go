@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +40,7 @@ type ServiceDeps struct {
 	Clock           ports.Clock
 	BuildLaunchSpec ports.LaunchSpecBuilder
 	ApplyGameConfig ports.StateConfigApplier
+	Options         ports.OptionCatalog
 	LaunchEvidence  LaunchEvidence
 }
 
@@ -538,7 +541,74 @@ func (s *ControlService) Config(ctx context.Context) (ConfigSnapshot, error) {
 	for _, port := range template.Ports {
 		snapshot.AllowedPorts = append(snapshot.AllowedPorts, port.Key)
 	}
+	s.applyOptions(ctx, state, &snapshot)
 	return snapshot, nil
+}
+
+// applyOptions projects the validated option catalogue with file-backed values.
+// A missing or unreadable catalogue degrades the console (flag + empty list)
+// instead of failing the whole configuration view.
+func (s *ControlService) applyOptions(ctx context.Context, state domain.InstanceState, snapshot *ConfigSnapshot) {
+	if s.deps.Options == nil {
+		snapshot.CatalogDegraded = true
+		return
+	}
+	values, err := s.deps.Config.ReadOptions(ctx, state.ID)
+	if err != nil {
+		snapshot.CatalogDegraded = true
+		return
+	}
+	groups := map[string]bool{}
+	for _, spec := range s.deps.Options.Options() {
+		option := ConfigOption{
+			Key: spec.Name(), Target: string(spec.Target), Label: spec.Label, Type: spec.Type,
+			Secret: spec.Secret, Group: spec.Group, Description: spec.Description,
+			RequiresRestart: spec.RequiresRestart, Writable: spec.Writable, Clearable: spec.Clearable,
+			Min: spec.Min, Max: spec.Max, Enum: spec.Enum, Source: "file",
+		}
+		if raw, ok := values[spec.Name()]; ok {
+			option.Value = optionValue(spec, raw)
+		} else {
+			option.Value = optionValue(spec, spec.Default)
+		}
+		if spec.Secret {
+			// Secrets are never echoed, not even their default.
+			option.Value = nil
+			option.Default = nil
+		} else {
+			option.Default = optionValue(spec, spec.Default)
+		}
+		if option.Group != "" {
+			groups[option.Group] = true
+		}
+		snapshot.Options = append(snapshot.Options, option)
+	}
+	for group := range groups {
+		snapshot.Groups = append(snapshot.Groups, group)
+	}
+	sort.Strings(snapshot.Groups)
+}
+
+// optionValue renders a catalogue value with its declared type so the console
+// receives numbers and booleans rather than strings.
+func optionValue(spec ports.OptionSpec, raw string) any {
+	trimmed := strings.TrimSpace(raw)
+	switch spec.Type {
+	case "bool":
+		return trimmed == "true"
+	case "int":
+		if number, err := strconv.ParseInt(trimmed, 10, 64); err == nil {
+			return number
+		}
+	case "float":
+		if number, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			return number
+		}
+	}
+	if len(trimmed) >= 2 && strings.HasPrefix(trimmed, "\"") && strings.HasSuffix(trimmed, "\"") {
+		return trimmed[1 : len(trimmed)-1]
+	}
+	return raw
 }
 
 // UpdateConfig implements Control.

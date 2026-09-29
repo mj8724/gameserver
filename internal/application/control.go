@@ -84,6 +84,33 @@ type ConfigSnapshot struct {
 	Fields       []ConfigField  `json:"fields"`
 	AllowedPorts []string       `json:"-"`
 	Template     ConfigTemplate `json:"template"`
+	// Options and Groups are additive: the catalogue-driven view of the vendor
+	// configuration. fields[] keeps its legacy shape for existing consumers.
+	Options []ConfigOption `json:"options,omitempty"`
+	Groups  []string       `json:"groups,omitempty"`
+	// CatalogDegraded reports that the option catalogue could not be loaded.
+	CatalogDegraded bool `json:"catalog_degraded,omitempty"`
+}
+
+// ConfigOption is one catalogue entry projected for the console, with the value
+// read back from the vendor file (never from the request).
+type ConfigOption struct {
+	Key             string   `json:"key"`
+	Target          string   `json:"target"`
+	Label           string   `json:"label"`
+	Type            string   `json:"type"`
+	Secret          bool     `json:"secret"`
+	Value           any      `json:"value"`
+	Default         any      `json:"default,omitempty"`
+	Min             *float64 `json:"min,omitempty"`
+	Max             *float64 `json:"max,omitempty"`
+	Enum            []string `json:"enum,omitempty"`
+	Group           string   `json:"group"`
+	Description     string   `json:"description,omitempty"`
+	RequiresRestart bool     `json:"requires_restart"`
+	Writable        string   `json:"writable"`
+	Clearable       bool     `json:"clearable"`
+	Source          string   `json:"source"`
 }
 
 // ConfigField is one editable configuration definition as projected to the UI.

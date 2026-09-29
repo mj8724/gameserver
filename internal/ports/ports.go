@@ -79,6 +79,9 @@ type StateStore interface {
 type GameConfig interface {
 	Read(context.Context, domain.InstanceID) (map[string]string, error)
 	Apply(context.Context, domain.InstanceID, map[string]string) error
+	// ReadOptions returns the current value of every catalogue-relevant key
+	// (INI plus sandbox) so the console can show file-backed values.
+	ReadOptions(context.Context, domain.InstanceID) (map[string]string, error)
 }
 
 // InstallRequest describes a server installation without shell command text.

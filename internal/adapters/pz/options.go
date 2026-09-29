@@ -1,12 +1,15 @@
 package pz
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
 )
 
@@ -135,4 +138,35 @@ func RouteOptions(catalog ports.OptionCatalog, updates map[string]string) (ini m
 		}
 	}
 	return ini, sandbox, nil
+}
+
+// ReadOptions returns the current values of the instance's INI and sandbox
+// files, keyed by INI key / sandbox path. Values come from the files, never
+// from cached state, so the console shows what the game will actually read.
+func (c *Config) ReadOptions(ctx context.Context, id domain.InstanceID) (map[string]string, error) {
+	values, err := c.Read(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	name, err := c.serverName(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	path, err := SandboxVarsPath(c.dataRoot, string(id), name)
+	if err != nil {
+		return nil, err
+	}
+	sandbox, err := ReadSandbox(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return values, nil
+		}
+		return nil, err
+	}
+	for key, value := range sandbox {
+		if _, exists := values[key]; !exists {
+			values[key] = value
+		}
+	}
+	return values, nil
 }

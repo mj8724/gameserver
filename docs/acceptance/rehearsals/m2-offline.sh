@@ -148,6 +148,11 @@ row M2-INSTALL "SteamCMD 安装器配置解析与未配置时失败关闭" 'Test
 row M2-INSTALL "端到端：install → is_installed → start → command → stop（真实 HTTP/装配，注入 fake 游戏适配器）" 'TestM2OfflineInstallStartStopLifecycle'
 row M2-RESTART "端到端停止后状态枚举与 running 语义" 'TestM2OfflineInstallStartStopLifecycle'
 
+row M2-API "目录驱动的 options[]/groups[] 与 secret 不回显（真实装配）" 'TestM2OfflineConfigExposesCatalogueOptions'
+row M2-CONFIG "选项目录加载校验与写路径所有权路由" 'TestRouteOptionsSplitsByWriterOwnership|TestRouteOptionsSecretBlankKeepsCurrentValue|TestLoadRejectsBadCatalogues'
+row M2-CONFIG "SandboxVars 写协议（注释保留/多代备份/拒绝非法值）" 'TestSandboxReadWriteRoundTrip|TestSandboxBackupsRotateAcrossGenerations|TestSandboxRejectsUnrepresentableValues|TestSandboxUnknownKeyFailsClosed'
+row M2-MIGRATE "备份默认范围含 SandboxVars" 'TestBackupIncludesSandboxVars'
+
 # ---------- 单次运行全部 Go 测试并按行判定 ----------
 go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
 go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$(go version | awk '{print $3}')" || {

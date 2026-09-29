@@ -883,3 +883,97 @@ func TestOptionCatalogStaysOutOfTemplates(t *testing.T) {
 		}
 	}
 }
+
+// GET /api/server/config keeps the legacy fields[] shape and adds the
+// catalogue-driven options[]/groups[] read back from the vendor files.
+func TestM2OfflineConfigExposesCatalogueOptions(t *testing.T) {
+	dataRoot, _ := legacyFixture(t)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
+	}
+	cfg := testConfig(t, dataRoot)
+	repo, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.CatalogsDir = filepath.Join(repo, "catalogs")
+	rt, err := buildRuntime(cfg)
+	if err != nil {
+		t.Fatalf("buildRuntime: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	client := server.Client()
+	client.Jar = jar
+	if status, _ := call(t, client, "POST", server.URL+"/api/auth/login", server.URL, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+	status, body := call(t, client, "GET", server.URL+"/api/server/config", server.URL, "")
+	if status != 200 {
+		t.Fatalf("config = %d %s", status, body)
+	}
+	var payload struct {
+		Fields  []map[string]any `json:"fields"`
+		Options []struct {
+			Key             string   `json:"key"`
+			Target          string   `json:"target"`
+			Type            string   `json:"type"`
+			Secret          bool     `json:"secret"`
+			Value           any      `json:"value"`
+			Group           string   `json:"group"`
+			Writable        string   `json:"writable"`
+			RequiresRestart bool     `json:"requires_restart"`
+			Source          string   `json:"source"`
+			Enum            []string `json:"enum"`
+		} `json:"options"`
+		Groups          []string `json:"groups"`
+		CatalogDegraded bool     `json:"catalog_degraded"`
+	}
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
+		t.Fatalf("config json: %v", err)
+	}
+	if payload.CatalogDegraded {
+		t.Fatal("catalogue must load from the repository directory")
+	}
+	if len(payload.Fields) == 0 {
+		t.Fatal("legacy fields[] must stay present")
+	}
+	for _, field := range payload.Fields {
+		for _, required := range []string{"key", "label", "type", "value", "user_editable"} {
+			if _, ok := field[required]; !ok {
+				t.Fatalf("legacy field missing %q: %v", required, field)
+			}
+		}
+	}
+	if len(payload.Options) < 400 {
+		t.Fatalf("options[] too small: %d", len(payload.Options))
+	}
+	if len(payload.Groups) == 0 {
+		t.Fatal("groups[] must be reported")
+	}
+	readonly, secret, sandbox := 0, 0, 0
+	for _, option := range payload.Options {
+		if option.Writable != "rw" {
+			readonly++
+		}
+		if option.Secret {
+			secret++
+			if option.Value != nil {
+				t.Fatalf("secret option leaked a value: %+v", option)
+			}
+		}
+		if option.Target == "sandboxvars" {
+			sandbox++
+		}
+		if option.Source != "file" {
+			t.Fatalf("option value must be file-backed: %+v", option)
+		}
+	}
+	if readonly == 0 || secret == 0 || sandbox == 0 {
+		t.Fatalf("expected read-only/secret/sandbox entries: ro=%d secret=%d sandbox=%d", readonly, secret, sandbox)
+	}
+}
