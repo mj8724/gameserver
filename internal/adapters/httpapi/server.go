@@ -896,6 +896,8 @@ func applicationErrorDetails(err *application.UseCaseError) (int, string) {
 		return http.StatusUnprocessableEntity, messageOr(err, "未知配置项")
 	case application.CodeOptionValue:
 		return http.StatusUnprocessableEntity, messageOr(err, "配置项取值无效")
+	case application.CodeCapacityExceeded:
+		return http.StatusConflict, err.Error()
 	case application.CodeInstanceOwned:
 		return http.StatusConflict, "instance owned by another process"
 	case application.CodeRecoveryRequired:

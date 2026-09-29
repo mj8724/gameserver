@@ -127,15 +127,21 @@ func (f *fakeInstaller) Install(ctx context.Context, _ ports.InstallRequest, pro
 type fakeFiles struct {
 	installed   bool
 	fingerprint ports.ArtifactFingerprint
+	usageMB     float64
 }
 
 func (f *fakeFiles) InstanceRoot(id domain.InstanceID) (string, error) {
 	return "/tmp/" + string(id), nil
 }
-func (f *fakeFiles) InstallDir(domain.InstanceID) (string, error)   { return "/tmp/install", nil }
-func (f *fakeFiles) CacheDir(domain.InstanceID) (string, error)     { return "/tmp/cache", nil }
-func (f *fakeFiles) IsInstalled(domain.InstanceID) bool             { return f.installed }
-func (f *fakeFiles) DiskUsageMB(domain.InstanceID) (float64, error) { return 12.5, nil }
+func (f *fakeFiles) InstallDir(domain.InstanceID) (string, error) { return "/tmp/install", nil }
+func (f *fakeFiles) CacheDir(domain.InstanceID) (string, error)   { return "/tmp/cache", nil }
+func (f *fakeFiles) IsInstalled(domain.InstanceID) bool           { return f.installed }
+func (f *fakeFiles) DiskUsageMB(domain.InstanceID) (float64, error) {
+	if f.usageMB > 0 {
+		return f.usageMB, nil
+	}
+	return 12.5, nil
+}
 func (f *fakeFiles) Fingerprint(domain.InstanceID) (ports.ArtifactFingerprint, error) {
 	if f.fingerprint.ManifestSHA != "" {
 		return f.fingerprint, nil

@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -94,8 +95,10 @@ type runtimeConfig struct {
 	SteamCMDDir        string
 	SteamAppID         string
 
-	ReadinessMarker string
-	ReadinessPort   int
+	ReadinessMarker     string
+	ReadinessPort       int
+	CapacitySoftPercent float64
+	CapacityHardPercent float64
 	// ReadinessTimeout bounds the log-marker oracle when a Manifest records a
 	// window other than the 60-second default (PZ cold starts exceed it).
 	ReadinessTimeout time.Duration
@@ -129,8 +132,10 @@ func loadConfig() runtimeConfig {
 		SteamCMDDir:        os.Getenv("GAMESERVER_STEAMCMD_DIR"),
 		SteamAppID:         os.Getenv("GAMESERVER_STEAM_APP_ID"),
 
-		ReadinessMarker: os.Getenv("GAMESERVER_READINESS_MARKER"),
-		ReadinessPort:   envInt("GAMESERVER_READINESS_PORT", 0),
+		ReadinessMarker:     os.Getenv("GAMESERVER_READINESS_MARKER"),
+		ReadinessPort:       envInt("GAMESERVER_READINESS_PORT", 0),
+		CapacitySoftPercent: envFloat("GAMESERVER_CAPACITY_SOFT_PERCENT", 0),
+		CapacityHardPercent: envFloat("GAMESERVER_CAPACITY_HARD_PERCENT", 0),
 		ReadinessTimeout: readinessTimeout(
 			envInt("GAMESERVER_READINESS_TIMEOUT", 0),
 		),
@@ -294,6 +299,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Backup:        autoBackup,
 		Workshop:      workshopDownloader,
 		Query:         pzQueryAdapter{},
+		Capacity:      buildCapacity(cfg, states, files),
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
@@ -850,6 +856,18 @@ func env(key, fallback string) string {
 	return fallback
 }
 
+func envFloat(key string, fallback float64) float64 {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || parsed < 0 {
+		return fallback
+	}
+	return parsed
+}
+
 func envInt(key string, fallback int) int {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
@@ -886,4 +904,23 @@ func (pzQueryAdapter) Query(ctx context.Context, host string, port int) (ports.G
 		return ports.GameQueryInfo{}, err
 	}
 	return ports.GameQueryInfo{Name: info.Name, Map: info.Map, Players: info.Players, Max: info.Max}, nil
+}
+
+// buildCapacity wires the M3.5 capacity policy when thresholds are configured:
+// quota comes from the instance state, usage from the instance-files walk.
+// Without thresholds (or on a state read failure) the policy is disabled and
+// the historical no-limit behaviour stays in place.
+func buildCapacity(cfg runtimeConfig, states ports.StateStore, files ports.InstanceFiles) ports.CapacityChecker {
+	if cfg.CapacitySoftPercent <= 0 && cfg.CapacityHardPercent <= 0 {
+		return nil
+	}
+	instance, err := states.Load(context.Background(), domain.InstanceID(cfg.Instance))
+	if err != nil {
+		return nil
+	}
+	quota := instance.QuotaGB
+	if quota <= 0 {
+		return nil
+	}
+	return application.NewCapacity(cfg.CapacitySoftPercent, cfg.CapacityHardPercent, quota, files)
 }

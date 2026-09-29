@@ -79,3 +79,42 @@ func TestRejectsInvalidInputs(t *testing.T) {
 		t.Fatal("traversal instance id must not report installed")
 	}
 }
+
+// M3.5 accounting rule: DiskUsageMB walks the instance root, which contains no
+// backup or lock directories (those live outside the instance subtree), so the
+// capacity view and the status projection measure the same bytes.
+func TestDiskUsageExcludesBackupsAndLockDirs(t *testing.T) {
+	root := t.TempDir()
+	serversRoot := filepath.Join(root, "servers")
+	files, err := New(serversRoot, "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	instanceDir, err := files.InstanceRoot("pz_01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, size := range map[string]int{
+		filepath.Join(instanceDir, "server_files", "game.bin"):  4096,
+		filepath.Join(instanceDir, "Zomboid", "Saves", "s.bin"): 2048,
+		// Outside the instance subtree: must not be counted.
+		filepath.Join(serversRoot, "#locks", "pz_01.lock"):         8192,
+		filepath.Join(serversRoot, "#owners", "pz_01.json"):        8192,
+		filepath.Join(root, "backups", "pz_01", "stamp", "st.bin"): 8192,
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, make([]byte, size), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	used, err := files.DiskUsageMB("pz_01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := float64(4096+2048) / (1024 * 1024)
+	if used != want {
+		t.Fatalf("usage = %v MB, want %v MB (locks/owners/backups must be excluded)", used, want)
+	}
+}

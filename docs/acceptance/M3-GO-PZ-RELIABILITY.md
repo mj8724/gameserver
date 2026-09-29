@@ -81,3 +81,14 @@
 | `--include-saves` | **实现**（CLI flag + manifest `includes` 标记 + 自动备份默认包含存档） | 满足"真实存档恢复"验收；自动备份带存档以便恢复演练 | `cmd/gameserver/main.go`、`BackupOptions.IncludeSaves` |
 | `--include-server-files` | **明确不实现**（记录决策） | `server_files` 可再生、单次备份 ≥20 GB，会与 M3.5 容量上限互相撕扯；随保留/容量策略工作重新评估 | `BackupOptions` 注释 |
 | 自动备份触发 | `stop` 成功后异步、pz 退出 sandbox 重写稳定后（沉降 5s）、`pending_backup`→`last_backup` 状态字段 | **备份失败不影响 stop**（停服契约不变）；备份为尽力而为 | `scheduleAutomaticBackup`、`GAMESERVER_AUTO_BACKUP`/`GAMESERVER_BACKUP_DIR` |
+
+## M3.5 决策记录（2026-09-30）
+
+| 决策 | 选择 | 理由 |
+|---|---|---|
+| 阈值缺省 | `0` = 禁用 | 保持历史"无限制"行为，策略必须显式开启 |
+| 判定点 | API 入口 + 写盘前**双检** | 采样与写入之间可能发生用量跳变（单检会被绕过） |
+| 超限动作 | 拒绝新增写入 → 409 `capacity_exceeded` | 只拦增长型写入；只读展示与停止永不受限 |
+| 恢复路径 | 调阈值 / 清旧备份（运维动作） | **永不自动删除**；测量失败对增长型写入失败关闭 |
+| 自激环 | 自动备份前预检 → `last_backup.state=pending` | 备份自身抬高用量不得导致备份失败或死锁 |
+| 口径 | `quota_gb`/`usage_percent` 语义不变；策略用新增 `capacity{}` | 追加字段；用量=实例根递归（不含备份与锁目录） |

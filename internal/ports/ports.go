@@ -204,6 +204,7 @@ type InstanceFiles interface {
 	CacheDir(domain.InstanceID) (string, error)
 	IsInstalled(domain.InstanceID) bool
 	Fingerprint(domain.InstanceID) (ArtifactFingerprint, error)
+	DiskUsageMB(domain.InstanceID) (float64, error)
 }
 
 // ArtifactFingerprint is the cheap, content-agnostic reconciliation evidence

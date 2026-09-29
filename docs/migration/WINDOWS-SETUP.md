@@ -205,3 +205,5 @@ sc.exe config gameserver-pz_01 obj= ".\gs-pz" password= "<pw>" start= auto
 | PZ 退出时以运行时状态重写 sandbox 文件 | 与账户无关；隔离后仍需在停止后复读并核对（配置根单一写入者已由 `gs-pz` 独占强化） |
 
 `GAMESERVER_READINESS_TIMEOUT`（秒，缺省 60，上限 3600）：Manifest 记录的就绪窗口覆盖，用于 marker 到达晚于 60s 的机器。
+
+**容量策略（M3.5，可选）**：`GAMESERVER_CAPACITY_SOFT_PERCENT`（告警）/`GAMESERVER_CAPACITY_HARD_PERCENT`（拒绝新增写入，409），按实例 `quota_gb` 计算；缺省 0 = 禁用（保持历史行为）。超限恢复路径=调阈值或清旧备份（**系统永不自动删除数据**）。用量口径=实例根递归（不含备份与 `#locks/#owners`）。

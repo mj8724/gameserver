@@ -24,7 +24,9 @@ const (
 	CodeRenewalOutOfRange     ErrorCode = "renewal_out_of_range"
 	CodeInstanceOwned         ErrorCode = "instance_owned_by_another_process"
 	CodeRecoveryRequired      ErrorCode = "recovery_required"
-	CodeOperationFailed       ErrorCode = "operation_failed"
+	// CodeCapacityExceeded refuses new writes at the capacity hard limit (M3.5).
+	CodeCapacityExceeded ErrorCode = "capacity_exceeded"
+	CodeOperationFailed  ErrorCode = "operation_failed"
 
 	// Option-path outcomes of the catalogue ownership rules (plan D-C/D-D).
 	CodeOptionReadOnly ErrorCode = "option_read_only"

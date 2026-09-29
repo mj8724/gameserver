@@ -47,6 +47,7 @@ type ServiceDeps struct {
 	Backup          ports.BackupOperator
 	Workshop        ports.WorkshopDownloader
 	Query           ports.GameQuerier
+	Capacity        ports.CapacityChecker
 }
 
 type diskUsageProvider interface {
@@ -251,6 +252,7 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 		"readiness":          readiness,
 		"readiness_timeline": readinessTimeline,
 		"game_query":         s.queryGame(ctx),
+		"capacity":           s.capacityStatus(ctx),
 		"pending_restart":    s.pendingRestart.Load(),
 	}, nil
 }
@@ -296,6 +298,9 @@ func (s *ControlService) BeginInstall(ctx context.Context, version string) (Inst
 		return InstallAccepted{}, NewError(CodeInstallWhileRunning, "")
 	}
 
+	if err := s.checkCapacity(ctx); err != nil {
+		return InstallAccepted{}, err
+	}
 	lease, lockErr := s.ensureLock(ctx)
 	if lockErr != nil {
 		return InstallAccepted{}, lockErr
@@ -550,6 +555,14 @@ func (s *ControlService) Stop(ctx context.Context) (OperationResult, error) {
 // skipped when a backup is already in flight or disabled.
 func (s *ControlService) scheduleAutomaticBackup() {
 	if s.deps.Backup == nil || !s.deps.Backup.Enabled() {
+		return
+	}
+	// Self-stimulation guard: a backup whose own footprint would cross the hard
+	// limit is deferred (recorded as pending), never attempted and never failed.
+	if err := s.checkCapacity(context.Background()); err != nil {
+		s.mu.Lock()
+		s.lastBackup = autoBackupState{State: "pending", Message: err.Error(), At: s.deps.Clock.Now().Format(time.RFC3339)}
+		s.mu.Unlock()
 		return
 	}
 	s.backupMu.Lock()
@@ -855,6 +868,9 @@ func (s *ControlService) AddMod(ctx context.Context, request AddModRequest) (Mod
 // registered-but-missing mod behind; the legacy registration endpoint stays
 // untouched (M3.3, D11).
 func (s *ControlService) DownloadMod(ctx context.Context, workshopID string, modName *string) (ModsResult, error) {
+	if err := s.checkCapacity(ctx); err != nil {
+		return ModsResult{}, err
+	}
 	if s.deps.Workshop == nil {
 		return ModsResult{}, NewError(CodeOperationFailed, "下载器不可用")
 	}
@@ -876,6 +892,9 @@ func (s *ControlService) DownloadMod(ctx context.Context, workshopID string, mod
 		default:
 			return ModsResult{}, NewError(CodeOperationFailed, "模组下载失败："+message)
 		}
+	}
+	if err := s.checkCapacity(ctx); err != nil {
+		return ModsResult{}, err
 	}
 	updated := state.Clone()
 	mods := ensureMods(updated)
@@ -1109,5 +1128,46 @@ func (s *ControlService) queryGame(ctx context.Context) map[string]any {
 	result["max"] = info.Max
 	result["map"] = info.Map
 	result["name"] = info.Name
+	return result
+}
+
+// checkCapacity runs the policy entry check; the second (pre-write) check is
+// the call at the write site. A hard-limit breach surfaces as 409.
+func (s *ControlService) checkCapacity(ctx context.Context) error {
+	if s.deps.Capacity == nil {
+		return nil
+	}
+	err := s.deps.Capacity.CheckBeforeWrite(ctx, s.deps.Instance)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, errCapacityExceeded) {
+		return NewError(CodeCapacityExceeded, err.Error())
+	}
+	return WrapError(CodeOperationFailed, "", err)
+}
+
+func (s *ControlService) capacityStatus(ctx context.Context) map[string]any {
+	result := map[string]any{"state": "disabled"}
+	if s.deps.Capacity == nil {
+		return result
+	}
+	status, err := s.deps.Capacity.Status(ctx, s.deps.Instance)
+	if err != nil {
+		result["state"] = "unknown"
+		result["message"] = err.Error()
+		return result
+	}
+	result["state"] = status.State
+	result["used_mb"] = round1(status.UsedMB)
+	if status.QuotaGB > 0 {
+		result["quota_gb"] = status.QuotaGB
+	}
+	if status.HardPercent > 0 {
+		result["hard_percent"] = status.HardPercent
+	}
+	if status.SoftPercent > 0 {
+		result["soft_percent"] = status.SoftPercent
+	}
 	return result
 }

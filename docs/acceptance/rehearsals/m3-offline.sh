@@ -93,10 +93,10 @@ row M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" 'Te
 blocked M3.4 "A2S 可达性只读取证（声明目标 PZ 42.21 实机一次 UDP 探测）" "需目标机授权动作；解析器已实现（pz/a2s.go + 单测）"
 
 # ---------- M3.5 容量 ----------
-notrun M3.5 "双检与竞态对抗（采样未超但写入时超 → 拒绝且无部分写入）" "能力未实现（M3.5）"
-notrun M3.5 "硬阈值 409 + 恢复路径（只读+回退，永不自动删除）" "能力未实现（M3.5）"
-notrun M3.5 "自激环防护（自动备份前预检 → pending_backup 延迟）" "能力未实现（M3.5）"
-notrun M3.5 "用量口径（排除备份与锁目录）与 DiskUsageMB 对齐" "能力未实现（M3.5）"
+row M3.5 "双检与竞态对抗（采样未超但写入时超 → 拒绝且无部分写入）" 'TestCapacityDoubleCheckRejectsPartialWrite|TestCapacityMeasurementFailureFailsClosed'
+row M3.5 "硬阈值 409 + 恢复路径（只读+回退，永不自动删除）" 'TestCapacityHardLimitAndRecoveryPath'
+row M3.5 "自激环防护（自动备份前预检 → pending_backup 延迟）" 'TestAutomaticBackupDefersWhenCapacityTight'
+row M3.5 "用量口径（排除备份与锁目录）与 DiskUsageMB 对齐；阈值禁用=现状" 'TestDiskUsageExcludesBackupsAndLockDirs|TestCapacityDisabledKeepsHistoricalBehaviour|TestCapacityStatusProjectsState' 
 
 # ---------- M3.6 实机长跑（全部实机，离线无对应行） ----------
 blocked M3.6 "连续 start/stop ≥10 轮（含 1 次强杀）无残留" "需目标机授权与执行窗口"
