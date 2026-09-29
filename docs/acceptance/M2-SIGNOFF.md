@@ -14,7 +14,7 @@
 | `M2-UI` | 2 | 0 | **BLOCKED** | 浏览器闭环需 E-BROWSER 人工操作；源码级分支断言已 PASS（`TestStaticUIContract`） |
 | `M2-AUTH` | 3 | 3 | **PASS** | — |
 | `M2-WS` | 6 | 5 | **部分** | 5 行 PASS（含 D3 wire 与源码级 UI 兼容）；浏览器 UI 稳态观察 BLOCKED |
-| `M2-SINGLEWRITER` | 13 | 4 | **部分** | 对账/未持锁/非终态 journal/陈旧记录 PASS；**Linux 双独立进程声明门 BLOCKED**（darwin 已用独立 OS 进程验证 409） |
+| `M2-SINGLEWRITER` | 13 | 5 | **部分** | 对账/未持锁/非终态 journal/陈旧记录 PASS；**Windows 双独立进程实机 PASS**（`M2-windows-two-process.md`：409 精确文案、只读 200、无写入、强杀后 recovery required、recover 后恢复）；Linux 变体 BLOCKED |
 | `M2-SECRET` | 4 | 3 | **部分** | 脱敏/边界 PASS；POSIX 秘密权限的 Linux 声明门 BLOCKED |
 | `M2-INSTALL` | 7 | 3 | **部分** | 安装生命周期/取消/deadline/冲突/retry + SteamCMD 配置解析 + 端到端 install→start→stop PASS；真实 helper reap 的声明平台门 BLOCKED |
 | `M2-RESTART` | 3 | 3 | **部分** | 重启持久化 + 陈旧 owner 失败关闭 + 停止后状态枚举 PASS；E-OS 声明行 BLOCKED |
@@ -30,7 +30,7 @@
 
 | 缺项 | 解除条件 |
 |---|---|
-| Windows 实机（首选目标） | 隧道 connector 在线 + 本机 `cloudflared access login winssh.liubaitech.cn` + `admin` 密钥登录；随后按 `docs/migration/WINDOWS-SETUP.md` 执行并在该机重跑两个演练脚本 |
+| Windows 实机（首选目标） | **已接入并完成离线/双进程验收**（见 `M2-windows-pre-live.md`、`M2-windows-two-process.md`）；剩余为 `M2-PZ-LIVE`：需 Target Manifest + 真实副作用逐项授权（SteamCMD 安装 PZ、启动、端口） |
 | Linux Ubuntu LTS 实机（次选） | 用户提供具名主机与访问方式；执行 M2-SINGLEWRITER 双进程、D8 权限门、启动向量与 reap 行 |
 | Target Manifest | 填实 `M2-GO-PZ-MVP.md` §4 全部字段（OS/架构、PZ build ID、SteamCMD 版本、oracle、端口/网络、浏览器版本） |
 | 真实副作用授权 | 用户对 SteamCMD 下载、PZ 安装/启动、端口绑定与网络探测、临时数据根写入逐项授权（含绝对路径、时间窗口、停止/恢复办法） |
@@ -50,11 +50,12 @@
 
 查看候选：`maestro knowledge review ksyn-17cc3f98d029250a --json`。
 
-## 4. 实现侧 Windows 就绪改进（仍需目标机证据）
+## 4. 实现侧 Windows 就绪改进（已在目标机验证的部分）
 
 - **进程树终止**：原 `!linux && !darwin` 分支用 `os.Interrupt`（Windows 必失败）且只杀单进程；现新增 `process_windows.go` / `steamcmd/process_windows.go`，以 `taskkill /PID <pid> /T /F`（类型化 argv、不经 shell）终止整棵树，子进程以 `CREATE_NEW_PROCESS_GROUP` 创建。argv 形状在所有平台有单测（`TestTaskkillArgsStayTypedAndExact*`）。
 - **SteamCMD 安装器接线**：原先 `steamcmd.New()` 未配置，真实安装请求必然失败；现从 `GAMESERVER_STEAMCMD_EXECUTABLE` / `GAMESERVER_STEAM_APP_ID`（缺省取模板 `steam.app_id`）解析，未配置时**失败关闭**并打印告警；SteamCMD 目录固定在 `<实例>/steamcmd`（不随 state promotion 移动）。
-- 以上均为**实现与离线测试**证据；Windows/Linux 的真实运行结论仍需目标机（见 §2）。
+- **已在 Windows 目标机实测**：全部 Go 测试通过、`gofmt` 干净、HTTP 黑盒与端到端启停、双独立进程锁与恢复链路（见 §1 与两份 Windows 证据文件）。
+- **仍需目标机/授权**：真实 SteamCMD 安装 PZ、真实启动与就绪 oracle、端口可达性、真机控制台闭环（`M2-PZ-LIVE`）；Linux 变体行。
 
 ## 5. 结论
 

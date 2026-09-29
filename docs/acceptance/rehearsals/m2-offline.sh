@@ -271,7 +271,7 @@ b M2-MIGRATE "仅因权限宽松拒绝提升（Linux）" "需 Linux 目标主机
 b M2-INSTALL "正常结束/取消后的 reap（声明平台）" "darwin 已用真实 helper 子进程覆盖；Linux 声明仍需目标主机"
 b M2-PROCESS "Linux/Windows 启动向量对抗" "需具名目标 OS 与已编译 safe helper；Manifest 未填"
 b M2-PROCESS "环境变量与模板插值隔离（声明平台 helper 实测）" "darwin 已用包内测试覆盖构造成本；声明平台仍需具名 runner 与 safe helper"
-b M2-SINGLEWRITER "双独立进程争用（Linux 必跑，声明门）" "darwin 已用独立 OS 进程持锁 + 真实二进制验证 409（m1a-rehearsal.sh）；Linux 声明仍需目标主机"
+b M2-SINGLEWRITER "双独立进程争用（Linux 变体）" "Windows 已在目标机实测（M2-windows-two-process.md：409/只读 200/无写入/强杀后 recovery required/recover 后恢复）；Linux 变体仍需具名主机"
 b M2-RESTART "控制进程异常退出后的启动对账（E-OS 声明）" "darwin 已由 TestM2OfflineRecoveryRequiredReconciliation 覆盖；目标 OS 声明仍需具名 runner"
 b M2-RESTART "PZ child 意外退出观察（E-OS）" "需真实/受控子进程与目标 OS"
 b M2-PZ-LIVE "全部 7 行" "需 Target Manifest、用户逐项授权与真实 SteamCMD/PZ（BLOCKED）"
