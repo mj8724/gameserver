@@ -159,6 +159,8 @@ row M2-API "status.pending_restart 追加字段" 'TestM2OfflineOptionsWritePath'
 row M2-INSTALL "版本选择与 install 请求体（{} 兼容 / 未知分支 422 / 回显）" 'TestM2OfflineInstallVersionSelection'
 row M2-API "templates.versions[] 投影与模板版本校验" 'TestTemplateVersionsParsedAndValidated|TestM2OfflineInstallVersionSelection'
 
+row M2-UI "六步闭环源码级契约（选游戏/版本/进度/分组表单/待生效标记/端点集合）" 'TestStaticUIContract'
+
 # ---------- 单次运行全部 Go 测试并按行判定 ----------
 go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
 go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$(go version | awk '{print $3}')" || {

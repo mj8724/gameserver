@@ -363,10 +363,23 @@ func TestStaticUIContract(t *testing.T) {
 		}
 	}
 	for _, required := range []string{"/api/auth/status", "/api/auth/login", "/api/auth/logout", "/api/status",
-		"/api/server/config", "/api/server/logs", "/api/server/command", "/ws/console"} {
+		"/api/server/config", "/api/server/logs", "/api/server/command", "/ws/console",
+		// Stage 5 additions: game/version selection and progress tracking.
+		"/api/templates", "/api/server/install"} {
 		if !strings.Contains(ui, required) {
 			t.Fatalf("UI no longer uses %s (legacy call surface changed)", required)
 		}
+	}
+	// The console renders the catalogue: grouped options, typed controls and the
+	// restart hint, without promising that a saved value is already live.
+	for _, required := range []string{"options-groups", "option-search", "options-save", "install-bar",
+		"version-select", "catalog_degraded", "pending_restart", "重启后生效", "留空表示保持当前值"} {
+		if !strings.Contains(ui, required) {
+			t.Fatalf("UI is missing the stage-5 element %q", required)
+		}
+	}
+	if size := len(uiRaw); size > 256*1024 {
+		t.Fatalf("static UI grew beyond the agreed budget: %d bytes", size)
 	}
 	if !strings.Contains(ui, `error.message==='请先登录'`) || !strings.Contains(routes, "请先登录") {
 		t.Fatal("login-expiry branch or its exact server string drifted")
