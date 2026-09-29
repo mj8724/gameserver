@@ -166,6 +166,15 @@ UI 调用面不再以固定计数核对；由 `TestStaticUIContract` 动态断�
 | 日志 | **仅内存**（deque，默认 1000 行），`data/logs/` 目录被创建但未用于持久化 | 重启即丢失 | `core/process_supervisor.py:16-17`；`config.py:27-28` |
 | 模板 | `templates/*.yaml`（`TemplateManager.load_all`，`get_template` 未命中时重载） | 元数据 + 环境/端口/变量/绑定/生命周期 | `core/template_manager.py:14-29` |
 
+### 5.1 r3/r4 增量：受管键所有权与 SandboxVars（非 legacy 行为）
+
+| 项 | legacy | Go 版（r3/r4） | 依据 |
+|---|---|---|---|
+| 可写集合 | 固定 10 个受管键 | 由经校验的选项目录（`writable=rw`）决定；`ro/hidden` 拒绝并给精确文案 | ADR §5.4 D9 |
+| 写入者 | 变量页与配置页可写同一批键 | **一物理键一写入者**：变量页自有 10 键 + mods 两键归 mods API；`ApplyGameConfig` 只写自有键；跨路径写入 409 | ADR §5.4 D9、实施 #25 |
+| SandboxVars | 不受管、不备份 | 受管文件：规范化写入、注释与未知键保留、`.bak1..3` 轮转、逐字节读回、失败关闭；纳入备份范围 | §8.1、ADR §1.4/§4.6 |
+| 秘密 | `Password`、`RCONPassword` 明文可读 | 值不回显（读回 `null`）、留空=保持当前值、字典内标 `secret` | ADR §1.7、M2-SECRET |
+
 ## 6. 秘密边界
 
 | 秘密 | 存放 | 暴露面 |
@@ -210,8 +219,8 @@ UI 调用面不再以固定计数核对；由 `TestStaticUIContract` 动态断�
 - [ ] 配置校验 5 类规则与端口范围一致；`fields` 仅 `user_editable`；密码字段不返回 default。
 - [ ] 脱敏规则与 §2.2 完全一致。
 - [ ] WS：1008 关闭、100 行回放、log/input/ping/pong、非 JSON 文本按输入处理、断开清理。
-- [ ] 静态资源：`/`、`/static/*` 可服务；UI 的 **10 处调用点覆盖的 13 个端点**行为不变。
-- [ ] INI：保留未知键与注释、只更新受管键、空 Mod 列表写空串。
+- [ ] 静态资源：`/`、`/static/*` 可服务；UI 调用面行为不变（**r3 起改为动态断言**：解析 `static/index.html` 的端点点集 ⊆ 路由集，不再硬编码「10 处调用点 / 13 端点」，见 §4.1 与 ADR §1.3）。
+- [ ] INI：保留未知键与注释、只更新受管键、空 Mod 列表写空串（r3 起「受管键」= 目录授权集合且按所有权切分，见 §5.1）。
 - [ ] 错误信封 `{"detail": <string>}` 与 §2.3 全部字符串逐字一致（含 UI 分支依赖的 `请先登录`）。
 - [ ] 容忍 GET 带 `Content-Type: application/json`、无模型 POST 接受 `{}`（§2.4）。
 - [ ] 模板 `supported_os` 等元数据按原样返回（兼容数据），但**不作为平台支持声明**。

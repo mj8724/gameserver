@@ -157,3 +157,49 @@ Windows 服务端包**不含** `ProjectZomboid64.exe`（制品清单见 `docs/ac
 | `GAMESERVER_LAUNCH_EVIDENCE_REF` | 必须非空（向量证据引用） | `manifest#win-live-1` |
 
 `GAMESERVER_LAUNCH_EXECUTABLE` / `GAMESERVER_LAUNCH_DIRECT_EXEC` 仅对 direct-executable 生效。启用 descriptor 时同时需要显式向量 env 与证据引用，缺一即拒绝启动；`vmArgs` 只接受 Target Manifest 逐字登记的 token，`-Xmx/-Xms` 由本服务接管，`java/. → java/` 是厂商笔误的确定性纠正。
+
+## 8. 实例隔离方案（r4 定案：专用服务账户）
+
+**背景**：PZ 在 Windows **忽略 `-cachedir` 的配置语义**——INI 与 `*_SandboxVars.lua` 固定写入运行账户的 `%USERPROFILE%\Zomboid\Server`，而存档/DB 才落在 `-cachedir`。共享 profile 会让不同实例的配置互相覆盖，且与"实例化"语义冲突。用户于 2026-09-29 定案采用**专用服务账户**（记录见 `docs/acceptance/M2-PLAN-DECISION.md` r4 D-R4-2）。
+
+### 8.1 目标形态
+
+| 项 | 取值 | 说明 |
+|---|---|---|
+| 运行账户 | `gs-pz`（本地账户，非管理员） | 每个实例一个账户；禁止用 `SYSTEM`/管理员账户运行游戏进程 |
+| 账户 profile | `C:\Users\gs-pz\` | PZ 配置根 = `C:\Users\gs-pz\Zomboid`（游戏自己选的路径，非我们指定） |
+| `GAMESERVER_PZ_HOME` | `C:\Users\gs-pz\Zomboid` | 把我们的 INI/SandboxVars 读写点对齐到游戏真正读取的位置 |
+| 缓存目录 | `<data_root>\servers\<id>\Zomboid`（**仍归实例所有**） | `-cachedir`；存存档/DB；不得与配置根混淆 |
+| 数据根 | `G:\gameserver-work\data` | ACL：`gs-pz` 与运维账户**修改**，其它用户无权限；不继承 `Users` 组 |
+| 服务 | `gameserver-<id>`（若以服务方式运行） | 登录身份 = `gs-pz`；`GAMESERVER_*` 环境变量随服务配置下发 |
+
+### 8.2 落地步骤（每步需授权）
+
+```powershell
+# 1) 建账户（一次性）
+$pw = Read-Host -AsSecureString "gs-pz password"
+New-LocalUser -Name gs-pz -Password $pw -PasswordNeverExpires -AccountNeverExpires
+# 2) 数据根 ACL：仅 gs-pz 与运维账户，去掉继承
+icacls G:\gameserver-work\data /inheritance:r
+icacls G:\gameserver-work\data /grant "gs-pz:(OI)(CI)M" "Administrators:(OI)(CI)F"
+# 3) 以该账户首次登录一次，生成 profile 与 Zomboid 目录（或由安装流程以该身份运行一次）
+# 4) 启动时注入配置根对齐
+setx /m GAMESERVER_PZ_HOME C:\Users\gs-pz\Zomboid
+# 5) 服务身份（若用服务运行）
+sc.exe config gameserver-pz_01 obj= ".\gs-pz" password= "<pw>" start= auto
+```
+
+**权限检查**：Windows 路径不检查 POSIX 位（ADR §1.7），仍以 ACL 为准；`fix-permissions` 在 Windows 只做存在性/归属核对，不改 ACL。
+
+### 8.3 验证与回滚
+
+- **验证**：启动后确认 ① `C:\Users\gs-pz\Zomboid\Server\<name>.ini` 与 `*_SandboxVars.lua` 被真正读取（改一个值 → 游戏内生效）；② 存档/DB 落在 `<data_root>\servers\<id>\Zomboid`；③ 另一实例的配置不受影响；④ `tasklist /v` 显示 java 进程属主为 `gs-pz`。
+- **回滚**：停服 → 恢复原运行身份与环境变量 → 数据根 ACL 复原（`icacls /reset`）→ 删除账户；配置根回退时把 `gs-pz` profile 下的 INI/SandboxVars 复制回目标位置（保留 `.bak1..3`）。
+- **副作用声明**：涉及本机账户/ACL 变更，属系统级动作，必须逐项授权；不修改防火墙与系统服务策略（除上述服务注册）。
+
+### 8.4 对 r3 记录差异的影响
+
+| 差异 | 在专用账户下的处理 |
+|---|---|
+| 冷启动地图生成超出 60s 就绪窗口 | 与账户无关（属 PZ 冷启动特性）；按 Manifest 记录的窗口与首次/再次启动分别判定 |
+| PZ 退出时以运行时状态重写 sandbox 文件 | 与账户无关；隔离后仍需在停止后复读并核对（配置根单一写入者已由 `gs-pz` 独占强化） |
