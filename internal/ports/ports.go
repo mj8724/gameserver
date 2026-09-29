@@ -92,6 +92,9 @@ type GameConfig interface {
 type InstallRequest struct {
 	InstanceID domain.InstanceID
 	Validate   bool
+	// Version selects a Steam branch (evidence-backed template version). Empty
+	// means the template default branch.
+	Version string
 }
 
 // Progress reports installer progress.

@@ -254,14 +254,48 @@ func (s *Server) templates(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// readOptionalJSON reads an optional JSON body: an empty body is accepted (the
+// legacy `{}` call shape), anything else is returned for strict decoding.
+func readOptionalJSON(r *http.Request) ([]byte, error) {
+	if r.Body == nil {
+		return nil, nil
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 8*1024))
+	if err != nil {
+		return nil, err
+	}
+	trimmed := strings.TrimSpace(string(body))
+	if trimmed == "" || trimmed == "{}" {
+		return nil, nil
+	}
+	return body, nil
+}
+
 func (s *Server) install(w http.ResponseWriter, r *http.Request) {
 	if !s.requireSession(w, r, true) {
 		return
 	}
-	if !acceptEmptyJSON(w, r) {
+	body, err := readOptionalJSON(r)
+	if err != nil {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
 		return
 	}
-	result, err := s.control.BeginInstall(r.Context())
+	version := ""
+	if len(body) != 0 {
+		var request struct {
+			Version *string `json:"version"`
+		}
+		decoder := json.NewDecoder(bytes.NewReader(body))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&request); err != nil {
+			writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+			return
+		}
+		if request.Version != nil {
+			version = strings.TrimSpace(*request.Version)
+		}
+	}
+	result, err := s.control.BeginInstall(r.Context(), version)
 	if err != nil {
 		writeApplicationError(w, err)
 		return

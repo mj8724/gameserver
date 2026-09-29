@@ -64,6 +64,7 @@ type ControlService struct {
 
 type installTask struct {
 	running  bool
+	version  string
 	status   string
 	progress float64
 	message  string
@@ -146,6 +147,7 @@ func (s *ControlService) installSnapshot() InstallStatus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return InstallStatus{
+		Version:  s.install.version,
 		Status:   s.install.status,
 		Progress: s.install.progress,
 		Message:  s.install.message,
@@ -255,7 +257,7 @@ func (s *ControlService) Templates(context.Context) ([]TemplateSummary, error) {
 }
 
 // BeginInstall implements Control.
-func (s *ControlService) BeginInstall(ctx context.Context) (InstallAccepted, error) {
+func (s *ControlService) BeginInstall(ctx context.Context, version string) (InstallAccepted, error) {
 	if s.deps.Installer == nil {
 		return InstallAccepted{}, NewError(CodeOperationFailed, "安装器不可用")
 	}
@@ -275,7 +277,28 @@ func (s *ControlService) BeginInstall(ctx context.Context) (InstallAccepted, err
 	s.install = installTask{running: true, status: "INSTALLING", progress: 0, message: "准备安装", cancel: cancel}
 	s.mu.Unlock()
 
-	go func() {
+	// Version selection happens after the conflict check so a rejected request
+	// can never disturb an install that is already running.
+	state, err := s.load(ctx)
+	if err != nil {
+		s.clearInstall()
+		return InstallAccepted{}, err
+	}
+	template, err := s.template(state)
+	if err != nil {
+		s.clearInstall()
+		return InstallAccepted{}, err
+	}
+	branch, err := resolveInstallVersion(template, version)
+	if err != nil {
+		s.clearInstall()
+		return InstallAccepted{}, err
+	}
+	s.mu.Lock()
+	s.install.version = branch
+	s.mu.Unlock()
+
+	go func(branch string) {
 		defer cancel()
 		progress := func(value ports.Progress) {
 			s.mu.Lock()
@@ -287,7 +310,7 @@ func (s *ControlService) BeginInstall(ctx context.Context) (InstallAccepted, err
 			}
 			s.mu.Unlock()
 		}
-		err := s.deps.Installer.Install(taskCtx, ports.InstallRequest{InstanceID: s.deps.Instance, Validate: true}, progress)
+		err := s.deps.Installer.Install(taskCtx, ports.InstallRequest{InstanceID: s.deps.Instance, Validate: true, Version: branch}, progress)
 
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -309,7 +332,7 @@ func (s *ControlService) BeginInstall(ctx context.Context) (InstallAccepted, err
 			text := err.Error()
 			s.install.errText = &text
 		}
-	}()
+	}(branch)
 	return InstallAccepted{Message: "安装/更新任务已启动", Status: "INSTALLING"}, nil
 }
 
@@ -848,3 +871,35 @@ func round1(value float64) float64 {
 }
 
 var _ Control = (*ControlService)(nil)
+
+// resolveInstallVersion validates the requested branch against the template's
+// evidence-backed version list. An unknown branch is a validation error, never a
+// silent fallback (plan D-E).
+// clearInstall releases the install slot after a pre-flight failure.
+func (s *ControlService) clearInstall() {
+	s.mu.Lock()
+	cancel := s.install.cancel
+	s.install = installTask{status: "IDLE", message: "尚未运行"}
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
+func resolveInstallVersion(template domain.Template, requested string) (string, error) {
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
+		for _, version := range template.Versions {
+			if version.Default {
+				return version.Branch, nil
+			}
+		}
+		return "", nil
+	}
+	for _, version := range template.Versions {
+		if version.Branch == requested {
+			return version.Branch, nil
+		}
+	}
+	return "", NewError(CodeValidation, "所选服务端版本不在模板清单中")
+}

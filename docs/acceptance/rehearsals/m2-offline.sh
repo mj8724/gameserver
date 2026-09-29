@@ -156,6 +156,9 @@ row M2-MIGRATE "备份默认范围含 SandboxVars" 'TestBackupIncludesSandboxVar
 row M2-CONFIG "选项写路径（409/422 精确语义 + secret 留空 + 文件回读）" 'TestM2OfflineOptionsWritePath'
 row M2-API "status.pending_restart 追加字段" 'TestM2OfflineOptionsWritePath'
 
+row M2-INSTALL "版本选择与 install 请求体（{} 兼容 / 未知分支 422 / 回显）" 'TestM2OfflineInstallVersionSelection'
+row M2-API "templates.versions[] 投影与模板版本校验" 'TestTemplateVersionsParsedAndValidated|TestM2OfflineInstallVersionSelection'
+
 # ---------- 单次运行全部 Go 测试并按行判定 ----------
 go test -count=1 -json ./... > "$WORK/all.json" 2>"$WORK/all.err" || true
 go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$(go version | awk '{print $3}')" || {

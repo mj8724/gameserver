@@ -222,14 +222,14 @@ func TestControlStatusProjectsStateAndSecrets(t *testing.T) {
 
 func TestControlInstallLifecycleAndConflicts(t *testing.T) {
 	h := newHarness(t)
-	accepted, err := h.service.BeginInstall(context.Background())
+	accepted, err := h.service.BeginInstall(context.Background(), "")
 	if err != nil {
 		t.Fatalf("BeginInstall: %v", err)
 	}
 	if accepted.Status != "INSTALLING" {
 		t.Fatalf("unexpected accepted response: %+v", accepted)
 	}
-	if _, err := h.service.BeginInstall(context.Background()); !isCode(err, CodeInstallAlreadyRunning) {
+	if _, err := h.service.BeginInstall(context.Background(), ""); !isCode(err, CodeInstallAlreadyRunning) {
 		t.Fatalf("second install error = %v, want CodeInstallAlreadyRunning", err)
 	}
 	deadline := time.Now().Add(3 * time.Second)
@@ -248,7 +248,7 @@ func TestControlInstallLifecycleAndConflicts(t *testing.T) {
 	}
 
 	h.status.status = ports.ProcessStatus{Running: true, Status: "RUNNING", PID: 99}
-	if _, err := h.service.BeginInstall(context.Background()); !isCode(err, CodeInstallWhileRunning) {
+	if _, err := h.service.BeginInstall(context.Background(), ""); !isCode(err, CodeInstallWhileRunning) {
 		t.Fatalf("install while running error = %v, want CodeInstallWhileRunning", err)
 	}
 	start, err := h.service.Start(context.Background())

@@ -8,7 +8,7 @@ import "context"
 type Control interface {
 	Status(context.Context) (StatusResponse, error)
 	Templates(context.Context) ([]TemplateSummary, error)
-	BeginInstall(context.Context) (InstallAccepted, error)
+	BeginInstall(ctx context.Context, version string) (InstallAccepted, error)
 	InstallState(context.Context) (InstallStatus, error)
 	Start(context.Context) (StartResult, error)
 	Stop(context.Context) (OperationResult, error)
@@ -66,6 +66,8 @@ type InstallStatus struct {
 	Progress float64 `json:"progress"`
 	Message  string  `json:"message"`
 	Error    *string `json:"error"`
+	// Version echoes the selected Steam branch (empty = template default).
+	Version string `json:"version,omitempty"`
 }
 
 // StartResult is the start endpoint response.

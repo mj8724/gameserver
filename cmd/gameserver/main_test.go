@@ -561,6 +561,12 @@ func (f *fakeInstaller) Install(_ context.Context, request ports.InstallRequest,
 	return nil
 }
 
+func (f *fakeInstaller) request(index int) ports.InstallRequest {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.requests[index]
+}
+
 func (f *fakeInstaller) requestCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -1051,5 +1057,74 @@ func TestM2OfflineOptionsWritePath(t *testing.T) {
 	status, body = call(t, client, "GET", server.URL+"/api/status", server.URL, "")
 	if status != 200 || !strings.Contains(body, `"pending_restart"`) {
 		t.Fatalf("status must expose pending_restart: %d %s", status, body)
+	}
+}
+
+// The install endpoint accepts an optional evidence-backed version selection:
+// {} keeps working, a known branch is echoed, and an unknown branch is a 422
+// validation error rather than a silent fallback.
+func TestM2OfflineInstallVersionSelection(t *testing.T) {
+	dataRoot, _ := legacyFixture(t)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
+	}
+	cfg := testConfig(t, dataRoot)
+	repo, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.CatalogsDir = filepath.Join(repo, "catalogs")
+	installer := &fakeInstaller{}
+	rt, err := buildRuntimeWith(cfg, runtimeOverrides{Installer: installer})
+	if err != nil {
+		t.Fatalf("buildRuntimeWith: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	client := server.Client()
+	client.Jar = jar
+	if status, _ := call(t, client, "POST", server.URL+"/api/auth/login", server.URL, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+
+	// The template list advertises the evidence-backed branches.
+	status, body := call(t, client, "GET", server.URL+"/api/templates", server.URL, "")
+	if status != 200 || !strings.Contains(body, `"versions"`) || !strings.Contains(body, `"legacy41"`) {
+		t.Fatalf("templates must advertise versions: %d %s", status, strings.TrimSpace(body)[:200])
+	}
+
+	// An unknown branch is rejected before any download starts.
+	if status, body := call(t, client, "POST", server.URL+"/api/server/install", server.URL, `{"version":"nope"}`); status != 422 {
+		t.Fatalf("unknown version = %d %s, want 422", status, body)
+	}
+	if len(installer.requests) != 0 {
+		t.Fatal("a rejected version must not start an install")
+	}
+	// A non-string version is a strict-JSON violation.
+	if status, _ := call(t, client, "POST", server.URL+"/api/server/install", server.URL, `{"version":5}`); status != 422 {
+		t.Fatalf("non-string version = %d, want 422", status)
+	}
+	// A known branch is accepted and echoed back.
+	status, body = call(t, client, "POST", server.URL+"/api/server/install", server.URL, `{"version":"legacy41"}`)
+	if status != 202 && status != 200 {
+		t.Fatalf("known version = %d %s", status, body)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for installer.requestCount() == 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if installer.requestCount() != 1 {
+		t.Fatalf("installer requests = %d", installer.requestCount())
+	}
+	if installer.request(0).Version != "legacy41" {
+		t.Fatalf("installer version = %q, want legacy41", installer.request(0).Version)
+	}
+	status, body = call(t, client, "GET", server.URL+"/api/server/install", server.URL, "")
+	if status != 200 || !strings.Contains(body, `"version"`) {
+		t.Fatalf("install status must echo the version: %d %s", status, body)
 	}
 }

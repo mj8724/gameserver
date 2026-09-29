@@ -143,6 +143,7 @@ func (r *Runner) Install(ctx context.Context, request ports.InstallRequest, onPr
 		InstallDir: installDir,
 		AppID:      r.config.AppID,
 		Validate:   request.Validate,
+		Beta:       request.Version,
 	}, nil, onProgress)
 }
 

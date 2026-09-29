@@ -87,7 +87,7 @@ func (f *fakeControl) Status(context.Context) (application.StatusResponse, error
 func (f *fakeControl) Templates(context.Context) ([]application.TemplateSummary, error) {
 	return f.templates, f.call("templates")
 }
-func (f *fakeControl) BeginInstall(context.Context) (application.InstallAccepted, error) {
+func (f *fakeControl) BeginInstall(context.Context, string) (application.InstallAccepted, error) {
 	err := f.call("install")
 	return application.InstallAccepted{Message: "安装/更新任务已启动", Status: "INSTALLING"}, err
 }
