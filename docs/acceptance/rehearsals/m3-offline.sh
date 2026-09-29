@@ -55,6 +55,15 @@ else
 fi
 printf 'binary_sha256=%s\n' "$BIN_SHA" >&2
 
+# ---------- 判定待测行（能力落地后在此批量判定） ----------
+if [ -s "$ROW_DEFS" ]; then
+  go test -json ./... > "$WORK/all.json" || true
+  go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$GO_VER" || {
+    echo "m2eval failed; see above" >&2
+    exit 1
+  }
+fi
+
 # ---------- 构建门 ----------
 BUILD_OK=1
 test -z "$(gofmt -l cmd internal tools)" || BUILD_OK=0
@@ -101,15 +110,6 @@ notrun M3.5 "用量口径（排除备份与锁目录）与 DiskUsageMB 对齐" "
 blocked M3.6 "连续 start/stop ≥10 轮（含 1 次强杀）无残留" "需目标机授权与执行窗口"
 blocked M3.6 "4 类崩溃注入失败关闭" "需目标机授权（部分离线可覆盖，落地后补离线行）"
 blocked M3.6 "8h 观测（60s 采样）无静默丢失" "需 ≥4h 执行窗口（资源不允许时标 BLOCKED(时间窗口)）"
-
-# ---------- 判定待测行（能力落地后在此批量判定） ----------
-if [ -s "$ROW_DEFS" ]; then
-  go test -json ./... > "$WORK/all.json" || true
-  go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$GO_VER" || {
-    echo "m2eval failed; see above" >&2
-    exit 1
-  }
-fi
 
 # ---------- 目标提交 CI 三态 ----------
 CI_SHA="$COMMIT"
