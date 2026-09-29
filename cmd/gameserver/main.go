@@ -196,6 +196,10 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if err != nil {
 		return nil, fmt.Errorf("state store: %w", err)
 	}
+	intentLog, err := localstate.NewIntentLog(absoluteData)
+	if err != nil {
+		return nil, fmt.Errorf("intent log: %w", err)
+	}
 	files, err := instancefiles.New(serversRoot, runtime.GOOS)
 	if err != nil {
 		return nil, fmt.Errorf("instance files: %w", err)
@@ -275,6 +279,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	}
 	control, err := application.NewControlService(application.ServiceDeps{
 		Options:       optionCatalog,
+		Intents:       intentLog,
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,

@@ -197,6 +197,17 @@ type InstanceFiles interface {
 	InstallDir(domain.InstanceID) (string, error)
 	CacheDir(domain.InstanceID) (string, error)
 	IsInstalled(domain.InstanceID) bool
+	Fingerprint(domain.InstanceID) (ArtifactFingerprint, error)
+}
+
+// ArtifactFingerprint is the cheap, content-agnostic reconciliation evidence
+// for an interrupted install (ADR §5.4 D10): the Steam app manifest digest,
+// its byte size and the installer-recorded build id.
+type ArtifactFingerprint struct {
+	BuildID      string `json:"build_id,omitempty"`
+	ManifestSHA  string `json:"appmanifest_sha256,omitempty"`
+	ManifestName string `json:"appmanifest_name,omitempty"`
+	TotalBytes   int64  `json:"total_bytes,omitempty"`
 }
 
 // LaunchInput carries the state-derived launch choices for one start request.

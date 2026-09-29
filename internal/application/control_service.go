@@ -43,6 +43,7 @@ type ServiceDeps struct {
 	ApplyGameConfig ports.StateConfigApplier
 	Options         ports.OptionCatalog
 	LaunchEvidence  LaunchEvidence
+	Intents         ports.IntentLog
 }
 
 type diskUsageProvider interface {
@@ -268,6 +269,16 @@ func (s *ControlService) BeginInstall(ctx context.Context, version string) (Inst
 		return InstallAccepted{}, NewError(CodeInstallWhileRunning, "")
 	}
 
+	lease, lockErr := s.ensureLock(ctx)
+	if lockErr != nil {
+		return InstallAccepted{}, lockErr
+	}
+	if lease != nil {
+		defer lease.Release()
+	}
+	if err := s.reconcileInstallIntent(ctx); err != nil {
+		return InstallAccepted{}, err
+	}
 	s.mu.Lock()
 	if s.install.running {
 		s.mu.Unlock()
@@ -276,6 +287,10 @@ func (s *ControlService) BeginInstall(ctx context.Context, version string) (Inst
 	taskCtx, cancel := context.WithCancel(context.Background())
 	s.install = installTask{running: true, status: "INSTALLING", progress: 0, message: "准备安装", cancel: cancel}
 	s.mu.Unlock()
+	if err := s.persistIntentPhase(ports.PhaseRequested, "", "", s.deps.Clock.Now(), "", 0, "准备安装"); err != nil {
+		s.clearInstall()
+		return InstallAccepted{}, err
+	}
 
 	// Version selection happens after the conflict check so a rejected request
 	// can never disturb an install that is already running.
@@ -297,6 +312,16 @@ func (s *ControlService) BeginInstall(ctx context.Context, version string) (Inst
 	s.mu.Lock()
 	s.install.version = branch
 	s.mu.Unlock()
+	buildID := branchBuildID(branch, template)
+	pre, fpErr := s.deps.Files.Fingerprint(s.deps.Instance)
+	if fpErr != nil {
+		s.clearInstall()
+		return InstallAccepted{}, WrapError(CodeOperationFailed, "无法核对安装产物", fpErr)
+	}
+	if err := s.persistIntentPhase(ports.PhaseRunning, branch, buildID, s.deps.Clock.Now(), pre.ManifestSHA, pre.TotalBytes, "安装中"); err != nil {
+		s.clearInstall()
+		return InstallAccepted{}, err
+	}
 
 	go func(branch string) {
 		defer cancel()
@@ -318,10 +343,18 @@ func (s *ControlService) BeginInstall(ctx context.Context, version string) (Inst
 		s.install.cancel = nil
 		switch {
 		case err == nil:
+			// Fold the success through the intent so a crash between the last
+			// progress report and the terminal update reconciles as DONE.
+			post, verifyErr := s.deps.Files.Fingerprint(s.deps.Instance)
+			if verifyErr == nil {
+				_ = s.persistIntentPhase(ports.PhaseVerifying, branch, buildID, s.deps.Clock.Now(), post.ManifestSHA, post.TotalBytes, "校验中")
+			}
 			s.install.status = "COMPLETED"
 			s.install.progress = 100
 			s.install.message = "安装完成"
 			s.install.errText = nil
+			_ = s.persistIntentPhase(ports.PhaseDone, branch, buildID, s.deps.Clock.Now(), post.ManifestSHA, post.TotalBytes, "安装完成")
+			_ = s.clearIntent(context.Background())
 		default:
 			message := "安装失败，请查看日志"
 			if errors.Is(err, context.Canceled) {
@@ -331,6 +364,8 @@ func (s *ControlService) BeginInstall(ctx context.Context, version string) (Inst
 			s.install.message = message
 			text := err.Error()
 			s.install.errText = &text
+			_ = s.persistIntentPhase(ports.PhaseFailed, branch, buildID, s.deps.Clock.Now(), "", 0, message)
+			_ = s.clearIntent(context.Background())
 		}
 	}(branch)
 	return InstallAccepted{Message: "安装/更新任务已启动", Status: "INSTALLING"}, nil
@@ -423,6 +458,9 @@ func (s *ControlService) Start(ctx context.Context) (StartResult, error) {
 	}
 	if lease != nil {
 		defer lease.Release()
+	}
+	if err := s.reconcileInstallIntent(ctx); err != nil {
+		return StartResult{}, err
 	}
 	if err := s.deps.ApplyGameConfig(ctx, state); err != nil {
 		return StartResult{}, WrapError(CodeStartFailed, "同步配置失败", err)
@@ -909,4 +947,15 @@ func resolveInstallVersion(template domain.Template, requested string) (string, 
 		}
 	}
 	return "", NewError(CodeValidation, "所选服务端版本不在模板清单中")
+}
+
+// branchBuildID resolves the template-declared build id for the branch, or ""
+// when the template does not declare one.
+func branchBuildID(branch string, template domain.Template) string {
+	for _, version := range template.Versions {
+		if version.Branch == branch {
+			return version.BuildID
+		}
+	}
+	return ""
 }

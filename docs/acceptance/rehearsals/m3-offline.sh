@@ -67,11 +67,11 @@ else
   record M3-BUILD "固定工具链与本机门禁（gofmt/vet/build/tidy）" FAIL "见上方步骤输出"
 fi
 
-# ---------- M3.1 任务恢复（能力未落地 → NOT RUN） ----------
-notrun M3.1 "意图日志阶段化持久化（REQUESTED→RUNNING→VERIFYING→DONE/FAILED）" "能力未实现（M3.1 任务尚未落地）"
-notrun M3.1 "重启对账自洽且无重复下载（build id+字节+指纹）" "能力未实现（M3.1）"
-notrun M3.1 "对账顺序：陈旧 owner → RECOVERY_REQUIRED 优先，不被续跑覆盖" "能力未实现（M3.1）"
-notrun M3.1 "网络失败 → FAILED 可重试；legacy 四态投影不变" "能力未实现（M3.1）"
+# ---------- M3.1 任务恢复 ----------
+row M3.1 "意图日志阶段化持久化（REQUESTED→RUNNING→VERIFYING→DONE/FAILED）" 'TestTaskIntentLogPersistsPhases'
+row M3.1 "重启对账自洽且无重复下载（build id+字节+指纹）" 'TestTaskReconcileAfterCrashAvoidsRedownload|TestTaskReconcileWithoutContentFailsClosed'
+row M3.1 "对账顺序：陈旧 owner → RECOVERY_REQUIRED 优先，不被续跑覆盖" 'TestReconcileDefersToRecoveryRequired'
+row M3.1 "网络失败 → FAILED 可重试；legacy 四态投影不变" 'TestTaskIntentFailureAndLegacyStatusProjection' 
 
 # ---------- M3.2 备份保留 ----------
 notrun M3.2 "prune 保留 N 且永不删除最后一份可用备份" "能力未实现（M3.2）"

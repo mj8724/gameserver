@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,8 +85,26 @@ func (s *fakeSubscription) Close()               { s.logs.closed++ }
 
 type fakeInstaller struct {
 	calls  int
+	err    error
 	result error
 	block  chan struct{}
+	mu     sync.Mutex
+	done   chan struct{}
+}
+
+// finish closes the completion signal exactly once so tests can wait for the
+// background install goroutine instead of racing it.
+func (f *fakeInstaller) finish() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.done == nil {
+		f.done = make(chan struct{})
+	}
+	select {
+	case <-f.done:
+	default:
+		close(f.done)
+	}
 }
 
 func (f *fakeInstaller) Install(ctx context.Context, _ ports.InstallRequest, progress func(ports.Progress)) error {
@@ -98,11 +117,16 @@ func (f *fakeInstaller) Install(ctx context.Context, _ ports.InstallRequest, pro
 			return ctx.Err()
 		}
 	}
+	defer f.finish()
+	if f.err != nil {
+		return f.err
+	}
 	return f.result
 }
 
 type fakeFiles struct {
-	installed bool
+	installed   bool
+	fingerprint ports.ArtifactFingerprint
 }
 
 func (f *fakeFiles) InstanceRoot(id domain.InstanceID) (string, error) {
@@ -112,6 +136,15 @@ func (f *fakeFiles) InstallDir(domain.InstanceID) (string, error)   { return "/t
 func (f *fakeFiles) CacheDir(domain.InstanceID) (string, error)     { return "/tmp/cache", nil }
 func (f *fakeFiles) IsInstalled(domain.InstanceID) bool             { return f.installed }
 func (f *fakeFiles) DiskUsageMB(domain.InstanceID) (float64, error) { return 12.5, nil }
+func (f *fakeFiles) Fingerprint(domain.InstanceID) (ports.ArtifactFingerprint, error) {
+	if f.fingerprint.ManifestSHA != "" {
+		return f.fingerprint, nil
+	}
+	if !f.installed {
+		return ports.ArtifactFingerprint{}, nil
+	}
+	return ports.ArtifactFingerprint{BuildID: "25485538", ManifestSHA: "fake", ManifestName: "appmanifest_380870.acf", TotalBytes: 1024}, nil
+}
 
 func testCatalog(t *testing.T) *fakeCatalog {
 	t.Helper()
@@ -374,4 +407,19 @@ func TestControlModsRenewAndConsoleSubscription(t *testing.T) {
 func isCode(err error, code ErrorCode) bool {
 	actual, ok := ErrorCodeOf(err)
 	return ok && actual == code
+}
+
+func (f *fakeInstaller) wait(t *testing.T) {
+	t.Helper()
+	f.mu.Lock()
+	done := f.done
+	f.mu.Unlock()
+	if done == nil {
+		return
+	}
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("installer did not finish in time")
+	}
 }
