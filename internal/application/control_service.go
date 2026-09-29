@@ -698,7 +698,13 @@ func (s *ControlService) UpdateConfig(ctx context.Context, update ConfigUpdate) 
 		}
 		targets := OptionTargets(s.deps.Options, values)
 		if err := s.deps.Config.ApplyOptionValues(ctx, updated.ID, values, targets); err != nil {
-			return ConfigUpdateResult{}, WrapError(CodeOperationFailed, "保存配置项失败", err)
+			// The underlying cause is surfaced (key names only, never values) so a failed
+			// option write is diagnosable from the API response itself.
+			detail := "保存配置项失败"
+			if err != nil && err.Error() != "" {
+				detail = "保存配置项失败: " + err.Error()
+			}
+			return ConfigUpdateResult{}, WrapError(CodeOperationFailed, detail, err)
 		}
 		if OptionRequiresRestart(s.deps.Options, update.Options) && s.processStatus(ctx).Status == "RUNNING" {
 			s.pendingRestart.Store(true)
