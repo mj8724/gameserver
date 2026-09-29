@@ -102,3 +102,44 @@ at zombie.network.GameServer$1.run(GameServer.java:380)
 1. 用**全新的 cachedir**（例如 `G:\gameserver-work\data\servers\pz_01\Zomboid2`）启动，排除残留锁/DB 状态；
 2. 若通过，则把「实例锁/DB 清理」写入运行手册（停止必须走优雅路径；`taskkill /F` 后需清理锁）；
 3. 之后再回到隔离方案定案与「PZ 重写后回读」验收。
+
+## 10. 两个根因定位与修复（2026-09-29，最终定位）
+
+### 10.1 口令参数形式（已修复，提交 `4ca1c08`）
+
+对照实验（同 argv、同安装目录、全新 cachedir）：
+
+| 形式 | 结果 | 日志 |
+|---|---|---|
+| `-adminpassword <value>`（**两个 token**） | **MARKER=1（SERVER STARTED）** | `admin password changed via -adminpassword option` |
+| `-adminpassword=<value>`（单 token，原实现） | MARKER=0，服务端**阻塞等待交互输入口令** | `Command line admin password: null` + `Enter new administrator password:` |
+
+→ PZ **42.21 只接受两 token 形式**；原实现（沿用 legacy Python 的单 token 写法）在该 build 上会让服务端卡在口令提示、永远不就绪。已修改 `pz.BuildLaunchSpec` 与 `pz.DescriptorLaunchSpec`，并更新 argv/脱敏测试（supervisor 早已支持两 token 脱敏）。
+
+### 10.2 陈旧 cachedir 导致 `QueuedQuit`（待处理）
+
+同一 argv 在**全新 cachedir**（`Zomboid2`、`Zomboid-pw*`）下可稳定到达 `SERVER STARTED`；但服务使用实例 cachedir `<data>/servers/pz_01/Zomboid` 时，进程立即退出，日志为：
+
+```
+at zombie.network.ServerMap.QueuedQuit(ServerMap.java:784)
+at zombie.network.GameServer$1.run(GameServer.java:380)
+```
+
+即 PZ 主动排队退出（此前多轮 `taskkill /F` 留下的 DB/锁状态）。**结论**：该 cachedir 需要清理或重建——这与「配置读写点不一致」（§6）是同一根源，两者都指向**实例隔离方案**必须先定案。
+
+## 11. 当前状态与最小完成路径
+
+| 环节 | 状态 |
+|---|---|
+| 选择游戏 / 版本清单 / 未知分支 422 | **PASS** |
+| 下载与校验（含版本回显） | **PASS** |
+| 全量选项读写（200 / 409 / secret 不回显 / 文件回读） | **PASS** |
+| 启动到就绪（服务上下文） | **FAIL** —— 受 §10.2 的 cachedir 状态阻塞（同 argv 在干净 cachedir 下已验证可达 SERVER STARTED） |
+| 停止与残留检查 | **PASS**（0 进程 / 0 端口） |
+| PZ 重写后回读 | **FAIL** —— 读点不一致（§6） |
+
+**最小完成路径**（下一步）：
+1. 定案隔离方案（专用服务账户 / 共享 profile + `-servername` / junction）；
+2. 按方案把实例 cachedir 与配置读写点对齐（必要时重建 cachedir 并清理锁）；
+3. 重跑本证据流程，补齐「启动→就绪→控制台→停止→重写回读」四段；
+4. 完成后进入 #29 的登记/计数/知识沉淀。
