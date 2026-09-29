@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -91,7 +92,7 @@ func (p *fakeProcess) finish(err error) {
 }
 
 func defaultSpec() InstallSpec {
-	return InstallSpec{Executable: "/synthetic/steamcmd", SteamDir: "/synthetic", InstallDir: "/synthetic/server files", AppID: "380870", Validate: true}
+	return InstallSpec{Executable: "/synthetic/steamcmd", SteamDir: "/synthetic", InstallDir: filepath.Join(string(filepath.Separator)+"synthetic", "server files"), AppID: "380870", Validate: true}
 }
 
 func TestBuildArgsPreservesEachTypedTokenAndAdversarialBranch(t *testing.T) {
@@ -100,7 +101,7 @@ func TestBuildArgsPreservesEachTypedTokenAndAdversarialBranch(t *testing.T) {
 	spec := defaultSpec()
 	spec.Beta = branch
 	spec.BetaPass = password
-	want := []string{"+force_install_dir", "/synthetic/server files", "+login", "anonymous", "+app_update", "380870", "-beta", branch, "-betapassword", password, "validate", "+quit"}
+	want := []string{"+force_install_dir", filepath.Join(string(filepath.Separator)+"synthetic", "server files"), "+login", "anonymous", "+app_update", "380870", "-beta", branch, "-betapassword", password, "validate", "+quit"}
 	if got := BuildArgs(spec); !reflect.DeepEqual(got, want) {
 		t.Fatalf("BuildArgs()=%#v want %#v", got, want)
 	}
@@ -246,7 +247,7 @@ func TestNewConfiguredImplementsInstallerAndMapsInstancePath(t *testing.T) {
 	if err := installer.Install(context.Background(), ports.InstallRequest{InstanceID: "pz_02", Validate: true}, nil); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"+force_install_dir", "/synthetic/servers/pz_02", "+login", "anonymous", "+app_update", "380870", "validate", "+quit"}
+	want := []string{"+force_install_dir", filepath.Join(string(filepath.Separator)+"synthetic", "servers", "pz_02"), "+login", "anonymous", "+app_update", "380870", "validate", "+quit"}
 	if !reflect.DeepEqual(fake.args, want) {
 		t.Fatalf("args=%#v want=%#v", fake.args, want)
 	}

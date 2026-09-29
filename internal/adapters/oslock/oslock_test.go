@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +49,9 @@ func TestAcquireWritesOwnershipOutsideInstanceTree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("owner record missing: %v", err)
 	}
-	if info.Mode().Perm() != fileMode {
+	// Windows synthesises POSIX modes (and the adapters exempt it), so the mode
+	// assertion only applies on POSIX platforms.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != fileMode {
 		t.Fatalf("owner record mode = %v, want %v", info.Mode().Perm(), os.FileMode(fileMode))
 	}
 	lockPath := filepath.Join(root, ".locks", "pz_01.lock")

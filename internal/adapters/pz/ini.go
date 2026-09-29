@@ -79,7 +79,14 @@ func (osINIFileOps) CreateTemp(dir, pattern string) (iniTempFile, error) {
 }
 func (osINIFileOps) Rename(oldPath, newPath string) error { return os.Rename(oldPath, newPath) }
 func (osINIFileOps) Remove(path string) error             { return os.Remove(path) }
+
+// SyncDir flushes a directory entry; on Windows this is a documented no-op
+// because FlushFileBuffers on a directory handle fails with ERROR_ACCESS_DENIED
+// and the rename plus the file flush already provide durability.
 func (osINIFileOps) SyncDir(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
 	dir, err := os.Open(path)
 	if err != nil {
 		return err

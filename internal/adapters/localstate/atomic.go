@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 type atomicFile interface {
@@ -37,7 +38,15 @@ func (osFileOps) Lstat(path string) (os.FileInfo, error) { return os.Lstat(path)
 func (osFileOps) ReadFile(path string) ([]byte, error)   { return os.ReadFile(path) }
 func (osFileOps) Rename(oldPath, newPath string) error   { return os.Rename(oldPath, newPath) }
 func (osFileOps) Remove(path string) error               { return os.Remove(path) }
+
+// SyncDir durably flushes a directory entry. Windows does not support flushing
+// a directory handle (FlushFileBuffers returns ERROR_ACCESS_DENIED), and the
+// rename plus the file's own flush already provide the durability story there,
+// so this is a documented no-op on Windows.
 func (osFileOps) SyncDir(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
 	dir, err := os.Open(path)
 	if err != nil {
 		return err
