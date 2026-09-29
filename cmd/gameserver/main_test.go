@@ -1184,7 +1184,11 @@ type fakeLogs struct {
 func (f *fakeLogs) Recent(limit int) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if limit <= 0 || limit > len(f.lines) {
+	if limit < 1 || len(f.lines) == 0 {
+		// Mirrors the adapter contract: a non-positive limit yields nothing.
+		return []string{}
+	}
+	if limit > len(f.lines) {
 		return append([]string(nil), f.lines...)
 	}
 	return append([]string(nil), f.lines[len(f.lines)-limit:]...)
@@ -1196,4 +1200,19 @@ func (f *fakeLogs) set(lines []string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.lines = append([]string(nil), lines...)
+}
+
+// The log source returns nothing for a non-positive limit; the marker oracle
+// must scan the whole bounded buffer instead of asking for zero lines.
+func TestLogMarkerReadinessScansBufferedLines(t *testing.T) {
+	t.Parallel()
+	logs := &fakeLogs{lines: []string{"*** SERVER STARTED ***", "later line"}}
+	probe := newLogMarkerReadiness("*** SERVER STARTED ***", logs, 200*time.Millisecond)
+	ready, err := probe.Ready(context.Background(), "pz_01")
+	if err != nil {
+		t.Fatalf("Ready() error = %v", err)
+	}
+	if !ready {
+		t.Fatal("Ready() = false; the oracle must see markers already in the ring buffer")
+	}
 }

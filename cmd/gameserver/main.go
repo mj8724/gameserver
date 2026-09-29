@@ -685,14 +685,19 @@ func newLogMarkerReadiness(marker string, logs ports.LogSource, window time.Dura
 	if window <= 0 {
 		window = defaultReadinessWindow
 	}
-	const interval = 2 * time.Second
+	const (
+		interval = 2 * time.Second
+		// scanAll reads the whole bounded ring buffer: the log source returns
+		// nothing for a non-positive limit, which silently hid the marker.
+		scanAll = 1000
+	)
 	return readinessFunc(func(ctx context.Context, _ domain.InstanceID) (bool, error) {
 		deadline := time.Now().Add(window)
 		for {
 			if ctx.Err() != nil {
 				return false, ctx.Err()
 			}
-			for _, line := range logs.Recent(0) {
+			for _, line := range logs.Recent(scanAll) {
 				if strings.Contains(line, marker) {
 					return true, nil
 				}
