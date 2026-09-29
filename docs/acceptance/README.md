@@ -31,3 +31,11 @@
 - M1-A：`docs/migration/M1-SIGNOFF.md`
 - M2 状态：`docs/acceptance/M2-SIGNOFF.md`
 - M2 逐行证据：`docs/acceptance/evidence/M2-darwin-pre-live.md`（+ 同名 JSON，含 commit、Go 版本、二进制 SHA-256）
+
+## Windows / PZ 42.x 实测陷阱（2026-09-29 血泪清单）
+
+1. **口令必须两 token**：`-adminpassword <值>` 才被接受；`-adminpassword=<值>` 会记为 `unknown option` 并让服务端卡在交互式口令提示，进程活着但永远不就绪。日志脱敏必须识别「标志 + 下一 token」形态。
+2. **配置根不等于缓存目录**：PZ 在 Windows 忽略 `-cachedir` 的**配置**语义——INI/SandboxVars 固定写 `%USERPROFILE%\Zomboid\Server`，而存档/DB 才落在 `-cachedir`。用 `GAMESERVER_PZ_HOME` 把配置读写点对齐到游戏真正读取的位置（缓存目录仍归实例所有），并让安全门接受覆盖后的路径形状。
+3. **陈旧 cachedir → `QueuedQuit`**：反复 `taskkill /F` 后 PZ 会**主动排队退出**（`ServerMap.QueuedQuit`），日志尾部只有 tier0 断言噪音、看起来像崩溃。排障时先去掉 `tier0|Assertion` 行看真实尾部；处理方式是清理/重建实例缓存目录，运行手册要求停止优先走优雅路径。
+4. **厂商描述文件可能自相矛盾**：`ProjectZomboid64.json` 的 classpath 首项 `java/.` 是笔误（其自身批处理用 `java/`），必须确定性纠正并记录，不可原样透传。
+5. **PZ 只在退出时以运行时状态重写 sandbox**：API 回读（文件）与游戏内生效值可能短暂不一致，验收需在停止后再次回读。
