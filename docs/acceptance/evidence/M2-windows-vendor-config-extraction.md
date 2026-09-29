@@ -74,3 +74,23 @@ go run ./tools/pzoptions -ini docs/acceptance/evidence/vendor-config/servertest.
 1. **专用服务账户**（每实例一个 Windows 用户）→ profile 天然隔离（最干净，运维成本最高）
 2. **共享 profile + `-servername` 分实例**：PZ 原生支持同一 Zomboid 目录下多套 `<servername>.ini`/`<servername>_SandboxVars.lua`/存档；把「实例」映射为 `servername`，我们的文件管理作用域改为 `<home>/Server/<servername>*`（改动最小，但实例不再拥有独立目录树，需同步修订 ADR 的布局假设）
 3. 目录联接（junction）把 profile 的 `Zomboid` 指向实例目录（全局切换，仅适合同时只跑一个实例）
+
+## 6. 向量等价性判定（阶段 2 三分支之③，2026-09-29 07:2x–07:4x UTC）
+
+对照运行（隔离目录、同一 `-servername=servertest`、同一 profile 目录）：
+
+| 观测项 | 厂商 `.bat` 基线 | descriptor 向量（本服务产出的 argv 形状） | 差异 |
+|---|---|---|---|
+| 启动里程碑 `SERVER STARTED` | ✓（15:08 首轮） | **✓（MARKER=1）** | 无 |
+| 端口自述 | `listening on port 16261 … 16262` | `listening on port 16261` | 无 |
+| JVM 参数来源 | 批处理硬编码（含 `-Xms16g -Xmx16g`、`-statistic 0`） | 描述文件 `vmArgs` + `windows.10.vmArgs` + 配置化 `-Xms/-Xmx` + `-statistic 0` | 内存参数按计划由配置接管（已在 Manifest §3 登记） |
+| `servertest.ini` 键集合 | 144 键 | 同左 | **0 / 0**（双向差集为空） |
+| `servertest_SandboxVars.lua` 路径集合 | 272 路径 | 同左 | **0 / 0** |
+| 产物字节 | `49bf30b5…` / `55a04f4e…` | 同左（运行窗口内未被重写） | 无 |
+
+**判定：等价（branch ③）**，据此可进入阶段 2b（ADR 第三向量签核）。
+
+**保留的注意点（写入 ADR 修订正文）**：
+1. descriptor 运行未观察到配置重写（窗口内文件字节不变），因此"重生成等价"由「键集合双向相等 + 启动里程碑一致 + 端口自述一致」推定；阶段 6 将补一次带优雅退出的重写观测。
+2. `-cachedir` 不改变配置位置（§5），等价性对照因此共用同一 profile 目录；实例隔离方案仍待用户决策。
+3. 内存参数与厂商批处理的偏离（16g → 配置值）已登记；`-statistic 0` 作为代码常量保留。
