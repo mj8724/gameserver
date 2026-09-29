@@ -90,3 +90,17 @@
 **Windows 条件性实机证据**（`docs/acceptance/evidence/M2-windows-live.md`，非支持声明）：下载→配置→启动→控制台→停止 五段闭环真机跑通（启动 PID 15848、端口 16261/16262 监听、停止后 0 残留），并修复三个真实缺陷（PZ 42.21 口令两 token、Windows 配置根在用户 profile、陈旧 cachedir 触发 QueuedQuit）。已记录的差异：冷启动超出 60s 就绪窗口；PZ 退出时以运行时状态重写 sandbox 文件。
 
 **仍未解除**：`M2-PZ-LIVE`/`M2-PLATFORM`（E-LIVE = Ubuntu LTS 具名主机）保持 BLOCKED；独立审查 BLOCKED；M1-B 未授权；实例隔离方案（专用服务账户 / 共享 profile + `-servername` / junction）待用户定案。
+
+## 6. r4 签核（2026-09-29）：声明边界落定
+
+**声明对象（用户确认，D-R4-3）**：Windows 10 x64 + `launcher-descriptor` 向量 + PZ 42.21（buildid 25485538）。支持声明**仅对该目标成立**，且必须随附两条已记录差异：① 首次冷启动（生成首张地图）实测超出默认 60s 就绪窗口，而进程与端口当时已就绪；② PZ 在退出时以运行时状态重写 `*_SandboxVars.lua`（文件回读与 API 回读可能短暂不一致）。证据：`docs/acceptance/evidence/M2-windows-live.md`（§12 五段闭环）+ `TARGET-MANIFEST-windows.md`。
+
+**未实测平台**：Linux（Ubuntu LTS）与 macOS 在本矩阵内保持**未验证**，不得因元数据或交叉编译而声称支持。
+
+**本轮实测**：`bash docs/acceptance/rehearsals/m2-offline.sh` → exit 0，PASS **52** / FAIL **0** / BLOCKED **16**（行级 134 行；`m2-offline-latest.json` 已提交）。
+
+**实例隔离**：定案专用服务账户（`docs/migration/WINDOWS-SETUP.md` §8），执行属系统级动作、需逐项授权；`GAMESERVER_PZ_HOME` 作为配置根对齐机制保留。
+
+**范围修订（已确认归档）**：M2 子案例计数调整；CI/演练脚本 gofmt 口径扩到 `cmd internal tools`。
+
+**仍未解除**：① warm-start 就绪窗口复测（差异①的收敛证据）；② 独立审查（teammate 额度受限，当前为非独立复核）；③ M1-B 生产接管（未授权）；④ Linux 实机验收（不阻塞 Windows 声明，阻塞 Linux 声明）。
