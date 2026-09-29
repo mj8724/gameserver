@@ -193,6 +193,47 @@ func classpathArg(entries []string) string {
 	return strings.Join(rewritten, string(filepath.ListSeparator))
 }
 
+// HeapMB reports the heap size declared by the vendor descriptor, so the
+// service can keep the vendor default when no explicit value is configured.
+func (d LauncherDescriptor) HeapMB() int {
+	pattern := regexp.MustCompile(`^-Xmx([0-9]+)([mMgGkK]?)$`)
+	for _, arg := range d.VMArgs {
+		match := pattern.FindStringSubmatch(arg)
+		if match == nil {
+			continue
+		}
+		value, err := strconv.Atoi(match[1])
+		if err != nil {
+			return 0
+		}
+		switch strings.ToLower(match[2]) {
+		case "g":
+			return value * 1024
+		case "k":
+			return value / 1024
+		default:
+			return value
+		}
+	}
+	return 0
+}
+
+// memoryArgPattern matches the vendor heap options that this adapter owns.
+var memoryArgPattern = regexp.MustCompile(`^-Xm[sx]`)
+
+// withoutMemoryArgs removes the vendor heap options so the code-owned values in
+// MemoryMB are the only ones on the final argv.
+func withoutMemoryArgs(args []string) []string {
+	filtered := make([]string, 0, len(args))
+	for _, arg := range args {
+		if memoryArgPattern.MatchString(arg) {
+			continue
+		}
+		filtered = append(filtered, arg)
+	}
+	return filtered
+}
+
 // DescriptorLaunchSpec builds the typed argv for the launcher-descriptor vector.
 // Every token is passed as a single argv element: no shell, no interpolation.
 func DescriptorLaunchSpec(descriptor LauncherDescriptor, config DescriptorConfig) (LaunchSpecResult, error) {
@@ -204,14 +245,18 @@ func DescriptorLaunchSpec(descriptor LauncherDescriptor, config DescriptorConfig
 	if err != nil {
 		return LaunchSpecResult{}, err
 	}
-	if err := validateVMArgs(descriptor.mergedVMArgs(config.WindowsVer), config.AllowedArgs); err != nil {
+	// The vendor descriptor carries its own -Xms/-Xmx; those two are code-owned
+	// here (see MemoryMB), so they are dropped before the vendor whitelist check
+	// and re-issued from configuration.
+	vendorArgs := withoutMemoryArgs(descriptor.mergedVMArgs(config.WindowsVer))
+	if err := validateVMArgs(vendorArgs, config.AllowedArgs); err != nil {
 		return LaunchSpecResult{}, err
 	}
 	if config.MemoryMB < 1024 || config.MemoryMB > 65536 {
 		return LaunchSpecResult{}, fmt.Errorf("server memory %d MB is outside the supported range", config.MemoryMB)
 	}
 
-	args := append([]string(nil), descriptor.mergedVMArgs(config.WindowsVer)...)
+	args := append([]string(nil), vendorArgs...)
 	memory := []string{"-Xms" + strconv.Itoa(config.MemoryMB) + "m", "-Xmx" + strconv.Itoa(config.MemoryMB) + "m"}
 	args = append(args, memory...)
 	args = append(args, "-cp", classpathArg(descriptor.Classpath), descriptor.MainClass)

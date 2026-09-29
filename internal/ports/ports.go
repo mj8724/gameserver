@@ -141,6 +141,8 @@ type LaunchInput struct {
 	ExecutableName   string
 	DirectExecutable bool
 	EvidenceRef      string
+	Vector           string
+	MemoryMB         int
 }
 
 // LaunchSpecBuilder builds a typed launch spec from instance state.

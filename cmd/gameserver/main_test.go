@@ -772,3 +772,85 @@ func TestM2OfflineInstallStartStopLifecycle(t *testing.T) {
 		t.Fatalf("status enum after stop = %s", body)
 	}
 }
+
+// TestLauncherDescriptorVectorUsesBundledJRE proves the descriptor vector runs
+// the bundled JRE with typed argv and never falls back to the vendor .bat or a
+// shell: the recorded executable set must be exactly the JRE.
+func TestLauncherDescriptorVectorUsesBundledJRE(t *testing.T) {
+	dataRoot, serversRoot := legacyFixture(t)
+	if runtime.GOOS != "windows" {
+		if _, err := normalizePermissions(dataRoot, "pz_01"); err != nil {
+			t.Fatalf("normalizePermissions: %v", err)
+		}
+	}
+	installDir, err := instancefiles.New(serversRoot, runtime.GOOS)
+	if err != nil {
+		t.Fatalf("instance files: %v", err)
+	}
+	dir, err := installDir.InstallDir("pz_01")
+	if err != nil {
+		t.Fatalf("install dir: %v", err)
+	}
+	javaName := "java"
+	if runtime.GOOS == "windows" {
+		javaName = "java.exe"
+	}
+	// Vendor-shaped artifacts plus the presence marker IsInstalled checks.
+	for _, path := range []string{filepath.Join(dir, "jre64", "bin", javaName), filepath.Join(dir, "ProjectZomboid64")} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("stub"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	descriptor := `{"mainClass":"zombie/network/GameServer","classpath":["java/.","java/projectzomboid.jar"],
+ "vmArgs":["-Djava.awt.headless=true","-Xmx3072m","-Dzomboid.steam=1","-Dzomboid.znetlog=1","-Djava.library.path=natives/","-XX:-CreateCoredumpOnCrash","-XX:-OmitStackTraceInFastThrow"],
+ "windows":{"10":{"vmArgs":["-XX:+UseZGC"]}}}`
+	if err := os.WriteFile(filepath.Join(dir, "ProjectZomboid64.json"), []byte(descriptor), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := testConfig(t, dataRoot)
+	cfg.LaunchVector = "launcher-descriptor"
+	cfg.LaunchExecutable = ""
+	cfg.LaunchDirectExec = false
+	supervisor := &fakeSupervisor{}
+	rt, err := buildRuntimeWith(cfg, runtimeOverrides{Processes: supervisor, ProcessStatus: supervisor, Logs: supervisor})
+	if err != nil {
+		t.Fatalf("buildRuntimeWith: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	jar, _ := cookiejar.New(nil)
+	client := server.Client()
+	client.Jar = jar
+	if status, _ := call(t, client, "POST", server.URL+"/api/auth/login", server.URL, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+	if status, body := call(t, client, "POST", server.URL+"/api/server/start", server.URL, `{}`); status != 200 {
+		t.Fatalf("start = %d %s", status, body)
+	}
+	if supervisor.specCount() != 1 {
+		t.Fatalf("launch specs = %d", supervisor.specCount())
+	}
+	spec := supervisor.spec(0)
+	if !strings.HasSuffix(spec.Executable, filepath.Join("jre64", "bin", javaName)) {
+		t.Fatalf("descriptor vector must execute the bundled JRE, got %q", spec.Executable)
+	}
+	if spec.WorkDir != dir {
+		t.Fatalf("workdir = %q, want %q", spec.WorkDir, dir)
+	}
+	joined := strings.Join(spec.Args, " ")
+	for _, want := range []string{"-cp java/", "zombie/network/GameServer", "-statistic 0", "-cachedir=", "-adminpassword="} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("argv missing %q: %v", want, spec.Args)
+		}
+	}
+	for _, forbidden := range []string{".bat", "cmd.exe", "cmd /c", "StartServer64"} {
+		if strings.Contains(strings.ToLower(joined), strings.ToLower(forbidden)) || strings.Contains(strings.ToLower(spec.Executable), strings.ToLower(forbidden)) {
+			t.Fatalf("descriptor vector must never use %q (executable=%q argv=%v)", forbidden, spec.Executable, spec.Args)
+		}
+	}
+}

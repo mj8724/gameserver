@@ -33,7 +33,9 @@ const vendorDescriptor = `{"mainClass":"zombie/network/GameServer",
  "vmArgs":["-Djava.awt.headless=true","-Xmx3072m","-Dzomboid.steam=1","-Dzomboid.znetlog=1","-Djava.library.path=natives/","-XX:-CreateCoredumpOnCrash","-XX:-OmitStackTraceInFastThrow"],
  "windows":{"7":{"vmArgs":["-XX:+UseG1GC"]},"10":{"vmArgs":["-XX:+UseZGC"]}}}`
 
-var vendorVMArgs = []string{"-Djava.awt.headless=true", "-Xmx3072m", "-Dzomboid.steam=1", "-Dzomboid.znetlog=1",
+// vendorVMArgs is the descriptor's vmArgs after the code-owned heap options are
+// removed and the Windows rule is appended.
+var vendorVMArgs = []string{"-Djava.awt.headless=true", "-Dzomboid.steam=1", "-Dzomboid.znetlog=1",
 	"-Djava.library.path=natives/", "-XX:-CreateCoredumpOnCrash", "-XX:-OmitStackTraceInFastThrow", "-XX:+UseZGC"}
 
 func TestDescriptorLaunchSpecMatchesVendorShape(t *testing.T) {
@@ -58,14 +60,14 @@ func TestDescriptorLaunchSpecMatchesVendorShape(t *testing.T) {
 	if len(args) < 12 {
 		t.Fatalf("argv too short: %v", args)
 	}
-	if !reflect.DeepEqual(args[:8], vendorVMArgs) {
-		t.Fatalf("vmArgs = %v\nwant %v", args[:8], vendorVMArgs)
+	if !reflect.DeepEqual(args[:7], vendorVMArgs) {
+		t.Fatalf("vmArgs = %v\nwant %v", args[:7], vendorVMArgs)
 	}
-	if args[8] != "-Xms4096m" || args[9] != "-Xmx4096m" {
-		t.Fatalf("memory override = %v", args[8:10])
+	if args[7] != "-Xms4096m" || args[8] != "-Xmx4096m" {
+		t.Fatalf("memory override = %v", args[7:9])
 	}
-	if args[10] != "-cp" {
-		t.Fatalf("expected -cp after memory: %v", args[10:])
+	if args[9] != "-cp" {
+		t.Fatalf("expected -cp after memory: %v", args[9:])
 	}
 	wantClasspath := "java/" + string(filepath.ListSeparator) + "java/projectzomboid.jar"
 	joined := strings.Join(result.Args, " ")

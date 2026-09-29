@@ -18,6 +18,7 @@ type LaunchEvidence struct {
 	ExecutableName   string
 	DirectExecutable bool
 	Reference        string
+	Vector           string
 }
 
 // ServiceDeps contains every outbound dependency of the control service.
@@ -334,8 +335,18 @@ func (s *ControlService) Start(ctx context.Context) (StartResult, error) {
 	if !s.deps.Files.IsInstalled(s.deps.Instance) {
 		return StartResult{}, NewError(CodeServerNotInstalled, "")
 	}
-	if !s.deps.LaunchEvidence.DirectExecutable && s.deps.LaunchEvidence.ExecutableName == "" {
-		return StartResult{}, NewError(CodeOperationFailed, "缺少已审核的启动向量证据（Target Manifest）")
+	evidence := s.deps.LaunchEvidence
+	switch evidence.Vector {
+	case "launcher-descriptor":
+		// The descriptor vector executes the bundled JRE, so it needs both a
+		// reviewed vector name and a manifest reference; nothing else counts.
+		if evidence.ExecutableName == "" || strings.TrimSpace(evidence.Reference) == "" {
+			return StartResult{}, NewError(CodeOperationFailed, "缺少已审核的启动向量证据（Target Manifest）")
+		}
+	default:
+		if !evidence.DirectExecutable && evidence.ExecutableName == "" {
+			return StartResult{}, NewError(CodeOperationFailed, "缺少已审核的启动向量证据（Target Manifest）")
+		}
 	}
 
 	state, err := s.load(ctx)
@@ -361,6 +372,7 @@ func (s *ControlService) Start(ctx context.Context) (StartResult, error) {
 		ExecutableName:   s.deps.LaunchEvidence.ExecutableName,
 		DirectExecutable: s.deps.LaunchEvidence.DirectExecutable,
 		EvidenceRef:      s.deps.LaunchEvidence.Reference,
+		Vector:           s.deps.LaunchEvidence.Vector,
 	})
 	if err != nil {
 		return StartResult{}, WrapError(CodeStartFailed, "", err)

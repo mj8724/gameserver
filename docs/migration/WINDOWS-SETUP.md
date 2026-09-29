@@ -145,3 +145,15 @@ go test ./internal/archtest/...
 - 不把 Windows 结果声明为“已支持”，直到 M2-PZ-LIVE 与启动向量对抗测试在该机通过。
 - 不打印/记录口令、令牌、私钥；RDP 通道本代理不使用。
 - 所有隔离数据根仅用于测试，删除/清理需另行授权。
+
+### 启动向量（2026-09-29 实机取证后新增）
+
+Windows 服务端包**不含** `ProjectZomboid64.exe`（制品清单见 `docs/acceptance/TARGET-MANIFEST-windows.md`），因此该平台使用第三向量 `launcher-descriptor`：直接执行 `jre64\bin\java.exe` + 类型化 argv（不经 shell、不用 `.bat`）。
+
+| 变量 | 用途 | 取值 |
+|---|---|---|
+| `GAMESERVER_LAUNCH_VECTOR` | 选择启动向量；**缺省不探测**（沿用 direct-executable） | `launcher-descriptor` |
+| `GAMESERVER_SERVER_MEMORY_MB` | JVM 堆（`-Xms==-Xmx`）；缺省取厂商描述文件的 `-Xmx` | 例如 `4096` |
+| `GAMESERVER_LAUNCH_EVIDENCE_REF` | 必须非空（向量证据引用） | `manifest#win-live-1` |
+
+`GAMESERVER_LAUNCH_EXECUTABLE` / `GAMESERVER_LAUNCH_DIRECT_EXEC` 仅对 direct-executable 生效。启用 descriptor 时同时需要显式向量 env 与证据引用，缺一即拒绝启动；`vmArgs` 只接受 Target Manifest 逐字登记的 token，`-Xmx/-Xms` 由本服务接管，`java/. → java/` 是厂商笔误的确定性纠正。

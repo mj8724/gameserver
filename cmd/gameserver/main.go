@@ -13,8 +13,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
@@ -93,6 +95,9 @@ type runtimeConfig struct {
 
 	ReadinessMarker string
 	ReadinessPort   int
+
+	LaunchVector   string
+	ServerMemoryMB int
 }
 
 func loadConfig() runtimeConfig {
@@ -116,6 +121,9 @@ func loadConfig() runtimeConfig {
 
 		ReadinessMarker: os.Getenv("GAMESERVER_READINESS_MARKER"),
 		ReadinessPort:   envInt("GAMESERVER_READINESS_PORT", 0),
+
+		LaunchVector:   os.Getenv("GAMESERVER_LAUNCH_VECTOR"),
+		ServerMemoryMB: envInt("GAMESERVER_SERVER_MEMORY_MB", 0),
 	}
 	return cfg
 }
@@ -250,6 +258,32 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Locks:         &oslock.Locks{ServersRoot: serversRoot, ServiceID: serviceID},
 		Templates:     templates,
 		BuildLaunchSpec: func(ctx context.Context, state domain.InstanceState, input ports.LaunchInput) (ports.LaunchSpec, error) {
+			if input.Vector == pz.VectorLauncherDescriptor {
+				descriptor, err := pz.LoadLauncherDescriptor(input.InstallDir)
+				if err != nil {
+					return ports.LaunchSpec{}, err
+				}
+				spec, err := pz.DescriptorLaunchSpec(descriptor, pz.DescriptorConfig{
+					InstallDir: input.InstallDir,
+					CacheDir:   input.CacheDir,
+					ServerName: input.ServerName,
+					AdminPass:  input.AdminPass,
+					MemoryMB:   serverMemoryMB(cfg, input.InstallDir),
+					WindowsVer: windowsVersion(),
+					AllowedArgs: []string{
+						"-Djava.awt.headless=true", "-Dzomboid.steam=1", "-Dzomboid.znetlog=1",
+						"-Djava.library.path=natives/", "-XX:-CreateCoredumpOnCrash",
+						"-XX:-OmitStackTraceInFastThrow", "-XX:+UseG1GC", "-XX:+UseZGC",
+					},
+				})
+				if err != nil {
+					return ports.LaunchSpec{}, err
+				}
+				for _, rewrite := range spec.Rewrites {
+					log.Printf("launcher descriptor rewrite: %s", rewrite)
+				}
+				return ports.LaunchSpec{Executable: spec.Executable, Args: spec.Args, WorkDir: spec.WorkDir}, nil
+			}
 			return pz.BuildLaunchSpec(pz.LaunchConfig{
 				InstanceID: instance,
 				InstallDir: input.InstallDir,
@@ -274,9 +308,10 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 			return gameConfig.ApplyNamed(ctx, state.ID, name, pz.ManagedINIUpdates(state.Variables, state.Ports, state.Mods))
 		},
 		LaunchEvidence: application.LaunchEvidence{
-			ExecutableName:   cfg.LaunchExecutable,
+			ExecutableName:   launchExecutableName(cfg),
 			DirectExecutable: cfg.LaunchDirectExec,
 			Reference:        cfg.LaunchEvidenceRef,
+			Vector:           launchVector(cfg),
 		},
 	})
 	if err != nil {
@@ -647,6 +682,54 @@ type readinessFunc func(context.Context, domain.InstanceID) (bool, error)
 
 func (f readinessFunc) Ready(ctx context.Context, instance domain.InstanceID) (bool, error) {
 	return f(ctx, instance)
+}
+
+// launchVector resolves the effective vector without runtime probing: the
+// default keeps the historical direct-executable behaviour, and the descriptor
+// vector must be selected explicitly (its evidence is reviewed separately).
+func launchVector(cfg runtimeConfig) string {
+	if strings.TrimSpace(cfg.LaunchVector) == pz.VectorLauncherDescriptor {
+		return pz.VectorLauncherDescriptor
+	}
+	return pz.VectorDirectExecutable
+}
+
+// launchExecutableName reports the artifact name recorded in the evidence.
+func launchExecutableName(cfg runtimeConfig) string {
+	if launchVector(cfg) == pz.VectorLauncherDescriptor {
+		return filepath.ToSlash(filepath.Join("jre64", "bin", "java.exe"))
+	}
+	return cfg.LaunchExecutable
+}
+
+// serverMemoryMB resolves the JVM heap for the descriptor vector: explicit
+// configuration wins, otherwise the vendor descriptor's own -Xmx is reused.
+func serverMemoryMB(cfg runtimeConfig, installDir string) int {
+	if cfg.ServerMemoryMB > 0 {
+		return cfg.ServerMemoryMB
+	}
+	if launchVector(cfg) != pz.VectorLauncherDescriptor {
+		return 0
+	}
+	if descriptor, err := pz.LoadLauncherDescriptor(installDir); err == nil {
+		if size := descriptor.HeapMB(); size > 0 {
+			return size
+		}
+	}
+	return 0
+}
+
+// windowsVersion reports the OS version used for descriptor platform rules.
+func windowsVersion() string {
+	if runtime.GOOS != "windows" {
+		return ""
+	}
+	if out, err := exec.Command("cmd", "/c", "ver").Output(); err == nil {
+		if match := regexp.MustCompile(`(\d+\.\d+\.\d+)`).FindStringSubmatch(string(out)); match != nil {
+			return match[1]
+		}
+	}
+	return ""
 }
 
 func fail(err error) {
