@@ -94,3 +94,14 @@ go run ./tools/pzoptions -ini docs/acceptance/evidence/vendor-config/servertest.
 1. descriptor 运行未观察到配置重写（窗口内文件字节不变），因此"重生成等价"由「键集合双向相等 + 启动里程碑一致 + 端口自述一致」推定；阶段 6 将补一次带优雅退出的重写观测。
 2. `-cachedir` 不改变配置位置（§5），等价性对照因此共用同一 profile 目录；实例隔离方案仍待用户决策。
 3. 内存参数与厂商批处理的偏离（16g → 配置值）已登记；`-statistic 0` 作为代码常量保留。
+
+## 7. 阶段 2b 签核记录（ADR 第三向量）
+
+| 项 | 值 |
+|---|---|
+| 签核对象 | `docs/adr/ADR-001-go-backend.md` §5.1 第三向量 `launcher-descriptor` + 附加规则、§11.1 r3 修订记录、§6.4 Windows 条件 Manifest 例外；`docs/acceptance/M2-GO-PZ-MVP.md` Windows 启动向量行 |
+| 同一提交 | `e9b06c1`（`git show --stat` 含上述两个文件） |
+| 依据 | §6 等价性判定（branch ③）+ `TARGET-MANIFEST-windows.md` 制品事实 |
+| 复核人 | reviewer（本会话为 root 自审并标注）+ 用户（待确认） |
+| 时间 | 2026-09-29 |
+| 未闭环 | 用户对 ADR 修订与「范围修订（gofmt 口径扩到 `tools`、矩阵计数）」的确认；实例隔离方案（§5 三选一） |
