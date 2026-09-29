@@ -90,7 +90,7 @@
 
 | 平台 | 状态 | 允许的声明 |
 |---|---|---|
-| **Windows（第一候选）** | 用户于 2026-09-28 明确要求优先支持；测试主机 `winssh.liubaitech.cn` / `wingame.liubaitech.cn` | 仅当实机 M2-PZ-LIVE（SteamCMD Windows、PZ 服务端安装/就绪/控制台/端口/停止）与启动向量对抗测试全部通过后才可声明支持；在此之前保持“未验证” |
+| **Windows 10 x64（第一候选，r4 起为声明对象）** | 用户于 2026-09-28 明确要求优先支持；测试主机 `DESKTOP-9M8FOG7`（10.0.19045.6466）；r4 前保持“未验证” | **r4（2026-09-29）**：实机 M2 五段闭环（安装/配置/启动/控制台/停止）+ 启动向量对抗已通过（descriptor 向量 + `jre64\bin\java.exe`；证据 `docs/acceptance/evidence/M2-windows-live.md`），允许声明对象为 **Windows 10 x64 + launcher-descriptor 向量**；两条已知差异（冷启动超 60s 就绪窗口、PZ 退出重写 sandbox）必须随声明引用；声明不扩展到其它 Windows 版本/启动方式 |
 | Linux（Ubuntu LTS） | 第二候选；需 M2-PZ-LIVE 实机 + 启动向量对抗测试通过 | 通过后可声明支持 |
 | macOS（darwin） | 开发/离线测试平台（掉电级原子性不保证，见 §1.4） | 仅“开发验证”；服务端支持需实机 PZ 验收 |
 
@@ -103,6 +103,8 @@
 4. 目标机工作目录按用户指示使用 **G 盘新建目录**：`G:\gameserver-work\`（见 `docs/migration/WINDOWS-SETUP.md`）。
 
 **部署**：单二进制 + `static/` 资源，默认监听 `127.0.0.1:8769`（沿用 `GAMESERVER_HOST/PORT`）；对外暴露须经 HTTPS 反向代理；`GAMESERVER_COOKIE_SECURE=1` 时 Cookie 仅 HTTPS 发送。
+
+**选项目录（r3/r4 登记）**：`catalogs/<template>.options.yaml` 为受管部署数据，随二进制分发、只读（POSIX 0644，目录 `0700`）；运行时可经 `GAMESERVER_CATALOGS_DIR`（缺省可执行文件旁 `catalogs/`）覆盖；加载经 schema/类型/唯一/枚举/范围/指纹校验，失败降级为 `catalog_degraded`（只读展示 + 重新抽取指引），绝不绕过 `ro/hidden`/secret 校验。
 
 ### 1.7 秘密：静态与运行时
 
@@ -188,6 +190,7 @@ internal/domain          (实例/配置/任务/端口/秘密策略的值类型�
 | `ProcessSupervisor` | 启动/停止/强杀/日志环形缓冲/指标 | process |
 | `GameReadiness` | 就绪判定（见 §2.3） | pz |
 | `InstanceLock` | 获取/释放所有权、读所有权记录 | oslock |
+| `OptionCatalog` | 经校验的选项规格与可写集合（r3 起，驱动全量配置读写；§5.4 D9） | optioncatalog |
 | `StaticAssets` | 只读静态资源 | staticassets |
 | `Clock` | 时间源（测试可注入） | systemclock |
 
@@ -410,6 +413,7 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 | **D6** 跨进程单写者 | 基线无 | §3 全套；变更类 API 返回 **409 `instance owned by another process`** |
 | **D7** 启动向量注入 | 基线脚本中转、未测 | §5.1–5.3；密码不经解释器重解析 |
 | **D8** 文件权限 | 基线不检查权限 | §1.7 权限表；不合规 → 变更类操作被阻止 |
+| **D9** INI/SandboxVars 可写集合 | 基线仅有 10 个受管键可写 | 全部可写集合改由经校验的选项目录（`writable=rw`）决定；`ro/hidden` 拒绝并给精确文案；变量页/选项页一物理键一写入者（引擎只写自有键、跨路径 409）；SandboxVars 纳入受管文件与备份范围（§1.4/§4.6） |
 
 ---
 
@@ -517,6 +521,20 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 - **变更**：§5.1 增第三向量 launcher-descriptor 及附加规则；§6.4 增 Windows 条件验收 Manifest 例外。
 - **等价性证据**：descriptor 与厂商 `.bat` 对照运行——启动里程碑 `SERVER STARTED` 均达成、端口自述一致（16261/16262）、INI 键集合与 SandboxVars 路径集合双向差集为 0、产物字节一致（`docs/acceptance/evidence/M2-windows-vendor-config-extraction.md` §6）。
 - **签核**：与 `M2-GO-PZ-MVP.md` Windows 启动向量行文本修订同一提交；复核人 = reviewer + 用户。
+
+## 11.2 r4 修订记录（2026-09-29，范围修订已获用户确认）
+
+**背景**：r3 执行完毕（目录 416 项、descriptor 向量、Windows 五段闭环、10 个 todo 全部完成）；用户对三处收尾事项作出决策（记录于 `docs/acceptance/M2-PLAN-DECISION.md` r4 决策补充）。
+
+**变更**：
+1. **支持声明口径收缩/落定（D-R4-3）**：§1.6 Windows 行由“未验证”改为“Windows 10 x64 + launcher-descriptor 向量”为**声明对象**（五段闭环实机证据）；Linux/macOS 继续明确未验证；声明仍只对通过矩阵的精确目标成立，新增差异引用义务（就绪窗口、sandbox 重写）。
+2. **实例隔离定案（D-R4-2）**：专用服务账户（`docs/migration/WINDOWS-SETUP.md` 方案，2026-09-29 起）；`GAMESERVER_PZ_HOME` 作为配置根对齐机制保留。
+3. **范围修订归档（D-R4-1）**：M2 矩阵子案例计数调整（Windows 启动向量行重写 + 新增用例）；CI/演练脚本 gofmt 口径 `cmd internal` → `cmd internal tools`。
+4. **登记补全**：§1.6 选项目录部署面、§2.2 `OptionCatalog`、§5.4 D9、§6.4 例外措辞更新。
+
+**等价性/回滚**：目录与向量语义未变（r3 等价性 branch ③ 判定仍成立）；声明口径变更只影响文档与证据引用，不改变代码行为；矩阵与演练脚本计数已按新口径同步（`m2-offline.sh` exit 0）。
+
+**签核**：用户确认（三项决策）；reviewer 非独立复核（teammate 额度限制，与 r3 同注）；签核记录 `docs/acceptance/M2-SIGNOFF.md` r4 章节。
 
 ## 11. r2 复审闭环记录
 
