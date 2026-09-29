@@ -41,7 +41,10 @@ func (t *Tool) Backup(destinationRoot string) (BackupRecord, error) {
 	iniDir := filepath.Join(layout.InstanceDir(), "Zomboid", "Server")
 	if entries, err := t.ops.ReadDir(iniDir); err == nil {
 		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".ini") {
+			name := strings.ToLower(entry.Name())
+			// ADR §4.6: the sandbox file is a managed file since r3 and must be
+			// covered by the default backup range alongside the INI files.
+			if entry.IsDir() || !(strings.HasSuffix(name, ".ini") || strings.HasSuffix(name, "_sandboxvars.lua")) {
 				continue
 			}
 			sources = append(sources, filepath.Join(iniDir, entry.Name()))

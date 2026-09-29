@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -105,5 +106,31 @@ func TestPruneBackupsKeepsNewestAndRequiresExplicitCall(t *testing.T) {
 		if err := tool.VerifyBackup(path); err != nil {
 			t.Fatalf("remaining backup %s failed verify: %v", path, err)
 		}
+	}
+}
+
+// ADR §4.6 (r3): the sandbox file is a managed file, so the default backup
+// range must carry it next to the INI files.
+func TestBackupIncludesSandboxVars(t *testing.T) {
+	tool := newTool(t)
+	layout := tool.Layout()
+	writeTree(t, layout.StateDir(), map[string]string{"instance.json": `{"instance_id":"pz_01"}`})
+	writeTree(t, filepath.Join(layout.InstanceDir(), "Zomboid", "Server"), map[string]string{
+		"servertest.ini":             "Public=true\n",
+		"servertest_SandboxVars.lua": "SandboxVars = {\n    Zombies = 4,\n}\n",
+	})
+
+	record, err := tool.Backup(filepath.Join(t.TempDir(), "backups"))
+	if err != nil {
+		t.Fatalf("backup: %v", err)
+	}
+	found := false
+	for _, file := range record.Files {
+		if strings.HasSuffix(file.Path, "servertest_SandboxVars.lua") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("sandbox file missing from the backup manifest: %+v", record.Files)
 	}
 }
