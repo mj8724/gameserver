@@ -1,0 +1,43 @@
+{
+  "collected_at": "2026-09-29T06:34:19Z",
+  "host": "DESKTOP-9M8FOG7",
+  "collector": "root-agent via ssh wingame",
+  "platform": "windows/amd64",
+  "install_dir": "G:\\gameserver-work\\data\\servers\\pz_01\\server_files",
+  "files": [
+    {"path": "ProjectZomboid64.json", "sha256": "403263cf4f15461470bb1d36a76a6665c4b436ef35746bcb8d91f970a36eca52", "size": 468, "role": "vendor-launcher-descriptor"},
+    {"path": "jre64/bin/java.exe", "sha256": "007422d785bb5e1cf3cef1d0ef03645c9423713c83aeb8e1ba78f123a35855e1", "size": 49760, "role": "direct-executable-target"},
+    {"path": "StartServer64.bat", "sha256": "e9d76cadbb74729100808cd6d8a6af1d2a499a774054191c5af515ffd992af82", "size": 367, "role": "vendor-batch-launcher (not used by service)"},
+    {"path": "StartServer64_nosteam.bat", "sha256": "bced99f54be9e424011aaf592f78f204efe3389579cdbc6a39348e06731d02db", "size": 361, "role": "vendor-batch-launcher (not used by service)"},
+    {"path": "ProjectZomboid64.exe", "sha256": "ABSENT", "size": 0, "role": "direct-executable (absent in server package)"}
+  ],
+  "java_version": "openjdk version \"25.0.1\" 2025-10-21 LTS",
+  "descriptor": {
+	"mainClass": "zombie/network/GameServer",
+	"classpath": [
+		"java/.",
+		"java/projectzomboid.jar"
+	],
+	"vmArgs": [
+		"-Djava.awt.headless=true",
+		"-Xmx3072m",
+		"-Dzomboid.steam=1",
+		"-Dzomboid.znetlog=1",
+		"-Djava.library.path=natives/",
+		"-XX:-CreateCoredumpOnCrash",
+		"-XX:-OmitStackTraceInFastThrow"
+	],
+	"windows": {
+		"7": {
+			"vmArgs": [
+				"-XX:+UseG1GC"
+			]
+		},
+		"10": {
+			"vmArgs": [
+				"-XX:+UseZGC"
+			]
+		}
+	}
+}
+}

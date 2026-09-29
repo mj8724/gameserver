@@ -60,3 +60,10 @@
 ## 5. 结论
 
 离线可验证的部分已全部完成并有可复跑证据；**剩余 15 行与独立审查受外部依赖阻塞**。在真实主机证据出现前：不声明平台支持、不宣布 M1/M2 完成、不执行 M1-B。
+
+## 5. 条件证据状态（2026-09-29 更新）
+
+- **SteamCMD 安装 PZ（app 380870）已在 Windows 目标机真实执行并完成**：`install_task=COMPLETED progress=100`、`is_installed=true`、安装目录含 `java/ jre64/ license/ media/ natives/ ProjectZomboid64.json StartServer64.bat`（耗时约 4.5 分钟）。制品哈希见 `docs/acceptance/TARGET-MANIFEST-windows.md` 与 `m2-windows-artifacts.json`。
+- **该记录为 Windows 条件证据，非 E-LIVE**：按 M2-GO-PZ-MVP §3.1，`M2-PZ-LIVE` 的 E-LIVE 目标是 Ubuntu LTS 主机；Windows 结果**不计入该 ID 的 7 行子案例**，也不产生平台支持声明。
+- **启动子项仍为 BLOCKED（当时）**：Windows 服务端包不含 `ProjectZomboid64.exe`，原向量不可满足 → 现在由 `launcher-descriptor` 第三向量承接（见计划 r4 与 `TARGET-MANIFEST-windows.md` §3）。
+- **授权偏差记录**：该次安装执行时未按 M2 §2 的"逐项授权并写入证据记录"流程先行落档；按门禁记为该动作的**偏差**，补救 = 在 `docs/acceptance/evidence/M2-windows-live-auth.md` 补齐授权记录后，在门内复跑 validate（见计划阶段 6）。
