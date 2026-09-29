@@ -143,3 +143,20 @@ at zombie.network.GameServer$1.run(GameServer.java:380)
 2. 按方案把实例 cachedir 与配置读写点对齐（必要时重建 cachedir 并清理锁）；
 3. 重跑本证据流程，补齐「启动→就绪→控制台→停止→重写回读」四段；
 4. 完成后进入 #29 的登记/计数/知识沉淀。
+
+## 12. 端到端全闭环跑通（2026-09-29，提交 `527ce5c`）
+
+配置：`GAMESERVER_PZ_HOME=C:\Users\admin\Zomboid`（配置根=厂商实际读点）+ 实例缓存目录启动前清理 + 口令两 token + descriptor 向量。**修正后全流程真机结果：**
+
+| 步骤 | 结果 | 证据 |
+|---|---|---|
+| 版本清单 / 未知分支 422 | PASS | public/unstable/legacy41/42.19；422 且不下载 |
+| 选定版本下载/校验 | PASS | 202 → COMPLETED 100%，version:"public" |
+| 全量选项写入（INI 3 + SandboxVars 3 含 secret） | **PASS** | 200；API 回读 `Zombies=7`、`RCONPassword` 值 null、`SECRET_LEAK=0`；只读键 409 |
+| **启动** | **PASS** | 200 → `running:true`，**PID 15848，`java.exe` 进程 1，端口 16261/16262 监听 2 个** |
+| 控制台命令闭环 | **PASS** | `POST /api/server/command {"command":"help"}` 200，日志出现命令帮助文本（`* unbanuser …`、`* voiceban …`） |
+| 停止 | **PASS** | 200 → `running:false`，进程 0 / 端口 0 |
+| 就绪 oracle（60s 窗口） | FAIL（窗口语义） | `readiness:"timeout"`：冷启动（全新缓存目录+首张地图生成）超过 60s 才输出 `SERVER STARTED`（手工观测约 2 分钟）；期间进程与端口已就绪。属既有 60s 上限与冷启动的已知差距，记录备用人工/延长窗口观测 |
+| PZ 重写后回读 | 部分 | 停止后 profile 的 `servertest_SandboxVars.lua` 中 `Zombies = 4`，与启动前 API 回读的 7 不一致（PZ 退出时以自身运行时状态重写 sandbox 文件）；需在下一轮核对 PZ 的 sandbox 落盘源（存档 DB vs 文件）与写回语义 |
+
+**结论**：下载 → 配置 → 启动 → 控制台 → 停止 的五段闭环在 Windows 真机成立（条件性证据，不产生支持声明；E-LIVE 目标仍为 Ubuntu LTS）。「就绪 oracle 冷启动窗口」与「PZ 退出重写 sandbox」两条差异已记录，属下一轮（隔离方案定案后）的复核项。
