@@ -99,7 +99,7 @@ func TestSandboxRejectsUnrepresentableValues(t *testing.T) {
 	cases := map[string]string{
 		"control char": "1\nZombies = 99",
 		"quote break":  `"abc"..os.execute("x")`,
-		"non literal":  "os.execute('x')",
+		"stray quote":  `he said "hi"`,
 	}
 	for name, value := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -137,5 +137,31 @@ func TestSandboxPathValidation(t *testing.T) {
 	}
 	if _, err := SandboxVarsPath("/tmp/data", "pz_01", "bad/name"); err == nil {
 		t.Fatal("traversal server name must be rejected")
+	}
+}
+
+// A bare word for a string option is written as an inert quoted literal, so a
+// payload cannot become code and the catalogue's string type is honoured.
+func TestSandboxBareWordBecomesInertString(t *testing.T) {
+	path := writeSandbox(t)
+	if err := ApplySandbox(path, map[string]string{"Distribution": "Rural"}); err != nil {
+		t.Fatalf("bare word must be accepted as a string: %v", err)
+	}
+	values, err := ReadSandbox(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["Distribution"] != `"Rural"` {
+		t.Fatalf("Distribution = %q, want a quoted literal", values["Distribution"])
+	}
+	if err := ApplySandbox(path, map[string]string{"Distribution": "os.execute('x')"}); err != nil {
+		t.Fatalf("payload-like text must be accepted as inert text: %v", err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `Distribution = "os.execute('x')"`) {
+		t.Fatalf("payload must be quoted verbatim:\n%s", raw)
 	}
 }

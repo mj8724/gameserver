@@ -81,9 +81,11 @@ func normalizeSandboxValue(value string, quoted bool) (string, error) {
 	if _, err := strconv.ParseFloat(trimmed, 64); err == nil {
 		return trimmed, nil
 	}
-	// A bare word is acceptable only when the existing assignment is a string
-	// literal: the caller is then describing the string content.
-	if quoted && !strings.Contains(trimmed, "\"") {
+	// A bare word is a string literal: the catalogue already validated that the
+	// option's declared type is string, and anything without a quote or control
+	// character is safe to write as a quoted value (a payload such as
+	// os.execute('x') becomes inert text rather than code).
+	if !strings.Contains(trimmed, "\"") {
 		return "\"" + trimmed + "\"", nil
 	}
 	return "", fmt.Errorf("sandbox value %q is neither a literal nor a number", value)
