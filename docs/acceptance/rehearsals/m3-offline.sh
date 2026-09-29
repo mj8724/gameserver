@@ -80,12 +80,13 @@ row M3.2 "备份失败不影响 stop（stop 仍 200）" 'TestAutomaticBackupFail
 row M3.2 "include 存档的备份经 staging+promotion 恢复且指纹一致" 'TestBackupWithSavesRecordsIncludeMode|TestDefaultBackupExcludesSaves|TestBackupVerifyTamperAndRestoreThroughPromotion' 
 
 # ---------- M3.3 Mod 下载 ----------
-notrun M3.3 "legacy POST /api/server/mods 逐字不变" "能力未实现（M3.3）"
-notrun M3.3 "先下载后登记；失败不写 INI；无效 id 明确错误" "能力未实现（M3.3）"
-notrun M3.3 "单在飞互斥（与 install 并发 → 409）" "能力未实现（M3.3）"
-notrun M3.3 "不可信内容边界（路径穿越白名单/不执行可执行内容）" "能力未实现（M3.3）"
-blocked M3.3 "前置取证：workshop 落盘与 PZ 读取路径" "需目标机一次真实下载授权（或离线依据结论）；见 Manifest §M3 填写位"
+row M3.3 "legacy POST /api/server/mods 逐字不变" 'TestLegacyModsEndpointUnchanged'
+row M3.3 "先下载后登记；失败不写 INI；无效 id 明确错误" 'TestModDownloadRegistersOnlyAfterSuccess'
+row M3.3 "单在飞互斥（与 install 并发 → 409）" 'TestModDownloadConflictsWithInstall'
+row M3.3 "不可信内容边界（路径穿越白名单/不执行可执行内容）" 'TestModContentPathTraversalRejected'
+record M3.3 "前置取证：workshop 落盘与 PZ 读取路径" "PASS" "Manifest §M3 代码取证 4 项（2026-09-30）；实机下载与 PZ 读取行为为 BLOCKED 待授权（见注解行）"
 
+blocked M3.3 "实机：真实 workshop 下载 + PZ 42.21 读取行为观测" "需目标机授权动作（Manifest §M3 已列）"
 # ---------- M3.4 就绪与查询 ----------
 notrun M3.4 "就绪时间线（追加字段，带时间戳）" "能力未实现（M3.4）"
 notrun M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" "能力未实现（M3.4）"

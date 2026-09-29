@@ -186,6 +186,7 @@ type harness struct {
 	logs      *fakeLogs
 	files     *fakeFiles
 	installer *fakeInstaller
+	workshop  *fakeWorkshop
 	applied   int
 }
 
@@ -504,4 +505,90 @@ func (f *fakeBackup) callCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.calls
+}
+
+// M3.3: the legacy registration endpoint stays verbatim — DownloadMod is a
+// separate path and AddMod never downloads.
+func TestLegacyModsEndpointUnchanged(t *testing.T) {
+	h := newHarness(t)
+	h.workshop = &fakeWorkshop{contentDir: "/tmp/workshop"}
+	result, err := h.service.AddMod(context.Background(), AddModRequest{WorkshopID: "281990", ModName: strptr("my mod")})
+	if err != nil {
+		t.Fatalf("AddMod: %v", err)
+	}
+	if result.Message != "模组已登记（尚未下载）" {
+		t.Fatalf("legacy message changed: %q", result.Message)
+	}
+	if h.workshop != nil && h.workshop.calls != 0 {
+		t.Fatalf("legacy registration must not download, calls=%d", h.workshop.calls)
+	}
+	ids := stringSlice(result.Mods["workshop_ids"])
+	if len(ids) != 1 || ids[0] != "281990" {
+		t.Fatalf("legacy registration shape changed: %+v", result.Mods)
+	}
+}
+
+// A failed download must not leave a registered-but-missing mod behind: the
+// state save happens only after the content check succeeded.
+func TestModDownloadRegistersOnlyAfterSuccess(t *testing.T) {
+	h := newHarness(t)
+	h.workshop = &fakeWorkshop{err: errors.New("network unreachable")}
+	if _, err := h.service.DownloadMod(context.Background(), "281990", nil); err == nil {
+		t.Fatal("download must fail")
+	}
+	state, err := h.service.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mods, _ := state["mods"].(map[string]any)
+	if mods != nil {
+		if ids := stringSlice(mods["workshop_ids"]); len(ids) != 0 {
+			t.Fatalf("failed download must not register ids: %+v", ids)
+		}
+	}
+}
+
+// A download while an install is in flight conflicts (single in-flight slot).
+func TestModDownloadConflictsWithInstall(t *testing.T) {
+	h := newHarness(t)
+	h.service.deps.Workshop = &fakeWorkshop{contentDir: "/tmp/x"}
+	if _, err := h.service.BeginInstall(context.Background(), ""); err != nil {
+		t.Fatalf("BeginInstall: %v", err)
+	}
+	// The install is in memory as INSTALLING (single in-flight slot).
+	h.service.mu.Lock()
+	h.service.install.status = "INSTALLING"
+	h.service.install.running = true
+	h.service.mu.Unlock()
+	if _, err := h.service.DownloadMod(context.Background(), "281990", nil); !isCode(err, CodeInstallAlreadyRunning) {
+		t.Fatalf("download during install = %v, want CodeInstallAlreadyRunning", err)
+	}
+}
+
+// Untrusted workshop content: the item path is validated as a numeric id and
+// the content check only parses a structural mod.info line — nothing executes.
+func TestModContentPathTraversalRejected(t *testing.T) {
+	h := newHarness(t)
+	h.workshop = &fakeWorkshop{}
+	for _, bad := range []string{"../evil", "a/b", "-1", "1;rm"} {
+		if _, err := h.service.DownloadMod(context.Background(), bad, nil); err == nil {
+			t.Fatalf("path traversal id %q must be rejected", bad)
+		}
+	}
+}
+
+func strptr(value string) *string { return &value }
+
+type fakeWorkshop struct {
+	calls      int
+	contentDir string
+	err        error
+}
+
+func (f *fakeWorkshop) DownloadWorkshopItem(_ context.Context, _ domain.InstanceID, workshopID string, _ func(ports.Progress)) (string, error) {
+	f.calls++
+	if f.err != nil {
+		return "", f.err
+	}
+	return f.contentDir + "/" + workshopID, nil
 }

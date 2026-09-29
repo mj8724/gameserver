@@ -41,6 +41,7 @@ type fakeControl struct {
 	commands     []string
 	update       application.ConfigUpdate
 	added        application.AddModRequest
+	downloaded   string
 	removed      string
 	months       int
 	inputRunning bool
@@ -141,6 +142,11 @@ func (f *fakeControl) UpdateConfig(_ context.Context, u application.ConfigUpdate
 	f.update = u
 	return application.ConfigUpdateResult{Message: "配置已保存并同步", State: map[string]any{"variables": map[string]any{"ADMIN_PASSWORD": "game-admin-sentinel", "SERVER_PASSWORD": "private-sentinel"}}}, f.call("update")
 }
+func (f *fakeControl) DownloadMod(_ context.Context, id string, name *string) (application.ModsResult, error) {
+	f.downloaded = id
+	return application.ModsResult{Message: "模组已下载并登记", Mods: map[string]any{"workshop_ids": []string{id}, "mod_names": []string{}}}, f.call("download_mod")
+}
+
 func (f *fakeControl) AddMod(_ context.Context, req application.AddModRequest) (application.ModsResult, error) {
 	f.added = req
 	return application.ModsResult{Message: "模组已登记（尚未下载）", Mods: map[string]any{"workshop_ids": []string{req.WorkshopID}, "mod_names": []string{}}}, f.call("add_mod")

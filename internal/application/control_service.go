@@ -45,6 +45,7 @@ type ServiceDeps struct {
 	LaunchEvidence  LaunchEvidence
 	Intents         ports.IntentLog
 	Backup          ports.BackupOperator
+	Workshop        ports.WorkshopDownloader
 }
 
 type diskUsageProvider interface {
@@ -837,6 +838,53 @@ func (s *ControlService) AddMod(ctx context.Context, request AddModRequest) (Mod
 		return ModsResult{}, WrapError(CodeOperationFailed, "保存模组失败", err)
 	}
 	return ModsResult{Message: "模组已登记（尚未下载）", Mods: mods}, nil
+}
+
+// DownloadMod downloads the workshop item first and registers it only after
+// the content landed and was structurally checked. A failure never leaves a
+// registered-but-missing mod behind; the legacy registration endpoint stays
+// untouched (M3.3, D11).
+func (s *ControlService) DownloadMod(ctx context.Context, workshopID string, modName *string) (ModsResult, error) {
+	if s.deps.Workshop == nil {
+		return ModsResult{}, NewError(CodeOperationFailed, "下载器不可用")
+	}
+	if strings.TrimSpace(workshopID) == "" {
+		return ModsResult{}, NewError(CodeOperationFailed, "workshop id 不能为空")
+	}
+	if s.installSnapshot().Status == "INSTALLING" {
+		return ModsResult{}, NewError(CodeInstallAlreadyRunning, "")
+	}
+	state, err := s.load(ctx)
+	if err != nil {
+		return ModsResult{}, err
+	}
+	if _, err := s.deps.Workshop.DownloadWorkshopItem(ctx, s.deps.Instance, workshopID, nil); err != nil {
+		message := err.Error()
+		switch {
+		case strings.Contains(message, "steamcmd task already running"):
+			return ModsResult{}, NewError(CodeOperationFailed, "已有安装/下载任务在运行中")
+		default:
+			return ModsResult{}, NewError(CodeOperationFailed, "模组下载失败："+message)
+		}
+	}
+	updated := state.Clone()
+	mods := ensureMods(updated)
+	ids := stringSlice(mods["workshop_ids"])
+	if !containsString(ids, workshopID) {
+		ids = append(ids, workshopID)
+	}
+	mods["workshop_ids"] = ids
+	if modName != nil && *modName != "" {
+		names := stringSlice(mods["mod_names"])
+		if !containsString(names, *modName) {
+			names = append(names, *modName)
+		}
+		mods["mod_names"] = names
+	}
+	if err := s.deps.States.Save(ctx, updated); err != nil {
+		return ModsResult{}, WrapError(CodeOperationFailed, "保存模组失败", err)
+	}
+	return ModsResult{Message: "模组已下载并登记", Mods: mods}, nil
 }
 
 // RemoveMod implements Control.

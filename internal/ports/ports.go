@@ -108,6 +108,12 @@ type Installer interface {
 	Install(context.Context, InstallRequest, func(Progress)) error
 }
 
+// WorkshopDownloader downloads Steam Workshop items through the same single
+// in-flight gate as the installer. The callback reports download progress.
+type WorkshopDownloader interface {
+	DownloadWorkshopItem(ctx context.Context, instance domain.InstanceID, workshopID string, onProgress func(Progress)) (string, error)
+}
+
 // LaunchSpec is an executable plus typed arguments and an explicit working directory.
 type LaunchSpec struct {
 	Executable string

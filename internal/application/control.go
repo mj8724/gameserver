@@ -20,6 +20,7 @@ type Control interface {
 	Config(context.Context) (ConfigSnapshot, error)
 	UpdateConfig(context.Context, ConfigUpdate) (ConfigUpdateResult, error)
 	AddMod(context.Context, AddModRequest) (ModsResult, error)
+	DownloadMod(context.Context, string, *string) (ModsResult, error)
 	RemoveMod(context.Context, string) (ModsResult, error)
 	Renew(context.Context, int) (RenewalResult, error)
 	SubscribeConsole(context.Context, int) (ConsoleSubscription, error)

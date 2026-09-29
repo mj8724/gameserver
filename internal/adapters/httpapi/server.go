@@ -147,6 +147,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/server/config", s.getConfig)
 	s.mux.HandleFunc("POST /api/server/config", s.updateConfig)
 	s.mux.HandleFunc("POST /api/server/mods", s.addMod)
+	s.mux.HandleFunc("POST /api/server/mods/download", s.downloadMod)
 	s.mux.HandleFunc("DELETE /api/server/mods/{workshop_id}", s.removeMod)
 	s.mux.HandleFunc("POST /api/server/renew", s.renew)
 
@@ -499,6 +500,37 @@ func (s *Server) addMod(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.control.AddMod(r.Context(), application.AddModRequest{WorkshopID: *req.WorkshopID, ModName: req.ModName})
 	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) downloadMod(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	var req addModRequest
+	if err := decodeStrictJSON(r, &req, false); err != nil || req.WorkshopID == nil || runeLength(*req.WorkshopID) < 1 || runeLength(*req.WorkshopID) > 32 || (req.ModName != nil && runeLength(*req.ModName) > 128) {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+		return
+	}
+	if !asciiDigits(*req.WorkshopID) {
+		writeDetail(w, http.StatusUnprocessableEntity, "Workshop ID 必须为数字")
+		return
+	}
+	result, err := s.control.DownloadMod(r.Context(), *req.WorkshopID, req.ModName)
+	if err != nil {
+		if code, ok := application.ErrorCodeOf(err); ok && code == application.CodeOperationFailed {
+			// 单在飞冲突 → 409（沿用既有冲突语义）；其余下载失败 → 422。
+			message := err.Error()
+			if strings.Contains(message, "已有安装/下载任务在运行中") {
+				writeDetail(w, http.StatusConflict, message)
+				return
+			}
+			writeDetail(w, http.StatusUnprocessableEntity, message)
+			return
+		}
 		writeApplicationError(w, err)
 		return
 	}

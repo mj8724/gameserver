@@ -247,9 +247,13 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	}
 	serviceID = fmt.Sprintf("%s-%d", serviceID, os.Getpid())
 
+	workshopDownloader := ports.WorkshopDownloader(nil)
 	installer, err := resolveInstaller(cfg, serversRoot, instance, states, templates, files)
 	if err != nil {
 		return nil, fmt.Errorf("steamcmd installer: %w", err)
+	}
+	if runner, ok := installer.(ports.WorkshopDownloader); ok {
+		workshopDownloader = runner
 	}
 	processStatus := ports.ProcessStatusProvider(supervisor)
 	if overrides.ProcessStatus != nil {
@@ -288,6 +292,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Options:       optionCatalog,
 		Intents:       intentLog,
 		Backup:        autoBackup,
+		Workshop:      workshopDownloader,
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
