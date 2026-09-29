@@ -59,7 +59,7 @@ M1-A 是切换就绪门槛，不等同于 M1 完成或 M1-B。按 ADR §6.3，M1
 
 ### 3.2 证据路径与秘密处理
 
-每次验收复制 §5 模板为该次证据记录，文件名把占位符替换为真实 OS 与 PZ build 的安全 slug；路径规则为 `docs/acceptance/evidence/M2-<os>-<pz-build>.md`。矩阵 evidence 栏的 `#case-results`、`#artifacts`、`#migrate-layouts`、`#migrate-interruptions`、`#migrate-failures`、`#migrate-boundaries`、`#backup-restore` 均指证据文件内标题/子案例锚点；迁移/备份专项结果在同文件 §4.1 的对应小节逐行填写，`#artifacts` 是 §3.1 制品索引，不代表独立目录。命令/CI/浏览器输出、权限与 journal 快照、带时间的 API/A2S 观察及制品 `file`/shebang 结论均引用在记录中，需附摘要或安全 artifact 路径与 SHA-256。
+每次验收复制 §5 模板为该次证据记录，文件名把占位符替换为真实 OS 与 PZ build 的安全 slug；路径规则为 `docs/acceptance/evidence/M2-OS-PZBUILD-TEMPLATE.md`。矩阵 evidence 栏的 `#case-results`、`#artifacts`、`#migrate-layouts`、`#migrate-interruptions`、`#migrate-failures`、`#migrate-boundaries`、`#backup-restore` 均指证据文件内标题/子案例锚点；迁移/备份专项结果在同文件 §4.1 的对应小节逐行填写，`#artifacts` 是 §3.1 制品索引，不代表独立目录。命令/CI/浏览器输出、权限与 journal 快照、带时间的 API/A2S 观察及制品 `file`/shebang 结论均引用在记录中，需附摘要或安全 artifact 路径与 SHA-256。
 
 证据不得包含控制面口令、游戏口令、Cookie、session token、SSH 凭据或真实秘密。使用测试生成的一次性哨兵值并在进程日志、API、owner fingerprint 和归档中脱敏；记录 `已验证未泄露=true/false`，不记哨兵原文、命令行秘密原文或其可离线校验摘要。`-adminpassword=<value>` 在实际 argv 中可被同机同权限进程观察是 ADR 明示的残余风险，不得描述为绝对机密。
 
@@ -68,7 +68,7 @@ M1-A 是切换就绪门槛，不等同于 M1 完成或 M1-B。按 ADR §6.3，M1
 本节字段是 ADR §6.4 的最小信息集并加可审核的来源/授权信息；此处是本计划的 Target Manifest 权威位置。当前计划保留 `待用户提供` 模板值，不表示目标已知。每次实际执行时，operator 必须在本节对应的验收计划副本/修订中将本次 Manifest 全部填写并附来源；把填写后的同一份字段快照复制到对应 §5 evidence 文件，并记录二者版本/SHA 关联。**所有实时/实机操作都禁止在计划内 Manifest 完整、证据附齐、reviewer 复核及用户对每项副作用授权之前开始。** 未知值统一写 `待用户提供`；未知不等于通过。
 
 ```text
-验收记录文件：docs/acceptance/evidence/M2-<os>-<pz-build>.md
+验收记录文件：docs/acceptance/evidence/M2-OS-PZBUILD-TEMPLATE（模板名不使用 `<`/`>`：Windows 无法检出含这些字符的路径）.md
 验收类别：隔离数据根基线验收（不得填写为 M1-B/生产接管）
 目标主机安全别名：待用户提供（不填 SSH 私钥/口令）
 目标 Go commit SHA：待用户提供

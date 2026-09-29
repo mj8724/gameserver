@@ -16,7 +16,7 @@
 
 ## 复核范围与方法
 
-对 `docs/acceptance/M2-GO-PZ-MVP.md`（273 行）与 `docs/acceptance/evidence/M2-<os>-<pz-build>.md`（204 行）做了机械与一致性检查：
+对 `docs/acceptance/M2-GO-PZ-MVP.md`（273 行）与 `docs/acceptance/evidence/M2-OS-PZBUILD-TEMPLATE.md`（204 行）做了机械与一致性检查：
 
 - **结构**：矩阵 95 行、每行 7 列；14 个 canonical ID 全部出现，计数与文件自报一致（`M2-BUILD`2/`M2-API`3/`M2-UI`2/`M2-AUTH`3/`M2-WS`6/`M2-SINGLEWRITER`13/`M2-SECRET`4/`M2-INSTALL`7/`M2-RESTART`3/`M2-CONFIG`6/`M2-MIGRATE`30/`M2-PROCESS`6/`M2-PZ-LIVE`7/`M2-PLATFORM`3）。
 - **可判定性**：每行的 PASS 结果都是可观察断言（状态码、帧类型、进程/PID、校验和、锁状态、时间戳窗口），没有"应当正确"类描述；BLOCKED / NOT RUN / N/A 的使用边界在 §1.3 明确。

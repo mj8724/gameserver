@@ -431,7 +431,7 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 
 ### 6.4 Target Manifest（r1 M2 关闭）
 
-- **位置**：`docs/acceptance/M2-GO-PZ-MVP.md` 内的 “Target Manifest” 章节（执行时填写），逐次验收一份；证据文件 `docs/acceptance/evidence/M2-<os>-<pz-build>.md`。
+- **位置**：`docs/acceptance/M2-GO-PZ-MVP.md` 内的 “Target Manifest” 章节（执行时填写），逐次验收一份；证据文件 `docs/acceptance/evidence/M2-OS-PZBUILD-TEMPLATE.md`。
 - **最小字段**：Go commit/版本（来自 `TOOLCHAIN.md`）；PZ 版本与 Steam build ID；SteamCMD 版本；OS/发行版/版本/架构；数据隔离根目录绝对路径；网络/端口与防火墙状态；浏览器版本（若保留 UI）；**启动向量的制品证据**（§5.1）；就绪 oracle 选择（A2S 或日志标记）。
 - **owner**：目标环境 operator 填写；reviewer 复核；用户对“真实副作用”单独授权后方可执行。
 
