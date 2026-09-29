@@ -38,7 +38,7 @@ func classify(importPath string) packageInfo {
 		return packageInfo{layer: layerArchtest, known: true}
 	case modulePrefix + "/internal/version":
 		return packageInfo{layer: layerVersion, known: true}
-	case modulePrefix + "/cmd/gameserver":
+	case modulePrefix + "/cmd/gameserver", modulePrefix + "/cmd/gs-lockhold":
 		return packageInfo{layer: layerCommand, known: true}
 	case modulePrefix + "/tools/m2eval":
 		// Acceptance tooling: a command-style package that reads test output.
