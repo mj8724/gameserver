@@ -52,6 +52,14 @@ func legacyFixture(t *testing.T) (dataRoot, serversRoot string) {
 	return dataRoot, serversRoot
 }
 
+// launchArtifactName mirrors the platform's directly executable server artifact.
+func launchArtifactName() string {
+	if runtime.GOOS == "windows" {
+		return "ProjectZomboid64.exe"
+	}
+	return "ProjectZomboid64"
+}
+
 func testConfig(t *testing.T, dataRoot string) runtimeConfig {
 	t.Helper()
 	repo, err := filepath.Abs("../..")
@@ -66,7 +74,7 @@ func testConfig(t *testing.T, dataRoot string) runtimeConfig {
 		TemplatesDir:      filepath.Join(repo, "templates"),
 		Instance:          "pz_01",
 		AdminPass:         "m2-offline-admin",
-		LaunchExecutable:  "ProjectZomboid64",
+		LaunchExecutable:  launchArtifactName(),
 		LaunchDirectExec:  true,
 		LaunchEvidenceRef: "manifest#m2-offline",
 	}
@@ -446,8 +454,8 @@ func TestM2OfflineRecoveryRequiredReconciliation(t *testing.T) {
 // without an executable or app id the service must not pretend installs work,
 // and the SteamCMD tree must stay inside the instance root (ADR §4).
 func TestSteamcmdInstallConfigResolution(t *testing.T) {
-	installDir := func(domain.InstanceID) (string, error) { return "/tmp/install", nil }
-	serversRoot := "/tmp/data/servers"
+	installDir := func(domain.InstanceID) (string, error) { return filepath.Join("tmp", "install"), nil }
+	serversRoot := filepath.Join("tmp", "data", "servers")
 
 	if _, ok := steamcmdInstallConfig(runtimeConfig{}, serversRoot, "pz_01", "380870", installDir); ok {
 		t.Fatal("missing executable must not configure the installer")
@@ -459,15 +467,16 @@ func TestSteamcmdInstallConfigResolution(t *testing.T) {
 	if !ok {
 		t.Fatal("configured installer expected")
 	}
-	if config.SteamDir != "/tmp/data/servers/pz_01/steamcmd" {
-		t.Fatalf("steam dir = %q, want it under the instance root", config.SteamDir)
+	if want := filepath.Join(serversRoot, "pz_01", "steamcmd"); config.SteamDir != want {
+		t.Fatalf("steam dir = %q, want %q", config.SteamDir, want)
 	}
 	if config.AppID != "380870" || config.Executable != "steamcmd" {
 		t.Fatalf("config = %+v", config)
 	}
-	override, ok := steamcmdInstallConfig(runtimeConfig{SteamCMDExecutable: "steamcmd", SteamCMDDir: "/opt/steamcmd"},
+	explicitDir := filepath.Join("opt", "steamcmd")
+	override, ok := steamcmdInstallConfig(runtimeConfig{SteamCMDExecutable: "steamcmd", SteamCMDDir: explicitDir},
 		serversRoot, "pz_01", "380870", installDir)
-	if !ok || override.SteamDir != "/opt/steamcmd" {
+	if !ok || override.SteamDir != explicitDir {
 		t.Fatalf("explicit steam dir override not honoured: %+v ok=%t", override, ok)
 	}
 }
@@ -542,7 +551,7 @@ func (f *fakeInstaller) Install(_ context.Context, request ports.InstallRequest,
 		return err
 	}
 	// Mirror the real artifact name so the presence check flips to installed.
-	if err := os.WriteFile(filepath.Join(installDir, "ProjectZomboid64"), []byte("stub"), 0o700); err != nil {
+	if err := os.WriteFile(filepath.Join(installDir, launchArtifactName()), []byte("stub"), 0o700); err != nil {
 		return err
 	}
 	f.mu.Lock()
