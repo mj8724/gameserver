@@ -1141,3 +1141,59 @@ func TestM2OfflineInstallVersionSelection(t *testing.T) {
 		t.Fatalf("install status must echo the version: %d %s", status, body)
 	}
 }
+
+// A Manifest may record a window longer than the 60-second default: the log
+// marker oracle must honour it instead of giving up while the server is up.
+func TestLogMarkerReadinessHonoursConfiguredWindow(t *testing.T) {
+	t.Parallel()
+	logs := &fakeLogs{lines: []string{"booting"}}
+	probe := newLogMarkerReadiness("*** SERVER STARTED ***", logs, 1500*time.Millisecond)
+	go func() {
+		time.Sleep(900 * time.Millisecond)
+		logs.set([]string{"booting", "*** SERVER STARTED ***"})
+	}()
+	start := time.Now()
+	ready, err := probe.Ready(context.Background(), "pz_01")
+	if err != nil || !ready {
+		t.Fatalf("Ready() = %v, %v; want true after the marker appears", ready, err)
+	}
+	if elapsed := time.Since(start); elapsed < 800*time.Millisecond {
+		t.Fatalf("probe returned after %v; it must wait for the marker", elapsed)
+	}
+}
+
+// The default window stays 60 seconds so unwired deployments are unchanged.
+func TestReadinessTimeoutDefaultsAndClamps(t *testing.T) {
+	t.Parallel()
+	if got := readinessTimeout(0); got != 60*time.Second {
+		t.Fatalf("readinessTimeout(0) = %v; want 60s", got)
+	}
+	if got := readinessTimeout(7200); got != time.Hour {
+		t.Fatalf("readinessTimeout(7200) = %v; want 1h clamp", got)
+	}
+	if got := readinessTimeout(180); got != 3*time.Minute {
+		t.Fatalf("readinessTimeout(180) = %v; want 3m", got)
+	}
+}
+
+type fakeLogs struct {
+	mu    sync.Mutex
+	lines []string
+}
+
+func (f *fakeLogs) Recent(limit int) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if limit <= 0 || limit > len(f.lines) {
+		return append([]string(nil), f.lines...)
+	}
+	return append([]string(nil), f.lines[len(f.lines)-limit:]...)
+}
+
+func (f *fakeLogs) Subscribe(buffer int) ports.LogSubscription { return nil }
+
+func (f *fakeLogs) set(lines []string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.lines = append([]string(nil), lines...)
+}

@@ -96,6 +96,9 @@ type runtimeConfig struct {
 
 	ReadinessMarker string
 	ReadinessPort   int
+	// ReadinessTimeout bounds the log-marker oracle when a Manifest records a
+	// window other than the 60-second default (PZ cold starts exceed it).
+	ReadinessTimeout time.Duration
 
 	CatalogsDir string
 	// PZHome points at the game's own configuration directory when the game
@@ -128,6 +131,9 @@ func loadConfig() runtimeConfig {
 
 		ReadinessMarker: os.Getenv("GAMESERVER_READINESS_MARKER"),
 		ReadinessPort:   envInt("GAMESERVER_READINESS_PORT", 0),
+		ReadinessTimeout: readinessTimeout(
+			envInt("GAMESERVER_READINESS_TIMEOUT", 0),
+		),
 
 		CatalogsDir: os.Getenv("GAMESERVER_CATALOGS_DIR"),
 		PZHome:      os.Getenv("GAMESERVER_PZ_HOME"),
@@ -251,7 +257,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	}
 	readiness := ports.ReadinessProbe(nil)
 	if marker := strings.TrimSpace(cfg.ReadinessMarker); marker != "" {
-		readiness = newLogMarkerReadiness(marker, supervisor)
+		readiness = newLogMarkerReadiness(marker, supervisor, cfg.ReadinessTimeout)
 	}
 	if overrides.Readiness != nil {
 		readiness = overrides.Readiness
@@ -675,11 +681,11 @@ func resolveInstaller(cfg runtimeConfig, serversRoot string, instance domain.Ins
 // newLogMarkerReadiness builds the Target-Manifest-approved log fallback oracle:
 // PZ's SERVER_PORT is UDP, so the approved oracle is the console marker recorded
 // in the manifest, observed within the same 60-second window used for A2S.
-func newLogMarkerReadiness(marker string, logs ports.LogSource) ports.ReadinessProbe {
-	const (
-		window   = 60 * time.Second
-		interval = 2 * time.Second
-	)
+func newLogMarkerReadiness(marker string, logs ports.LogSource, window time.Duration) ports.ReadinessProbe {
+	if window <= 0 {
+		window = defaultReadinessWindow
+	}
+	const interval = 2 * time.Second
 	return readinessFunc(func(ctx context.Context, _ domain.InstanceID) (bool, error) {
 		deadline := time.Now().Add(window)
 		for {
@@ -701,6 +707,22 @@ func newLogMarkerReadiness(marker string, logs ports.LogSource) ports.ReadinessP
 			}
 		}
 	})
+}
+
+// defaultReadinessWindow is the approved A2S window; a Manifest may record a
+// longer one for builds whose console marker arrives later.
+const defaultReadinessWindow = 60 * time.Second
+
+// readinessTimeout converts the configured seconds into a bounded duration:
+// absent or zero keeps the default, values above one hour are clamped.
+func readinessTimeout(seconds int) time.Duration {
+	if seconds <= 0 {
+		return defaultReadinessWindow
+	}
+	if seconds > 3600 {
+		seconds = 3600
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 type readinessFunc func(context.Context, domain.InstanceID) (bool, error)
