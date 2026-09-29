@@ -14,6 +14,27 @@ steam:
   anonymous_login: true
   validate_on_install: true
   default_branch: "public"
+  # 版本候选来自实机取证：steamcmd +login anonymous +app_info_print 380870 +quit
+  # 证据：docs/acceptance/evidence/M2-windows-live-auth.md §3 与 pz-appinfo-380870.txt
+  # buildid 仅作参考；选择分支即传 -beta <branch>（public 为默认，不传 -beta）。
+  versions:
+    - label: "稳定版（public）"
+      branch: "public"
+      build_id: "25485538"
+      default: true
+      evidence_ref: "docs/acceptance/evidence/M2-windows-live-auth.md#3"
+    - label: "测试版（unstable）"
+      branch: "unstable"
+      build_id: "25485538"
+      evidence_ref: "docs/acceptance/evidence/M2-windows-live-auth.md#3"
+    - label: "旧版 41.78.21"
+      branch: "legacy41"
+      build_id: "24928750"
+      evidence_ref: "docs/acceptance/evidence/M2-windows-live-auth.md#3"
+    - label: "42.19.2"
+      branch: "42.19"
+      build_id: "24929695"
+      evidence_ref: "docs/acceptance/evidence/M2-windows-live-auth.md#3"
 
 environments:
   windows:
