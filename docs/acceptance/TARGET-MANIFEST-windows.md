@@ -66,6 +66,10 @@ PAUSE
 - **启动向量**：launcher-descriptor（`jre64\bin\java.exe`）；口令两 token；配置根 `GAMESERVER_PZ_HOME=C:\Users\admin\Zomboid`。
 - **就绪口径**：marker `*** SERVER STARTED ***`；窗口 `GAMESERVER_READINESS_TIMEOUT`（缺省 60s，M3 验证用 300s 亦可）；实测基线冷 40s / warm 34s。
 - **授权动作表（M3）**：连续启动/停止（10 轮）、一次 taskkill 强杀、崩溃注入（二进程争锁、端口占用、缺制品、外部改写配置）、8h 运行观测、真实 workshop 下载（若做）、备份创建与显式 include 存档的恢复演练、服务账户/ACL（若落地，属系统级授权）。每项执行前在证据文件中记录授权。
-- **M3.3 workshop 取证填写位**：steamcmd `workshop_download_item` 落盘路径；PZ 读取路径（`Zomboid/mods` vs `server_files/steamapps/workshop/...`）；与 `DiskUsageMB`/备份排除的关系；Runner 单在飞互斥与 409 语义。结论由 M3.3 前置取证任务填写。
+- **M3.3 workshop 取证结论（2026-09-30，代码取证；实机下载为 BLOCKED 待授权动作）**：
+  1. **落盘位置**：steamcmd `workshop_download_item <appid> <id>` 写给 `force_install_dir` 下的 `steamapps/workshop/content/<appid>/<id>`（SteamCMD 官方语义；本仓库 BuildArgs 尚不含该命令——`internal/adapters/steamcmd/runner.go` 仅生成 `+app_update`，M3.3 实现需新增第二命令形态）。**实机验证行：BLOCKED（需一次真实下载授权，预计单 mod <1 GB）**。
+  2. **PZ 读取路径**：模板声明 mod 安装目录为 `Zomboid/mods`（`templates/project_zomboid.yaml:153`），而 Workshop 内容落在 `server_files/steamapps/workshop/content/...`；PZ 官方推荐**把 workshop 目录加入 Mods 加载路径**（INI `Mods=`/steam launch 选项），故实现需**确认 PZ 42.21 读取 Workshop 缓存目录的行为**——**实机行 BLOCKED（需启动含该 mod 的服务器观察加载日志）**。
+  3. **用量与备份关系**：`DiskUsageMB`（`internal/adapters/instancefiles/files.go:91` 实例根递归）**会包含** workshop 下载内容；备份默认排除 `server_files/` 与存档（M3.2 决策），故 workshop 内容不进备份——容量与备份口径均以"实例根包括、备份排除"为准，M3.5 复用该口径。
+  4. **Runner 单在飞互斥**：`Runner.busy`/`startGate` 只允许一个在飞命令（`runner.go:93-169`，"steamcmd task already running"）；install 与 mod 下载共用该槽 → 在飞时新请求必须 409（m3 矩阵 M3.3 单在飞行以 `TestModDownloadConflictsWithInstall` 断言）。
 - **M3.4 A2S 取证填写位**：声明目标 PZ 42.21 是否响应 A2S_INFO（首字节 + info 字段解析），影响查询面分支（info 解析 vs marker 时间线 + `unavailable`）。结论由 M3.4 取证任务填写。
 - **证据口径**：所有 M3 证据标注「隔离数据根基线验收」。

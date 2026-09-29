@@ -35,7 +35,7 @@
 | **M3.2** | 自动备份 | PZ 退出且 sandbox 稳定后触发；**备份失败不影响 stop**（stop 200） | `TestAutomaticBackupFailureDoesNotChangeStopResult` | 停止后观察备份产物时间戳晚于 sandbox 重写 |
 | **M3.2** | 存档恢复 | 显式 include 存档的备份经 staging+promotion 恢复；世界文件指纹一致 | `TestRestoreWithSavesThroughPromotionKeepsDigest` | 恢复后启动并核对存档可读 |
 | **M3.2** | 决策 | `--include-saves`/`--include-server-files` 实行或不实行的显式决策 | 决策记录锚点 | — |
-| **M3.3** | Mod 下载 | 前置取证：落盘路径、PZ 读取路径、用量/备份关系、Runner 互斥 | 取证结论落 Manifest §M3（BLOCKED 或实机） | 一次真实 workshop 下载（授权后） |
+| **M3.3** | Mod 下载 | 前置取证：落盘路径、PZ 读取路径、用量/备份关系、Runner 互斥 | 取证结论落 Manifest §M3（2026-09-30 代码取证 4 项；实机 2 项 BLOCKED：真实下载、PZ 42.21 读取行为） | 一次真实 workshop 下载（授权后）+ 启动含 mod 服务器观察加载日志 |
 | **M3.3** | Mod 下载 | legacy `POST /api/server/mods` 逐字不变 | `TestLegacyModsEndpointUnchanged` | — |
 | **M3.3** | Mod 下载 | 新端点先下载后登记；失败不写 INI；无效 id 明确错误 | `TestModDownloadRegistersOnlyAfterSuccess` | 真实 mod 下载 → INI → PZ 启动加载（日志含 mod 名） |
 | **M3.3** | Mod 下载 | 单在飞互斥（与 install 并发 → 409） | `TestModDownloadConflictsWithInstall` | — |
