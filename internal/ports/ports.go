@@ -82,10 +82,10 @@ type GameConfig interface {
 	// ReadOptions returns the current value of every catalogue-relevant key
 	// (INI plus sandbox) so the console can show file-backed values.
 	ReadOptions(context.Context, domain.InstanceID) (map[string]string, error)
-	// ApplyOptionValues writes catalogue-validated values, routing each name to
-	// the file that currently defines it. Validation and ownership are decided
-	// by the caller (application + catalogue), not by the adapter.
-	ApplyOptionValues(context.Context, domain.InstanceID, map[string]string) error
+	// ApplyOptionValues writes catalogue-validated values. The caller supplies
+	// each name's target ("ini" or "sandboxvars") from the catalogue, so the
+	// adapter never has to guess where a value belongs.
+	ApplyOptionValues(context.Context, domain.InstanceID, map[string]string, map[string]string) error
 }
 
 // InstallRequest describes a server installation without shell command text.

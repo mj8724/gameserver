@@ -696,7 +696,8 @@ func (s *ControlService) UpdateConfig(ctx context.Context, update ConfigUpdate) 
 		for name, value := range update.Options {
 			values[name] = value
 		}
-		if err := s.deps.Config.ApplyOptionValues(ctx, updated.ID, values); err != nil {
+		targets := OptionTargets(s.deps.Options, values)
+		if err := s.deps.Config.ApplyOptionValues(ctx, updated.ID, values, targets); err != nil {
 			return ConfigUpdateResult{}, WrapError(CodeOperationFailed, "保存配置项失败", err)
 		}
 		if OptionRequiresRestart(s.deps.Options, update.Options) && s.processStatus(ctx).Status == "RUNNING" {

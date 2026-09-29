@@ -176,11 +176,11 @@ func (c *Config) ReadOptions(ctx context.Context, id domain.InstanceID) (map[str
 	return values, nil
 }
 
-// ApplyOptionValues routes validated values to the file that currently defines
-// each name: INI keys go through the catalogue-authorised INI writer, sandbox
-// paths through the sandbox writer. A name that exists in neither file is
-// rejected rather than created, so a typo can never add a new vendor key.
-func (c *Config) ApplyOptionValues(ctx context.Context, id domain.InstanceID, values map[string]string) error {
+// ApplyOptionValues writes catalogue-validated values to the file named by the
+// caller-provided target map (plan D-C keeps one writer per physical key). A
+// name whose target is unknown is routed by file membership, which keeps older
+// callers working without silently creating new vendor keys.
+func (c *Config) ApplyOptionValues(ctx context.Context, id domain.InstanceID, values map[string]string, targets map[string]string) error {
 	if len(values) == 0 {
 		return nil
 	}
@@ -191,49 +191,50 @@ func (c *Config) ApplyOptionValues(ctx context.Context, id domain.InstanceID, va
 	if err != nil {
 		return err
 	}
-	current, err := c.ReadOptions(ctx, id)
-	if err != nil {
-		return err
-	}
-	iniUpdates := map[string]string{}
-	sandboxUpdates := map[string]string{}
-	for key, value := range values {
-		if _, ok := current[key]; !ok {
-			return fmt.Errorf("option %q is not present in the instance configuration", key)
-		}
-		if _, err := SandboxVarsPath(c.dataRoot, string(id), name); err != nil {
-			return err
-		}
-		iniUpdates[key] = value
-	}
-	// Names that live only in the sandbox file must not be written to the INI.
-	iniOnly := map[string]bool{}
 	iniValues, err := c.Read(ctx, id)
 	if err != nil {
 		return err
 	}
-	for key := range iniValues {
-		iniOnly[key] = true
+	sandboxPath, err := SandboxVarsPath(c.dataRoot, string(id), name)
+	if err != nil {
+		return err
 	}
-	for key, value := range iniUpdates {
-		if iniOnly[key] {
-			continue
+	if err := c.ensureSandboxFile(sandboxPath); err != nil {
+		return err
+	}
+	sandboxValues, err := ReadSandbox(sandboxPath)
+	if err != nil {
+		return err
+	}
+
+	iniUpdates := map[string]string{}
+	sandboxUpdates := map[string]string{}
+	for key, value := range values {
+		switch targets[key] {
+		case string(ports.OptionTargetINI):
+			iniUpdates[key] = value
+		case string(ports.OptionTargetSandboxVars):
+			sandboxUpdates[key] = value
+		default:
+			if _, ok := iniValues[key]; ok {
+				iniUpdates[key] = value
+				continue
+			}
+			if _, ok := sandboxValues[key]; ok {
+				sandboxUpdates[key] = value
+				continue
+			}
+			return fmt.Errorf("option %q is neither a catalogue target nor present in the instance configuration", key)
 		}
-		sandboxUpdates[key] = value
-		delete(iniUpdates, key)
 	}
 	if len(iniUpdates) > 0 {
-		allow := func(key string) bool { return iniOnly[key] }
+		allow := func(key string) bool { return true } // catalogue-approved by the caller
 		if err := c.ApplyNamedAllowed(ctx, id, name, iniUpdates, allow); err != nil {
 			return err
 		}
 	}
 	if len(sandboxUpdates) > 0 {
-		path, err := SandboxVarsPath(c.dataRoot, string(id), name)
-		if err != nil {
-			return err
-		}
-		if err := ApplySandbox(path, sandboxUpdates); err != nil {
+		if err := ApplySandbox(sandboxPath, sandboxUpdates); err != nil {
 			return err
 		}
 	}

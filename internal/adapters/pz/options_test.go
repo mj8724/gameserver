@@ -173,11 +173,67 @@ func TestSandboxSeedingFromVendorBaseline(t *testing.T) {
 	if err != nil || !strings.Contains(string(raw), "-- vendor baseline") {
 		t.Fatalf("seed must be copied verbatim: %v\n%s", err, raw)
 	}
-	if err := config.ApplyOptionValues(context.Background(), "pz_01", map[string]string{"Zombies": "9"}); err != nil {
+	if err := config.ApplyOptionValues(context.Background(), "pz_01", map[string]string{"Zombies": "9"}, map[string]string{"Zombies": "sandboxvars"}); err != nil {
 		t.Fatalf("write after seeding: %v", err)
 	}
 	after, err := ReadSandbox(path)
 	if err != nil || after["Zombies"] != "9" {
 		t.Fatalf("write after seeding did not apply: %v %v", after, err)
+	}
+}
+
+// Mirrors the live Windows failure: an instance INI that predates the catalogue
+// plus a seeded sandbox file, written through the options path.
+func TestApplyOptionValuesWithLegacyINIFixture(t *testing.T) {
+	root := t.TempDir()
+	serverDir := filepath.Join(root, "servers", "pz_01", "Zomboid", "Server")
+	if err := os.MkdirAll(serverDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(serverDir, "servertest.ini"), []byte("# legacy\nPublic=true\nUnknownKey=keep-me\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seed := filepath.Join(root, "seed_SandboxVars.lua")
+	if err := os.WriteFile(seed, []byte("SandboxVars = {\n    Zombies = 4,\n    Basement = \"None\",\n    LootItemRemovalList = \"\",\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config, err := NewConfig(root, func(context.Context, domain.InstanceID) (string, error) { return "servertest", nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.SetSandboxSeed(seed)
+	err = config.ApplyOptionValues(context.Background(), "pz_01", map[string]string{
+		"AntiCheatChecksum":   "2",
+		"AllowCoop":           "true",
+		"RCONPassword":        "live2-rcon",
+		"Zombies":             "7",
+		"Basement":            "Rural",
+		"LootItemRemovalList": "Base.Hat",
+	}, map[string]string{
+		"AntiCheatChecksum":   "ini",
+		"AllowCoop":           "ini",
+		"RCONPassword":        "ini",
+		"Zombies":             "sandboxvars",
+		"Basement":            "sandboxvars",
+		"LootItemRemovalList": "sandboxvars",
+	})
+	if err != nil {
+		t.Fatalf("ApplyOptionValues: %v", err)
+	}
+	values, err := config.ReadOptions(context.Background(), "pz_01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{"AntiCheatChecksum": "2", "AllowCoop": "true", "RCONPassword": "live2-rcon", "Zombies": "7"} {
+		if values[key] != want {
+			t.Fatalf("%s = %q, want %q", key, values[key], want)
+		}
+	}
+	ini, err := os.ReadFile(filepath.Join(serverDir, "servertest.ini"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(ini), "# legacy") {
+		t.Fatalf("comments must survive:\n%s", ini)
 	}
 }

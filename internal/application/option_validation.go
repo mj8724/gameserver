@@ -120,3 +120,22 @@ func OptionRequiresRestart(catalog ports.OptionCatalog, updates map[string]strin
 // ErrOptionWriteUnsupported is returned when the configured game adapter cannot
 // accept option values at all.
 var ErrOptionWriteUnsupported = errors.New("game adapter does not support option writes")
+
+// OptionTargets reports the catalogue target of each requested option, so the
+// adapter writes to the right file without guessing (plan D-C).
+func OptionTargets(catalog ports.OptionCatalog, updates map[string]string) map[string]string {
+	targets := make(map[string]string, len(updates))
+	if catalog == nil {
+		return targets
+	}
+	for name := range updates {
+		if spec, ok := catalog.Get(ports.OptionTargetINI, name); ok {
+			targets[name] = string(spec.Target)
+			continue
+		}
+		if spec, ok := catalog.Get(ports.OptionTargetSandboxVars, name); ok {
+			targets[name] = string(spec.Target)
+		}
+	}
+	return targets
+}
