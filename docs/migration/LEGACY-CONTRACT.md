@@ -140,6 +140,17 @@
 
 **Origin 兼容性事实：**UI 的同源 `fetch` 对非 GET 方法会携带 `Origin`，因此计划中「有副作用请求缺失 Origin 即拒绝」不会破坏既有 UI 流程；同源 GET 通常不带 `Origin`，故只读接口需允许缺失 Origin（跨源仍拒绝）。
 
+### 4.1 r3 新增 UI 调用面（2026-09-29）
+
+| 调用 | 用途 | 备注 |
+|---|---|---|
+| `GET /api/templates` | 选择游戏与**服务端版本**（`versions[]`：label/branch/build_id/default/evidence_ref） | legacy UI 未调用；纯追加 |
+| `POST /api/server/install`（`{"version":"<branch>"}`） | 指定分支下载/校验；`{}` 与空体保持兼容 | 未知分支 422「所选服务端版本不在模板清单中」，不启动安装 |
+| `GET /api/server/config` → `options[]` / `groups[]` | 目录驱动的全量配置项视图（416 项），值以文件回读为准 | `fields[]` 与既有 8 项投影不变 |
+| `POST /api/server/config`（`{"options":{…}}`） | 选项写路径：ro/hidden → 409、未知/类型/范围/枚举 → 422、secret 留空=保持 | 与 `{"variables":…}` 互不覆盖（所有权矩阵） |
+
+UI 调用面不再以固定计数核对；由 `TestStaticUIContract` 动态断言 endpoint 集合 ⊆ 路由集合。
+
 ## 5. 持久化与数据/副作用边界
 
 | 边界 | 路径/位置 | 语义 | 位置 |

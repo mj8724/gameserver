@@ -59,6 +59,7 @@
 **决策**：继续服务现有 `static/index.html`（含内联 CSS/JS），不做 Vue/Vite 重建。
 
 **理由**：UI 与 API 契约耦合面已完整枚举：**10 处调用点、13 个具体端点**，且存在两处硬编码依赖（`data.detail` 错误信封、`'请先登录'` 字符串分支）。保留静态 UI 才能在 M2-UI 中验证“迁移未破坏既有控制路径”。Vue 重建属产品/前端决策，列入未决项（§7）。
+- **r3 更新（2026-09-29）**：调用点/端点数量不再硬编码枚举。UI 新增 `/api/templates`（选游戏/选版本）与 `/api/server/install`（指定版本安装）调用面，改由 `cmd/gameserver` 的 `TestStaticUIContract` **动态断言**：从 `static/index.html` 抽取的 endpoint 集合必须 ⊆ `internal/adapters/httpapi/server.go` 的路由集合，并冻结若干精确子串与响应体上限（256KB）。原「10 处调用点、13 个端点」表述作废。
 
 ### 1.4 持久化：文件 + 原子写（含日志缓冲区）
 
