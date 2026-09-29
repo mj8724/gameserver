@@ -104,6 +104,7 @@ blocked M3.6 "8h 观测（60s 采样）无静默丢失" "需 ≥4h 执行窗口�
 
 # ---------- 判定待测行（能力落地后在此批量判定） ----------
 if [ -s "$ROW_DEFS" ]; then
+  go test -json ./... > "$WORK/all.json" || true
   go run ./tools/m2eval -rows "$ROW_DEFS" -json "$WORK/all.json" -out "$ROWS" -gov "$GO_VER" || {
     echo "m2eval failed; see above" >&2
     exit 1
