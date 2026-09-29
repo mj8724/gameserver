@@ -166,7 +166,17 @@ UI 调用面不再以固定计数核对；由 `TestStaticUIContract` 动态断�
 | 日志 | **仅内存**（deque，默认 1000 行），`data/logs/` 目录被创建但未用于持久化 | 重启即丢失 | `core/process_supervisor.py:16-17`；`config.py:27-28` |
 | 模板 | `templates/*.yaml`（`TemplateManager.load_all`，`get_template` 未命中时重载） | 元数据 + 环境/端口/变量/绑定/生命周期 | `core/template_manager.py:14-29` |
 
-### 5.1 r3/r4 增量：受管键所有权与 SandboxVars（非 legacy 行为）
+#
+## 4.2 r5 登记（先登记后实现，M3 范围）
+
+| 项 | 登记内容 | 契约约束 |
+|---|---|---|
+| M3.1 恢复态 | install 任务从「重启后 IDLE」变更为持久意图+对账 | legacy `IDLE/INSTALLING/COMPLETED/FAILED` 保留；偏差 **D10**（ADR §5.4） |
+| M3.3 新端点 | `POST /api/server/mods/download` | `POST /api/server/mods` 逐字不变（仍仅登记不下载）；偏差 D11；单在飞 409 |
+| M3.4 查询字段 | 就绪时间线 + 玩家数/地图（`unavailable` 语义） | 只追加；`ready`/`readiness` 语义与 §2.3 兼容性约束不变；偏差 D12 |
+| M3.5 策略字段 | 软/硬阈值状态与判定依据 | `quota_gb`/`usage_percent` 类型与含义不变；判定用新增字段；偏差 D12 |
+
+## 5.1 r3/r4 增量：受管键所有权与 SandboxVars（非 legacy 行为）
 
 | 项 | legacy | Go 版（r3/r4） | 依据 |
 |---|---|---|---|

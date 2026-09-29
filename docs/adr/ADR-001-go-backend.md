@@ -200,6 +200,16 @@ internal/domain          (实例/配置/任务/端口/秘密策略的值类型�
 - **回退**：若目标 PZ build 在 Target Manifest 中被记录为不支持 A2S，则改用**日志就绪标记**（该 build 实际输出的可复现字符串），标记内容与判定规则写入 Target Manifest 与 M2 计划后才能执行 M2-PZ-LIVE。
 - **兼容性约束（加法式）**：就绪状态**只以追加字段**暴露（`/api/status.ready` 与 `/api/status.readiness`），**不得**改变既有 `status`（仍为 `STOPPED/STARTING/RUNNING/CRASHED/STOPPING`，且 `steamcmd.is_busy` 时沿用 **`INSTALLING`** 覆盖值，见 `core/instance_manager.py:264-265`）与 `running` 的语义，也不改变 start 响应体。超时本身不终止进程；`start` 的返回仍与基线一致（子进程创建成功即 200）。
 
+**r5 登记（先登记后实现，M3 范围）**：
+
+| 项 | 登记内容 | 契约约束 |
+|---|---|---|
+| M3.4 就绪时间线（追加字段） | `start→checking→ready/timeout/failed` 带时间戳 | 只追加；**不得重定义** `ready`/`readiness` 既有语义（上文兼容性约束继续适用） |
+| M3.4 查询字段（追加） | 玩家数/地图（A2S info 或只读指令）；不可得时返回 `unavailable` 且**不计 DoD 失败** | 可用性判定依据落 Target Manifest（M3.4 取证） |
+| M3.5 策略字段（追加） | 软/硬阈值状态与判定依据 | `quota_gb`/`usage_percent` **类型与含义不变**（UI 契约）；判定用新增字段 |
+| M3.3 新端点 | `POST /api/server/mods/download {"workshop_ids":[...]}` | legacy `POST /api/server/mods`（登记）**逐字语义不变**；单在飞互斥（409）；先下载后登记 |
+| M3.1 恢复态 | `install_task.status` 追加恢复相关取值 | legacy `IDLE/INSTALLING/COMPLETED/FAILED` **保留**；「重启后 IDLE」契约变更为持久意图+对账（偏差 D10，见 §5.4） |
+
 ---
 
 ## 3. 跨进程单写者
@@ -413,7 +423,9 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 | **D6** 跨进程单写者 | 基线无 | §3 全套；变更类 API 返回 **409 `instance owned by another process`** |
 | **D7** 启动向量注入 | 基线脚本中转、未测 | §5.1–5.3；密码不经解释器重解析 |
 | **D8** 文件权限 | 基线不检查权限 | §1.7 权限表；不合规 → 变更类操作被阻止 |
-| **D9** INI/SandboxVars 可写集合 | 基线仅有 10 个受管键可写 | 全部可写集合改由经校验的选项目录（`writable=rw`）决定；`ro/hidden` 拒绝并给精确文案；变量页/选项页一物理键一写入者（引擎只写自有键、跨路径 409）；SandboxVars 纳入受管文件与备份范围（§1.4/§4.6） |
+| **D10** 安装任务持久化（r5/M3.1） | 基线（含 M2 契约）为纯内存态：重启后 `install_task` 回落 IDLE（`LEGACY-CONTRACT.md:193`） | 任务意图日志持久化 + 启动对账（取锁与 owner 对账之后，不覆盖 `RECOVERY_REQUIRED`）；legacy 状态取值保留、恢复态只追加；SSR 的 `IDLE/INSTALLING/COMPLETED/FAILED` 投影语义不变 |
+| **D11** Mod 下载端点（r5/M3.3） | 基线 `POST /api/server/mods` 仅登记不下载（毫秒级、无下载面） | 新增 `POST /api/server/mods/download`；legacy 端点逐字不变；下载成功才写 INI，失败不写 |
+| **D12** 查询与策略字段（r5/M3.4/M3.5） | 基线仅有观测值无查询/策略字段 | 就绪时间线、A2S/只读查询字段、容量策略字段一律**追加**；`ready`/`readiness`、`quota_gb`/`usage_percent` 语义不变 || **D9** INI/SandboxVars 可写集合 | 基线仅有 10 个受管键可写 | 全部可写集合改由经校验的选项目录（`writable=rw`）决定；`ro/hidden` 拒绝并给精确文案；变量页/选项页一物理键一写入者（引擎只写自有键、跨路径 409）；SandboxVars 纳入受管文件与备份范围（§1.4/§4.6） |
 
 ---
 
