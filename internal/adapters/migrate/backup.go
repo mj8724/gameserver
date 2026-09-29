@@ -20,13 +20,34 @@ type BackupRecord struct {
 	Instance  string         `json:"instance"`
 	Files     []ManifestFile `json:"files"`
 	Checksum  string         `json:"checksum"`
+	Includes  []string       `json:"includes,omitempty"`
 	Path      string         `json:"-"`
+}
+
+// BackupOptions selects the optional content planes carried by a backup.
+// The state subtree and the managed PZ INI/SandboxVars files are always
+// included; saves and server files are opt-in (M3.2 decision).
+type BackupOptions struct {
+	IncludeSaves bool
+	// IncludeServerFiles is deliberately unimplemented for M3.2 and recorded
+	// as a decision: server_files can be regenerated and adds >20 GB to every
+	// backup, which destabilizes capacity limits (M3.5). Revisit with the
+	// retention/capacity policy work.
+	IncludeServerFiles bool
 }
 
 // Backup copies the managed state subtree and the PZ server INI files into a
 // timestamped directory and verifies every checksum by re-reading. Saves and
 // server_files are deliberately excluded (ADR §4.6).
 func (t *Tool) Backup(destinationRoot string) (BackupRecord, error) {
+	return t.BackupWithOptions(destinationRoot, BackupOptions{})
+}
+
+// BackupWithOptions copies the managed state subtree, the PZ server INI files
+// and (optionally) the save games into a timestamped directory and verifies
+// every checksum by re-reading. The include mode is recorded in the manifest so
+// a restore never claims more than it holds.
+func (t *Tool) BackupWithOptions(destinationRoot string, opts BackupOptions) (BackupRecord, error) {
 	if strings.TrimSpace(destinationRoot) == "" {
 		return BackupRecord{}, errors.New("backup destination root is required")
 	}
@@ -50,8 +71,19 @@ func (t *Tool) Backup(destinationRoot string) (BackupRecord, error) {
 			sources = append(sources, filepath.Join(iniDir, entry.Name()))
 		}
 	}
+	var includes []string
+	if opts.IncludeSaves {
+		// PZ keeps the world under the instance cache directory; several
+		// subfolders look like "Saves". Back up the whole cache only when the
+		// caller opts in, and record it so restore can target the same shape.
+		savesRoot := filepath.Join(layout.InstanceDir(), "Zomboid", "Saves")
+		if info, err := t.ops.Stat(savesRoot); err == nil && info.IsDir() {
+			sources = append(sources, savesRoot)
+			includes = append(includes, "saves")
+		}
+	}
 
-	record := BackupRecord{Schema: backupSchema, CreatedAt: t.clock().UTC(), Instance: string(layout.Instance), Path: destination}
+	record := BackupRecord{Schema: backupSchema, CreatedAt: t.clock().UTC(), Instance: string(layout.Instance), Includes: includes, Path: destination}
 	for _, source := range sources {
 		info, err := t.ops.Stat(source)
 		if err != nil {
@@ -179,9 +211,28 @@ func (t *Tool) PruneBackups(destinationRoot string, keep int) ([]string, error) 
 		}
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	// A directory that is not a verifiable backup never counts toward keep and
+	// is left alone; and at least the newest verified backup survives any prune
+	// (keep=0 therefore means "keep one", never "delete everything").
+	var removable []string
+	for _, name := range names {
+		target := filepath.Join(instanceRoot, name)
+		if err := t.VerifyBackup(target); err != nil {
+			continue
+		}
+		removable = append(removable, name)
+	}
+	if len(removable) == 0 {
+		return nil, nil
+	}
+	// removable is descending (newest first).
+	keepFromNewest := keep
+	if keepFromNewest < 1 {
+		keepFromNewest = 1
+	}
 	var removed []string
-	for index, name := range names {
-		if index < keep {
+	for index, name := range removable {
+		if index < keepFromNewest {
 			continue
 		}
 		target := filepath.Join(instanceRoot, name)

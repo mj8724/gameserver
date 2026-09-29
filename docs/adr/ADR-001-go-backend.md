@@ -209,6 +209,7 @@ internal/domain          (实例/配置/任务/端口/秘密策略的值类型�
 | M3.5 策略字段（追加） | 软/硬阈值状态与判定依据 | `quota_gb`/`usage_percent` **类型与含义不变**（UI 契约）；判定用新增字段 |
 | M3.3 新端点 | `POST /api/server/mods/download {"workshop_ids":[...]}` | legacy `POST /api/server/mods`（登记）**逐字语义不变**；单在飞互斥（409）；先下载后登记 |
 | M3.1 恢复态 | `install_task.status` 追加恢复相关取值 | legacy `IDLE/INSTALLING/COMPLETED/FAILED` **保留**；「重启后 IDLE」契约变更为持久意图+对账（偏差 D10，见 §5.4） |
+| M3.2 自动备份 | 停止成功后后台自动备份（sandbox 稳定等待）；新增状态字段 `last_backup{state,message,at}` | `stop` 响应体与失败语义不变；备份为尽力而为、失败不阻塞任何后续操作 |
 
 ---
 

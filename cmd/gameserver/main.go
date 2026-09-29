@@ -273,6 +273,13 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if overrides.Installer != nil {
 		installer = overrides.Installer
 	}
+	autoBackup := ports.BackupOperator(nil)
+	if backupTool, backupErr := migrate.New(migrate.Layout{ServersRoot: serversRoot, Instance: instance}); backupErr == nil {
+		backupDir := os.Getenv("GAMESERVER_BACKUP_DIR")
+		if backupDir != "" {
+			autoBackup = migrate.NewAutoBackup(backupTool, backupDir, os.Getenv("GAMESERVER_AUTO_BACKUP") == "1")
+		}
+	}
 	optionCatalog, catalogErr := loadOptionCatalog(cfg, states, templates)
 	if catalogErr != nil {
 		log.Printf("WARNING: option catalogue unavailable (%v); the console shows options as degraded", catalogErr)
@@ -280,6 +287,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	control, err := application.NewControlService(application.ServiceDeps{
 		Options:       optionCatalog,
 		Intents:       intentLog,
+		Backup:        autoBackup,
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
@@ -486,6 +494,7 @@ func runPromote(args []string) {
 
 func runBackup(args []string) {
 	flags := flag.NewFlagSet("backup", flag.ExitOnError)
+	includeSaves := flags.Bool("include-saves", false, "include the instance save games (Zomboid/Saves) in the backup")
 	dataRoot := flags.String("data-root", "data", "data root containing servers/")
 	instance := flags.String("instance", defaultInstance, "instance id")
 	destination := flags.String("dest", "", "backup destination root")
@@ -496,11 +505,11 @@ func runBackup(args []string) {
 
 	tool, err := migrate.New(migrate.Layout{ServersRoot: filepath.Join(*dataRoot, "servers"), Instance: domain.InstanceID(*instance)})
 	fail(err)
-	record, err := tool.Backup(*destination)
+	record, err := tool.BackupWithOptions(*destination, migrate.BackupOptions{IncludeSaves: *includeSaves})
 	if err != nil {
 		fail(fmt.Errorf("backup: %w", err))
 	}
-	fmt.Printf("backup: path=%s files=%d checksum=%s\n", record.Path, len(record.Files), record.Checksum)
+	fmt.Printf("backup: path=%s files=%d checksum=%s includes=%v\n", record.Path, len(record.Files), record.Checksum, record.Includes)
 }
 
 // runRestore verifies a backup and stages its state content, leaving the

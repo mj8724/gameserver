@@ -72,3 +72,12 @@
 
 - 按 r5 平台决策：Linux/macOS 相关行若无法在声明目标上评估 → 标 `N/A—平台未声明`（NOT PASS/NOT BLOCKED，证据保留），不计入 FAIL。
 - M3 的 Windows 证据**不改变** M2 未验证平台的状态（ADR §1.6）。
+
+## M3.2 决策记录（2026-09-30）
+
+| 决策 | 选择 | 理由 | 证据/代码 |
+|---|---|---|---|
+| 保留默认 keep | **3**（与 ADR §4.6 一致），容量上限可配 | 与既有默认对齐，prune 永不删除最新一份可用备份 | `internal/adapters/migrate/retention.go` `DefaultBackupKeep` |
+| `--include-saves` | **实现**（CLI flag + manifest `includes` 标记 + 自动备份默认包含存档） | 满足"真实存档恢复"验收；自动备份带存档以便恢复演练 | `cmd/gameserver/main.go`、`BackupOptions.IncludeSaves` |
+| `--include-server-files` | **明确不实现**（记录决策） | `server_files` 可再生、单次备份 ≥20 GB，会与 M3.5 容量上限互相撕扯；随保留/容量策略工作重新评估 | `BackupOptions` 注释 |
+| 自动备份触发 | `stop` 成功后异步、pz 退出 sandbox 重写稳定后（沉降 5s）、`pending_backup`→`last_backup` 状态字段 | **备份失败不影响 stop**（停服契约不变）；备份为尽力而为 | `scheduleAutomaticBackup`、`GAMESERVER_AUTO_BACKUP`/`GAMESERVER_BACKUP_DIR` |

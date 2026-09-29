@@ -74,10 +74,10 @@ row M3.1 "对账顺序：陈旧 owner → RECOVERY_REQUIRED 优先，不被续�
 row M3.1 "网络失败 → FAILED 可重试；legacy 四态投影不变" 'TestTaskIntentFailureAndLegacyStatusProjection' 
 
 # ---------- M3.2 备份保留 ----------
-notrun M3.2 "prune 保留 N 且永不删除最后一份可用备份" "能力未实现（M3.2）"
-notrun M3.2 "保留策略默认 keep 3 与容量上限（决策记录）" "能力未实现（M3.2）"
-notrun M3.2 "备份失败不影响 stop（stop 仍 200）" "能力未实现（M3.2）"
-notrun M3.2 "include 存档的备份经 staging+promotion 恢复且指纹一致" "能力未实现（M3.2）"
+row M3.2 "prune 保留 N 且永不删除最后一份可用备份" 'TestPruneNeverRemovesNewestVerifiedBackup|TestPruneBackupsKeepsNewestAndRequiresExplicitCall'
+row M3.2 "保留策略默认 keep 3 与容量上限（决策记录）" 'TestAutoBackupBackupNowIncludesSavesAndPrunes'
+row M3.2 "备份失败不影响 stop（stop 仍 200）" 'TestAutomaticBackupFailureDoesNotChangeStopResult|TestAutomaticBackupAfterStopDoesNotChangeStopResult'
+row M3.2 "include 存档的备份经 staging+promotion 恢复且指纹一致" 'TestBackupWithSavesRecordsIncludeMode|TestDefaultBackupExcludesSaves|TestBackupVerifyTamperAndRestoreThroughPromotion' 
 
 # ---------- M3.3 Mod 下载 ----------
 notrun M3.3 "legacy POST /api/server/mods 逐字不变" "能力未实现（M3.3）"

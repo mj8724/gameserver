@@ -423,3 +423,85 @@ func (f *fakeInstaller) wait(t *testing.T) {
 		t.Fatal("installer did not finish in time")
 	}
 }
+
+// M3.2: after a clean stop, an enabled automatic backup runs in the background
+// and reports through the appended last_backup field, while the stop result
+// itself stays untouched.
+func TestAutomaticBackupAfterStopDoesNotChangeStopResult(t *testing.T) {
+	h := newHarness(t)
+	h.service.backupSettle = 0
+	backup := &fakeBackup{enabled: true}
+	h.service.deps.Backup = backup
+	if _, err := h.service.Stop(context.Background()); err != nil {
+		t.Fatalf("stop without backup deps must keep working: %v", err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if backup.callCount() > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if backup.callCount() != 1 {
+		t.Fatalf("automatic backup did not run after stop, calls=%d", backup.callCount())
+	}
+	status, err := h.service.Status(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	lb, _ := status["last_backup"].(autoBackupState)
+	if lb.State != "completed" || lb.At == "" {
+		t.Fatalf("last_backup projection missing or wrong: %+v", lb)
+	}
+}
+
+// A failing automatic backup never changes the stop contract and surfaces its
+// failure through last_backup instead of the stop response.
+func TestAutomaticBackupFailureDoesNotChangeStopResult(t *testing.T) {
+	h := newHarness(t)
+	h.service.backupSettle = 0
+	h.service.deps.Backup = &fakeBackup{enabled: true, err: errors.New("disk full")}
+	result, err := h.service.Stop(context.Background())
+	if err != nil {
+		t.Fatalf("stop must not fail because the backup fails: %v", err)
+	}
+	if !result.Success || result.Message != "服务器已停止" {
+		t.Fatalf("stop contract changed: %+v", result)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		h.service.mu.Lock()
+		lb := h.service.lastBackup
+		h.service.mu.Unlock()
+		if lb.State == "failed" {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("backup failure was never projected into last_backup")
+}
+
+// fakeBackup simulates the automatic backup seam.
+type fakeBackup struct {
+	mu      sync.Mutex
+	enabled bool
+	err     error
+	calls   int
+}
+
+func (f *fakeBackup) Enabled() bool { return f.enabled }
+func (f *fakeBackup) BackupNow() (ports.BackupResult, error) {
+	f.mu.Lock()
+	f.calls++
+	f.mu.Unlock()
+	if f.err != nil {
+		return ports.BackupResult{}, f.err
+	}
+	return ports.BackupResult{Path: "/tmp/backup", Files: 3, Checksum: "abc"}, nil
+}
+
+func (f *fakeBackup) callCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.calls
+}

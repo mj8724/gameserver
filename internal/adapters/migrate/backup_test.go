@@ -134,3 +134,118 @@ func TestBackupIncludesSandboxVars(t *testing.T) {
 		t.Fatalf("sandbox file missing from the backup manifest: %+v", record.Files)
 	}
 }
+
+// The M3.2 retention floor: prune never removes the newest verified backup,
+// even when the configured keep is zero or negative.
+func TestPruneNeverRemovesNewestVerifiedBackup(t *testing.T) {
+	tool := newTool(t)
+	layout := tool.Layout()
+	writeTree(t, layout.StateDir(), map[string]string{"instance.json": "{}"})
+	backups := filepath.Join(t.TempDir(), "backups")
+
+	for index := 0; index < 2; index++ {
+		clock := fixedClock().Add(time.Duration(index) * time.Second)
+		indexed, err := New(layout, WithClock(func() time.Time { return clock }))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := indexed.Backup(backups); err != nil {
+			t.Fatalf("backup %d: %v", index, err)
+		}
+	}
+	removed, err := tool.PruneBackups(backups, 0)
+	if err != nil {
+		t.Fatalf("prune keep=0: %v", err)
+	}
+	// keep=0 means keep one: exactly one backup is removed, never all.
+	if len(removed) != 1 {
+		t.Fatalf("prune removed %d backups, want exactly 1 (the oldest)", len(removed))
+	}
+	entries, err := os.ReadDir(filepath.Join(backups, string(layout.Instance)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var verified int
+	for _, entry := range entries {
+		if err := tool.VerifyBackup(filepath.Join(backups, string(layout.Instance), entry.Name())); err == nil {
+			verified++
+		}
+	}
+	if verified != 1 {
+		t.Fatalf("exactly one verified backup must survive, got %d", verified)
+	}
+}
+
+// An opt-in backup includes the save games and records the include mode, so a
+// restore can later claim exactly what the backup holds (M3.2 decision).
+func TestBackupWithSavesRecordsIncludeMode(t *testing.T) {
+	tool := newTool(t)
+	layout := tool.Layout()
+	writeTree(t, layout.StateDir(), map[string]string{"instance.json": "{}"})
+	savesRoot := filepath.Join(layout.InstanceDir(), "Zomboid", "Saves", "servertest")
+	writeTree(t, savesRoot, map[string]string{"map.bin": "world-data"})
+
+	record, err := tool.BackupWithOptions(t.TempDir(), BackupOptions{IncludeSaves: true})
+	if err != nil {
+		t.Fatalf("backup: %v", err)
+	}
+	if len(record.Includes) != 1 || record.Includes[0] != "saves" {
+		t.Fatalf("include mode not recorded: %+v", record.Includes)
+	}
+	found := false
+	for _, file := range record.Files {
+		if strings.Contains(file.Path, "Saves") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("backup files do not contain the saves tree: %+v", record.Files)
+	}
+}
+
+// The default backup range still excludes saves: opting in never becomes the
+// silent default (ADR §4.6, M3.2 decision).
+func TestDefaultBackupExcludesSaves(t *testing.T) {
+	tool := newTool(t)
+	layout := tool.Layout()
+	writeTree(t, layout.StateDir(), map[string]string{"instance.json": "{}"})
+	writeTree(t, filepath.Join(layout.InstanceDir(), "Zomboid", "Saves", "servertest"), map[string]string{"map.bin": "world-data"})
+
+	record, err := tool.Backup(t.TempDir())
+	if err != nil {
+		t.Fatalf("backup: %v", err)
+	}
+	if len(record.Includes) != 0 {
+		t.Fatalf("default backup must not opt into saves: %+v", record.Includes)
+	}
+	for _, file := range record.Files {
+		if strings.Contains(file.Path, "Saves") {
+			t.Fatalf("default backup must exclude saves, found %s", file.Path)
+		}
+	}
+}
+
+// The M3.2 automatic-backup adoption: BackupNow backs up including saves and
+// reports a valid checksum; the retention floor keeps at least one backup.
+func TestAutoBackupBackupNowIncludesSavesAndPrunes(t *testing.T) {
+	tool := newTool(t)
+	layout := tool.Layout()
+	writeTree(t, layout.StateDir(), map[string]string{"instance.json": "{}"})
+	writeTree(t, filepath.Join(layout.InstanceDir(), "Zomboid", "Saves", "servertest"), map[string]string{"map.bin": "world"})
+	dest := filepath.Join(t.TempDir(), "backups")
+
+	auto := NewAutoBackup(tool, dest, true)
+	result, err := auto.BackupNow()
+	if err != nil {
+		t.Fatalf("BackupNow: %v", err)
+	}
+	if result.Checksum == "" || result.Files == 0 || result.Path == "" {
+		t.Fatalf("BackupNow result incomplete: %+v", result)
+	}
+	if err := tool.VerifyBackup(result.Path); err != nil {
+		t.Fatalf("auto backup must verify: %v", err)
+	}
+	if !auto.Enabled() {
+		t.Fatal("enabled flag must be honoured")
+	}
+}

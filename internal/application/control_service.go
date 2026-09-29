@@ -44,6 +44,7 @@ type ServiceDeps struct {
 	Options         ports.OptionCatalog
 	LaunchEvidence  LaunchEvidence
 	Intents         ports.IntentLog
+	Backup          ports.BackupOperator
 }
 
 type diskUsageProvider interface {
@@ -61,7 +62,22 @@ type ControlService struct {
 	// pendingRestart records that a restart-requiring option was saved while the
 	// server was running; it is cleared on the next successful start.
 	pendingRestart atomic.Bool
+
+	backupMu      sync.Mutex
+	backupRunning bool
+	lastBackup    autoBackupState
+	backupSettle  time.Duration
 }
+
+type autoBackupState struct {
+	State   string `json:"state,omitempty"`
+	Message string `json:"message,omitempty"`
+	At      string `json:"at,omitempty"`
+}
+
+// autoBackupSettleDelay waits for the PZ exit-time sandbox rewrite to settle
+// before backing up so the captured configuration is the stable one.
+const autoBackupSettleDelay = 5 * time.Second
 
 type installTask struct {
 	running  bool
@@ -164,6 +180,9 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 	}
 	process := s.processStatus(ctx)
 	install := s.installSnapshot()
+	s.mu.Lock()
+	lastBackup := s.lastBackup
+	s.mu.Unlock()
 
 	status := process.Status
 	if install.Status == "INSTALLING" {
@@ -207,6 +226,7 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 		"is_installed":   s.deps.Files.IsInstalled(s.deps.Instance),
 		"status":         status,
 		"running":        process.Running,
+		"last_backup":    lastBackup,
 		"pid":            pid,
 		"cpu_percent":    round1(process.CPUPercent),
 		"memory_mb":      round1(process.MemoryMB),
@@ -509,7 +529,49 @@ func (s *ControlService) Stop(ctx context.Context) (OperationResult, error) {
 	s.ready = false
 	s.readiness = "unknown"
 	s.mu.Unlock()
+	s.scheduleAutomaticBackup()
 	return OperationResult{Message: "服务器已停止", Success: true}, nil
+}
+
+// scheduleAutomaticBackup runs one best-effort backup after a clean stop. It
+// never delays or fails the stop: the backup waits for the PZ config rewrite
+// (known deviation 2) to settle, records its own state in last_backup and is
+// skipped when a backup is already in flight or disabled.
+func (s *ControlService) scheduleAutomaticBackup() {
+	if s.deps.Backup == nil || !s.deps.Backup.Enabled() {
+		return
+	}
+	s.backupMu.Lock()
+	if s.backupRunning {
+		s.backupMu.Unlock()
+		return
+	}
+	s.backupRunning = true
+	s.backupMu.Unlock()
+	go func() {
+		defer func() {
+			s.backupMu.Lock()
+			s.backupRunning = false
+			s.backupMu.Unlock()
+		}()
+		// Give the game process time to rewrite its sandbox file after exit.
+		sleep := s.backupSettle
+		if sleep < 0 {
+			sleep = autoBackupSettleDelay
+		}
+		time.Sleep(sleep)
+		state := autoBackupState{At: s.deps.Clock.Now().Format(time.RFC3339)}
+		if _, err := s.deps.Backup.BackupNow(); err != nil {
+			state.State = "failed"
+			state.Message = err.Error()
+		} else {
+			state.State = "completed"
+			state.Message = "自动备份完成"
+		}
+		s.mu.Lock()
+		s.lastBackup = state
+		s.mu.Unlock()
+	}()
 }
 
 // Restart implements Control.
