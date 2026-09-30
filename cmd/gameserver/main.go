@@ -267,7 +267,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	serviceID = fmt.Sprintf("%s-%d", serviceID, os.Getpid())
 
 	workshopDownloader := ports.WorkshopDownloader(nil)
-	installer, err := resolveInstaller(cfg, serversRoot, instance, states, templates, files)
+	installer, err := resolveInstaller(cfg, serversRoot, instance, states, templates, files, gamePlugins)
 	if err != nil {
 		return nil, fmt.Errorf("steamcmd installer: %w", err)
 	}
@@ -283,7 +283,13 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		logs = overrides.Logs
 	}
 	readiness := ports.ReadinessProbe(nil)
-	if marker := strings.TrimSpace(cfg.ReadinessMarker); marker != "" {
+	// Readiness defaults come from the resolved game plugin descriptor; an
+	// explicit environment marker still wins (Target Manifest override).
+	marker := strings.TrimSpace(cfg.ReadinessMarker)
+	if marker == "" {
+		marker = pluginReadinessMarker(gamePlugins, states, instance)
+	}
+	if marker != "" {
 		readiness = newLogMarkerReadiness(marker, supervisor, cfg.ReadinessTimeout)
 	}
 	if overrides.Readiness != nil {
@@ -696,8 +702,14 @@ func steamcmdInstallConfig(cfg runtimeConfig, serversRoot string, instance domai
 // resolveInstaller prefers template metadata for the app id, with an explicit
 // operator override, and falls back to the fail-closed unconfigured installer.
 func resolveInstaller(cfg runtimeConfig, serversRoot string, instance domain.InstanceID,
-	states ports.StateStore, templates ports.TemplateCatalog, files ports.InstanceFiles) (ports.Installer, error) {
+	states ports.StateStore, templates ports.TemplateCatalog, files ports.InstanceFiles,
+	registry ports.PluginRegistry) (ports.Installer, error) {
 	appID := strings.TrimSpace(cfg.SteamAppID)
+	if appID == "" {
+		// The game plugin owns the Steam identity; the template remains the
+		// legacy fallback so existing deployments keep working.
+		appID = pluginSteamAppID(registry, states, instance)
+	}
 	if appID == "" {
 		if state, err := states.Load(context.Background(), instance); err == nil {
 			if template, ok := templates.Get(domain.TemplateID(state.TemplateID)); ok {
@@ -937,4 +949,43 @@ func buildCapacity(cfg runtimeConfig, states ports.StateStore, files ports.Insta
 		return nil
 	}
 	return application.NewCapacity(cfg.CapacitySoftPercent, cfg.CapacityHardPercent, quota, files)
+}
+
+// pluginSteamAppID resolves the Steam app id from the registered game plugin so
+// shared wiring never hardcodes a game identity.
+func pluginSteamAppID(registry ports.PluginRegistry, states ports.StateStore, instance domain.InstanceID) string {
+	if registry == nil {
+		return ""
+	}
+	state, err := states.Load(context.Background(), instance)
+	if err != nil {
+		return ""
+	}
+	plugin, ok := registry.Lookup(domain.TemplateID(state.TemplateID))
+	if !ok {
+		return ""
+	}
+	appID, _ := plugin.InstallerSource()
+	return strings.TrimSpace(appID)
+}
+
+// pluginReadinessMarker resolves the manifest-recorded readiness marker from
+// the plugin descriptor.
+func pluginReadinessMarker(registry ports.PluginRegistry, states ports.StateStore, instance domain.InstanceID) string {
+	if registry == nil {
+		return ""
+	}
+	state, err := states.Load(context.Background(), instance)
+	if err != nil {
+		return ""
+	}
+	plugin, ok := registry.Lookup(domain.TemplateID(state.TemplateID))
+	if !ok {
+		return ""
+	}
+	spec := plugin.Descriptor().Readiness
+	if spec.Mode != "log-marker" {
+		return ""
+	}
+	return strings.TrimSpace(spec.Marker)
 }

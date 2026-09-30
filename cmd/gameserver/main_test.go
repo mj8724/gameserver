@@ -528,7 +528,7 @@ func TestRuntimeConfiguresInstallerFromTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("instance files: %v", err)
 	}
-	installer, err := resolveInstaller(cfg, filepath.Join(dataRoot, "servers"), "pz_01", states, templates, files)
+	installer, err := resolveInstaller(cfg, filepath.Join(dataRoot, "servers"), "pz_01", states, templates, files, nil)
 	if err != nil {
 		t.Fatalf("resolveInstaller: %v", err)
 	}
