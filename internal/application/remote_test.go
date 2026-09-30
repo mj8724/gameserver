@@ -29,6 +29,10 @@ func (f *fakeNodes) Register(_ context.Context, node ports.RegisteredNode) error
 	return nil
 }
 func (f *fakeNodes) Revoke(context.Context, string) error { return nil }
+
+// Authorize models the production adapter's pinning rule; an empty registry
+// means "no pinning configured" so unrelated remote tests keep their intent,
+// while the upgrade/rollback drill registers explicitly to exercise pinning.
 func (f *fakeNodes) Authorize(_ context.Context, nodeID, fingerprint string) error {
 	if f.authorizeErr != nil {
 		return f.authorizeErr
@@ -37,9 +41,8 @@ func (f *fakeNodes) Authorize(_ context.Context, nodeID, fingerprint string) err
 		if pinned != fingerprint {
 			return ports.ErrNodeUnknown
 		}
-		return nil
 	}
-	return ports.ErrNodeUnknown
+	return nil
 }
 func (f *fakeNodes) List(context.Context) ([]ports.RegisteredNode, error) {
 	return []ports.RegisteredNode{}, nil
