@@ -37,6 +37,9 @@ import (
 	"github.com/mj8724/gameserver/internal/adapters/systemclock"
 	"github.com/mj8724/gameserver/internal/application"
 	"github.com/mj8724/gameserver/internal/domain"
+	"github.com/mj8724/gameserver/internal/plugins"
+	"github.com/mj8724/gameserver/internal/plugins/pzplugin"
+	"github.com/mj8724/gameserver/internal/plugins/valheimplugin"
 	"github.com/mj8724/gameserver/internal/ports"
 	"github.com/mj8724/gameserver/internal/version"
 )
@@ -215,6 +218,17 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	}
 	for _, warning := range templates.Warnings() {
 		log.Printf("template warning: %s", warning)
+	}
+	gamePlugins := plugins.New()
+	gamePlugins.Register(pzplugin.New())
+	gamePlugins.Register(valheimplugin.New())
+	if state, err := states.Load(context.Background(), instance); err == nil {
+		if plugin, ok := gamePlugins.Lookup(domain.TemplateID(state.TemplateID)); ok {
+			descriptor := plugin.Descriptor()
+			log.Printf("game plugin %s (%s, app %s, %d port(s))", descriptor.ID, descriptor.Name, descriptor.SteamAppID, len(descriptor.Ports))
+		} else {
+			log.Printf("WARNING: no game plugin registered for template %q; install/launch stay fail-closed", state.TemplateID)
+		}
 	}
 	gameConfig, err := pz.NewConfig(absoluteData, func(ctx context.Context, id domain.InstanceID) (string, error) {
 		state, err := states.Load(ctx, id)

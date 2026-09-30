@@ -191,6 +191,7 @@ internal/domain          (实例/配置/任务/端口/秘密策略的值类型�
 | `GameReadiness` | 就绪判定（见 §2.3） | pz |
 | `InstanceLock` | 获取/释放所有权、读所有权记录 | oslock |
 | `OptionCatalog` | 经校验的选项规格与可写集合（r3 起，驱动全量配置读写；§5.4 D9） | optioncatalog |
+| `PluginRegistry` | 编译期游戏插件注册表（r6/M4：按模板 id 解析插件，未知模板失败关闭） | plugins |
 | `StaticAssets` | 只读静态资源 | staticassets |
 | `Clock` | 时间源（测试可注入） | systemclock |
 
@@ -548,6 +549,16 @@ IDLE → EXPORTED(dry-run 记录) → STAGED → VERIFIED → COMMITTING → COM
 **等价性/回滚**：目录与向量语义未变（r3 等价性 branch ③ 判定仍成立）；声明口径变更只影响文档与证据引用，不改变代码行为；矩阵与演练脚本计数已按新口径同步（`m2-offline.sh` exit 0）。
 
 **签核**：用户确认（三项决策）；reviewer 非独立复核（teammate 额度限制，与 r3 同注）；签核记录 `docs/acceptance/M2-SIGNOFF.md` r4 章节。
+
+## 11.4 r6 修订记录（2026-09-30，M4 插件契约）
+
+**变更**：
+1. 新增 **游戏插件契约**（`internal/ports/plugin.go`）：`Descriptor`（模板 id、Steam app、版本/分支、端口、就绪规格、配置目标）+ `Plugin`（GameConfig/LaunchSpec/Readiness/InstallerSource）+ `PluginRegistry`（编译期注册、未知模板失败关闭）。共享编排（`internal/application`/`internal/ports`）**不得出现游戏名或游戏专属分支**。
+2. 新增 archtest 层 `plugin`：允许 plugin → adapter/ports/domain，禁止 adapter 与共享编排导入 plugin（编译期强制）。
+3. PZ 注册为首个插件（行为等价门槛：既有 M2/M3 矩阵不得退化）；**Valheim** 注册为第二款游戏（app 896660，端口 2456/2457，就绪=mock 前待 Manifest 取证；未取证前 `errNotWired` 失败关闭）。
+4. 组合根按模板 id 解析插件并记录描述符；未注册模板 fail-closed。
+
+**回滚**：删除 plugin 层与注册表即回到 r5 行为（适配器与端口未变）。
 
 ## 11.3 r5 修订记录（2026-09-29，剩余里程碑计划批准）
 

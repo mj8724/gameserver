@@ -15,9 +15,13 @@ const (
 	layerPorts       packageLayer = "ports"
 	layerApplication packageLayer = "application"
 	layerAdapter     packageLayer = "adapter"
-	layerCommand     packageLayer = "command"
-	layerVersion     packageLayer = "version"
-	layerArchtest    packageLayer = "archtest"
+	// layerPlugin is the compile-time game plugin layer: plugins assemble game
+	// adapters behind the ports contract, so plugin -> adapter is allowed,
+	// while adapters and shared orchestration must never import a plugin.
+	layerPlugin   packageLayer = "plugin"
+	layerCommand  packageLayer = "command"
+	layerVersion  packageLayer = "version"
+	layerArchtest packageLayer = "archtest"
 )
 
 type packageInfo struct {
@@ -36,6 +40,11 @@ func classify(importPath string) packageInfo {
 		return packageInfo{layer: layerApplication, known: true}
 	case modulePrefix + "/internal/archtest":
 		return packageInfo{layer: layerArchtest, known: true}
+	case modulePrefix + "/internal/plugins":
+		// Compile-time game plugin registry (M4). Individual plugin packages
+		// below are adapters: they may import game adapters, while shared
+		// orchestration must never name a game.
+		return packageInfo{layer: layerPlugin, adapterName: "plugins", known: true}
 	case modulePrefix + "/internal/version":
 		return packageInfo{layer: layerVersion, known: true}
 	case modulePrefix + "/cmd/gameserver", modulePrefix + "/cmd/gs-lockhold":
@@ -54,6 +63,12 @@ func classify(importPath string) packageInfo {
 		name := strings.TrimPrefix(importPath, adaptersPrefix)
 		if name != "" && !strings.Contains(name, "/") {
 			return packageInfo{layer: layerAdapter, adapterName: name, known: true}
+		}
+	}
+	if strings.HasPrefix(importPath, modulePrefix+"/internal/plugins/") {
+		name := strings.TrimPrefix(importPath, modulePrefix+"/internal/plugins/")
+		if name != "" && !strings.Contains(name, "/") {
+			return packageInfo{layer: layerPlugin, adapterName: "plugin:" + name, known: true}
 		}
 	}
 	if strings.HasPrefix(importPath, modulePrefix+"/internal/") || importPath == modulePrefix {
@@ -135,6 +150,10 @@ func importViolation(fromPath, importedPath string, standard map[string]struct{}
 		allowed = to.layer == layerPorts || to.layer == layerDomain
 	case layerApplication:
 		allowed = to.layer == layerApplication || to.layer == layerPorts || to.layer == layerDomain
+	case layerPlugin:
+		// A plugin may assemble game adapters and its own siblings.
+		allowed = to.layer == layerPorts || to.layer == layerDomain ||
+			to.layer == layerAdapter || to.layer == layerPlugin
 	case layerAdapter:
 		allowed = to.layer == layerPorts || to.layer == layerDomain || (to.layer == layerAdapter && from.adapterName == to.adapterName)
 		if from.adapterName == "httpapi" && to.layer == layerApplication {
