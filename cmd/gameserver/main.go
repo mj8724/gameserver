@@ -303,7 +303,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if overrides.Readiness != nil {
 		readiness = overrides.Readiness
 	}
-	var supervisorPort ports.ProcessSupervisor = supervisor
+	var supervisorPort ports.ProcessSupervisor = &process.LoggingSupervisor{Inner: supervisor}
 	if overrides.Processes != nil {
 		supervisorPort = overrides.Processes
 	}
