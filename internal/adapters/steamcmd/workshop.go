@@ -35,6 +35,7 @@ func (r *Runner) DownloadWorkshopItem(ctx context.Context, instance domain.Insta
 		SteamDir:   r.config.SteamDir,
 		InstallDir: installDir,
 		AppID:      r.config.AppID,
+		WorkshopID: workshopID,
 	}, func(line string) {}, func(progress ports.Progress) {
 		progress.Message = "workshop: " + progress.Message
 		if onProgress != nil {

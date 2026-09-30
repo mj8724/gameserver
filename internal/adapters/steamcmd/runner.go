@@ -66,6 +66,9 @@ type InstallSpec struct {
 	Validate   bool
 	Beta       string
 	BetaPass   string
+	// WorkshopID switches the command from an app update to one workshop item
+	// download (M3.3). It is validated as digits before use.
+	WorkshopID string
 }
 
 // InstallConfig supplies filesystem paths and app identity for the port-level
@@ -293,6 +296,12 @@ func (r *Runner) setStatus(status string) {
 // and testable; no token is split or interpreted by a shell.
 func BuildArgs(spec InstallSpec) []string {
 	args := []string{"+force_install_dir", filepath.Clean(spec.InstallDir), "+login", "anonymous"}
+	if spec.WorkshopID != "" {
+		// One workshop item, then exit: never an app update in the same run.
+		args = append(args, "+workshop_download_item", spec.AppID, spec.WorkshopID)
+		args = append(args, "+quit")
+		return args
+	}
 	args = append(args, "+app_update", spec.AppID)
 	if spec.Beta != "" {
 		args = append(args, "-beta", spec.Beta)
