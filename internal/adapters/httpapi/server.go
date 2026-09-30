@@ -1405,6 +1405,8 @@ func allowedMethods(requestPath string) []string {
 		return []string{http.MethodGet, http.MethodHead}
 	case "/api/instances":
 		return []string{http.MethodGet, http.MethodPost}
+	case "/api/server/mods/download":
+		return []string{http.MethodPost}
 	case "/api/nodes":
 		return []string{http.MethodGet, http.MethodPost}
 	case "/api/nodes/rotate":
