@@ -50,3 +50,8 @@
 - 定位：`m2-offline.sh` = **回归不变式**（M2 不退化）；`m3-offline.sh` = M3 里程碑验收。
 - 计数：PASS/FAIL/BLOCKED/NOT RUN；FAIL>0 阻断；BLOCKED/NOT RUN 允许存在但必须逐 ID 列出。
 - 证据口径：实机证据一律标注「隔离数据根基线验收」。
+
+8. **`grep -c ... || echo 0` 在命令替换里会产生两行**：`$(cmd | grep -c x || echo 0)` 在计数为 0 时输出 `0\n0`，跨行匹配的断言会失配——验收脚本的残留检查曾因此误报 10/10 轮失败（真实 procs=0/ports=0）。写断言用 `|| true` 或先规范化输出。
+9. **JSON 证据里的 Windows 路径必须转义**：直接把 `G:\path\x` 拼进 `printf '{"evidence":"%s"}'` 会产生非法转义（`\g`）使整个证据文件不可解析；用正斜杠或写进 Markdown 证据文件并在 JSON 中引用文档。
+10. **start=200 只代表子进程创建成功**（既有契约）：端口被占用时 start 仍可能返回 200，判断"是否可用"必须看 readiness/日志，不能只看状态码。
+11. **本机 `/api/status` 的 `memory_mb`/`cpu_percent` 在 Windows 恒为 0**：长时间观测的内存趋势需另行取数（PowerShell `Get-Process java | Handles/WorkingSet`），并在证据里注明口径差异。
