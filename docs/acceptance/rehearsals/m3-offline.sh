@@ -86,11 +86,11 @@ row M3.3 "单在飞互斥（与 install 并发 → 409）" 'TestModDownloadConfl
 row M3.3 "不可信内容边界（路径穿越白名单/不执行可执行内容）" 'TestModContentPathTraversalRejected'
 record M3.3 "前置取证：workshop 落盘与 PZ 读取路径" "PASS" "Manifest §M3 代码取证 4 项（2026-09-30）；实机下载与 PZ 读取行为为 BLOCKED 待授权（见注解行）"
 
-blocked M3.3 "实机：真实 workshop 下载 + PZ 42.21 读取行为观测" "需目标机授权动作（Manifest §M3 已列）"
+blocked M3.3 "实机：真实 workshop 下载复验（端点白名单 + workshop argv 缺陷已修）" "修复后未重跑（观测窗口占用 SteamCMD/数据根）；见 evidence/M3-residuals-live.md §2"
 # ---------- M3.4 就绪与查询 ----------
 row M3.4 "就绪时间线（追加字段，带时间戳）" 'TestQueryFieldsDegradeToUnavailable'
 row M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" 'TestQueryFieldsDegradeToUnavailable|TestQueryFieldsProjectWhenA2SAnswers|TestParseA2SInfo|TestParseA2SInfoRejectsGarbage'
-blocked M3.4 "A2S 可达性只读取证（声明目标 PZ 42.21 实机一次 UDP 探测）" "需目标机授权动作；解析器已实现（pz/a2s.go + 单测）"
+record M3.4 "A2S 可达性取证（声明目标 PZ 42.21）" "PASS" "实机 ready 后 game_query 返回真实字段 {map:Muldraugh, KY, name:My PZ Server, players:0, max:100}；见 evidence/M3-residuals-live.md"
 
 # ---------- M3.5 容量 ----------
 row M3.5 "双检与竞态对抗（采样未超但写入时超 → 拒绝且无部分写入）" 'TestCapacityDoubleCheckRejectsPartialWrite|TestCapacityMeasurementFailureFailsClosed'
@@ -102,7 +102,7 @@ row M3.5 "用量口径（排除备份与锁目录）与 DiskUsageMB 对齐；阈
 record M3.6 "连续 start/stop ≥10 轮（含 1 次强杀）无残留" "PASS" "2026-09-30 隔离根实测 10/10 轮 procs=0 ports=0（含第 6 轮 taskkill 强杀）；日志见 evidence/M3-windows-reliability.md"
 record M3.6 "崩溃注入：二进程争锁 / 缺制品 / 配置外部改写" "PASS" "争锁 409 + 释放后 200；缺制品 500 + 未起进程；配置改写后按受管键重写并成功启动"
 blocked M3.6 "崩溃注入：端口占用下的失败关闭语义" "start=200（既有契约=子进程创建成功即 200）未能证明失败关闭；需游戏日志/就绪复核"
-blocked M3.6 "8h 观测（60s 采样）无静默丢失" "实测 50 分钟窗口：running 50/50、readiness ready 49/50、procs 1/50、marker 可检索；句柄 4737→5340（+603，趋势待复核）→ 记 BLOCKED(时间窗口)"
+blocked M3.6 "≥4h 观测（60s 采样）无静默丢失" "已 99 样本≈1h40m：running/ready 全程、PID 恒定、句柄 5449→5344 后恒定（无增长）、marker 恒 1；未达 4h 窗口 → BLOCKED(时间窗口)"
 
 # ---------- 判定待测行（行定义已在上面注册；评估结果追加合并，避免截断） ----------
 if [ -s "$ROW_DEFS" ]; then
