@@ -22,6 +22,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/mj8724/gameserver/internal/application"
+	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
 )
 
@@ -138,6 +139,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/status", s.status)
 	s.mux.HandleFunc("GET /api/templates", s.templates)
 	s.mux.HandleFunc("GET /api/instances", s.instances)
+	s.mux.HandleFunc("POST /api/instances", s.createInstance)
+	s.mux.HandleFunc("DELETE /api/instances/{instance_id}", s.deleteInstance)
 	s.mux.HandleFunc("POST /api/server/install", s.install)
 	s.mux.HandleFunc("GET /api/server/install", s.installStatus)
 	s.mux.HandleFunc("POST /api/server/start", s.start)
@@ -247,6 +250,71 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 func (s *Server) WithInstanceLister(lister application.InstanceLister) *Server {
 	s.instances_ = lister
 	return s
+}
+
+func (s *Server) createInstance(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	var req struct {
+		InstanceID *string `json:"instance_id"`
+		TemplateID *string `json:"template_id"`
+	}
+	if err := decodeStrictJSON(r, &req, false); err != nil || req.InstanceID == nil || req.TemplateID == nil ||
+		runeLength(*req.InstanceID) < 1 || runeLength(*req.InstanceID) > 64 || runeLength(*req.TemplateID) < 1 || runeLength(*req.TemplateID) > 64 {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+		return
+	}
+	if !asciiIdent(*req.InstanceID) {
+		writeDetail(w, http.StatusUnprocessableEntity, "实例 ID 只能包含字母、数字、下划线与短横线")
+		return
+	}
+	creator, ok := s.control.(application.InstanceCreator)
+	if !ok {
+		writeDetail(w, http.StatusNotImplemented, "实例创建不可用")
+		return
+	}
+	view, err := creator.CreateInstance(r.Context(), *req.InstanceID, domain.TemplateID(*req.TemplateID))
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, application.InstanceSummary{
+		ID: string(view.Record.ID), Name: view.Record.Name, TemplateID: view.Record.TemplateID,
+		DataRoot: view.Record.DataRoot, Status: view.Status, Ports: view.Ports, Active: view.Active,
+	})
+}
+
+func (s *Server) deleteInstance(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	remover, ok := s.control.(application.InstanceRemover)
+	if !ok {
+		writeDetail(w, http.StatusNotImplemented, "实例移除不可用")
+		return
+	}
+	id := r.PathValue("instance_id")
+	if runeLength(id) < 1 || runeLength(id) > 64 || !asciiIdent(id) {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+		return
+	}
+	if err := remover.RemoveInstance(r.Context(), domain.InstanceID(id)); err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"message": "实例已注销", "instance_id": id})
+}
+
+func asciiIdent(value string) bool {
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_', r == '-':
+		default:
+			return false
+		}
+	}
+	return len(value) > 0
 }
 
 func (s *Server) instances(w http.ResponseWriter, r *http.Request) {

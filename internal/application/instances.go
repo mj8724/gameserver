@@ -2,8 +2,10 @@ package application
 
 import (
 	"context"
+	"errors"
 	"sort"
 
+	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
 )
 
@@ -53,3 +55,48 @@ func (s *ControlService) ListInstances(ctx context.Context) ([]ports.InstanceVie
 }
 
 var _ ports.InstanceLister = (*ControlService)(nil)
+
+// CreateInstance registers a new instance and allocates its port pair (M5.1).
+// It refuses duplicates and unknown templates; it never deletes or overwrites.
+func (s *ControlService) CreateInstance(ctx context.Context, id string, templateID domain.TemplateID) (ports.InstanceView, error) {
+	if s.deps.Registry == nil {
+		return ports.InstanceView{}, NewError(CodeOperationFailed, "实例注册表不可用")
+	}
+	if _, ok := s.deps.Templates.Get(templateID); !ok {
+		return ports.InstanceView{}, NewError(CodeOperationFailed, "模板不存在："+string(templateID))
+	}
+	primaryKey, directKey := "SERVER_PORT", "DIRECT_PORT"
+	allocated := map[string]int{}
+	if s.deps.Ports != nil {
+		ports_, err := s.deps.Ports.Allocate(ctx, primaryKey, directKey)
+		if err != nil {
+			return ports.InstanceView{}, WrapError(CodeOperationFailed, "端口分配失败", err)
+		}
+		allocated = ports_
+	}
+	record := ports.InstanceRecord{ID: domain.InstanceID(id), TemplateID: string(templateID), Name: id}
+	if err := s.deps.Registry.Add(ctx, record); err != nil {
+		if errors.Is(err, ports.ErrInstanceExists) {
+			return ports.InstanceView{}, NewError(CodeOperationFailed, "实例已存在："+id)
+		}
+		return ports.InstanceView{}, WrapError(CodeOperationFailed, "写入实例注册表失败", err)
+	}
+	return ports.InstanceView{Record: record, Status: "registered", Ports: allocated}, nil
+}
+
+// RemoveInstance unregisters an instance. Data on disk is never deleted.
+func (s *ControlService) RemoveInstance(ctx context.Context, id domain.InstanceID) error {
+	if s.deps.Registry == nil {
+		return NewError(CodeOperationFailed, "实例注册表不可用")
+	}
+	if id == s.deps.Instance {
+		return NewError(CodeOperationFailed, "不能注销当前活跃实例")
+	}
+	if err := s.deps.Registry.Remove(ctx, id); err != nil {
+		if errors.Is(err, ports.ErrInstanceUnknown) {
+			return NewError(CodeOperationFailed, "实例未注册："+string(id))
+		}
+		return WrapError(CodeOperationFailed, "移除实例注册失败", err)
+	}
+	return nil
+}

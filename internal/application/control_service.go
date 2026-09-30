@@ -49,6 +49,7 @@ type ServiceDeps struct {
 	Query           ports.GameQuerier
 	Capacity        ports.CapacityChecker
 	Registry        ports.InstanceRegistry
+	Ports           ports.PortAllocator
 }
 
 type diskUsageProvider interface {

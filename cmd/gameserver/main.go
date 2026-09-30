@@ -329,6 +329,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Query:         pzQueryAdapter{},
 		Capacity:      buildCapacity(cfg, states, files),
 		Registry:      instanceRegistry,
+		Ports:         &instanceregistry.PortAllocator{Registry: instanceRegistry},
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,

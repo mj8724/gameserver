@@ -22,7 +22,15 @@ func (f *fakeRegistry) List(context.Context) ([]ports.InstanceRecord, error) {
 func (f *fakeRegistry) Get(context.Context, domain.InstanceID) (ports.InstanceRecord, error) {
 	return ports.InstanceRecord{}, ports.ErrInstanceUnknown
 }
-func (f *fakeRegistry) Add(context.Context, ports.InstanceRecord) error { return nil }
+func (f *fakeRegistry) Add(_ context.Context, record ports.InstanceRecord) error {
+	for _, existing := range f.records {
+		if existing.ID == record.ID {
+			return ports.ErrInstanceExists
+		}
+	}
+	f.records = append(f.records, record)
+	return nil
+}
 func (f *fakeRegistry) Remove(context.Context, domain.InstanceID) error { return nil }
 
 // The multi-instance listing merges the registry with the live state of the
@@ -75,4 +83,42 @@ func TestListInstancesWithoutRegistry(t *testing.T) {
 	if len(views) != 1 || views[0].Record.ID != "pz_01" || !views[0].Active {
 		t.Fatalf("fallback listing wrong: %+v", views)
 	}
+}
+
+// Creating an instance allocates a port pair and registers it; duplicates and
+// unknown templates are refused without touching existing data.
+func TestCreateInstanceAllocatesPortsAndRefusesDuplicates(t *testing.T) {
+	h := newHarness(t)
+	registry := &fakeRegistry{}
+	h.service.deps.Registry = registry
+	h.service.deps.Ports = &fakePorts{}
+
+	view, err := h.service.CreateInstance(context.Background(), "valheim_01", "project_zomboid")
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	if view.Record.ID != "valheim_01" || view.Ports["SERVER_PORT"] == 0 {
+		t.Fatalf("allocation/registration incomplete: %+v", view)
+	}
+	if _, err := h.service.CreateInstance(context.Background(), "valheim_01", "project_zomboid"); err == nil {
+		t.Fatal("duplicate instance must be refused")
+	}
+	if _, err := h.service.CreateInstance(context.Background(), "x_02", "unknown_template"); err == nil {
+		t.Fatal("unknown template must be refused")
+	}
+}
+
+// The active instance cannot unregister itself; other ids round-trip.
+func TestRemoveInstanceRefusesActive(t *testing.T) {
+	h := newHarness(t)
+	h.service.deps.Registry = &fakeRegistry{}
+	if err := h.service.RemoveInstance(context.Background(), "pz_01"); err == nil {
+		t.Fatal("the active instance must not be removable")
+	}
+}
+
+type fakePorts struct{}
+
+func (fakePorts) Allocate(_ context.Context, primaryKey, directKey string) (map[string]int, error) {
+	return map[string]int{primaryKey: 27015, directKey: 27016}, nil
 }

@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 
+	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
 )
 
@@ -33,6 +34,16 @@ type Control interface {
 // InstanceLister projects the host registry plus live state (M5.3).
 type InstanceLister interface {
 	ListInstances(ctx context.Context) ([]ports.InstanceView, error)
+}
+
+// InstanceCreator registers new instances (M5.1).
+type InstanceCreator interface {
+	CreateInstance(ctx context.Context, id string, templateID domain.TemplateID) (ports.InstanceView, error)
+}
+
+// InstanceRemover unregisters instances without deleting their data.
+type InstanceRemover interface {
+	RemoveInstance(ctx context.Context, id domain.InstanceID) error
 }
 
 // InstanceSummary is the multi-instance projection (M5.3): the registry record
