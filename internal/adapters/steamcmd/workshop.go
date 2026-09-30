@@ -30,13 +30,22 @@ func (r *Runner) DownloadWorkshopItem(ctx context.Context, instance domain.Insta
 	if err != nil {
 		return "", fmt.Errorf("resolve install directory: %w", err)
 	}
+	// Keep the SteamCMD output so a failed download can explain itself instead
+	// of only reporting the missing directory.
+	var tail []string
 	if err := r.InstallSpec(ctx, InstallSpec{
 		Executable: r.config.Executable,
 		SteamDir:   r.config.SteamDir,
 		InstallDir: installDir,
 		AppID:      r.config.AppID,
 		WorkshopID: workshopID,
-	}, func(line string) {}, func(progress ports.Progress) {
+	}, func(line string) {
+		tail = append(tail, line)
+		if len(tail) > 12 {
+			tail = tail[len(tail)-12:]
+		}
+		r.setStatus("Downloading workshop item " + workshopID)
+	}, func(progress ports.Progress) {
 		progress.Message = "workshop: " + progress.Message
 		if onProgress != nil {
 			onProgress(progress)
@@ -47,6 +56,9 @@ func (r *Runner) DownloadWorkshopItem(ctx context.Context, instance domain.Insta
 	contentDir := filepath.Join(installDir, "steamapps", "workshop", "content", r.config.AppID, workshopID)
 	info, err := os.Stat(contentDir)
 	if err != nil || !info.IsDir() {
+		if len(tail) > 0 {
+			return "", fmt.Errorf("workshop item %s did not land under %s; steamcmd said: %s", workshopID, contentDir, strings.Join(tail, " | "))
+		}
 		return "", fmt.Errorf("workshop item %s did not land under %s", workshopID, contentDir)
 	}
 	return filepath.ToSlash(contentDir), nil
