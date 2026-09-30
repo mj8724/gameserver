@@ -396,6 +396,12 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 			})
 		},
 		ApplyGameConfig: func(ctx context.Context, state domain.InstanceState) error {
+			// Only games that declare a managed INI target get a config sync;
+			// an argv-configured game (for example one launched by a plugin that
+			// owns its command line) has nothing to write here.
+			if !pluginManagesINI(gamePlugins, state.TemplateID) {
+				return nil
+			}
 			name, _ := state.Variables["SERVER_NAME"].(string)
 			if name == "" {
 				name = "servertest"
@@ -1007,4 +1013,23 @@ func pluginReadinessMarker(registry ports.PluginRegistry, states ports.StateStor
 		return ""
 	}
 	return strings.TrimSpace(spec.Marker)
+}
+
+// pluginManagesINI reports whether the resolved game plugin declares a managed
+// INI configuration target; games configured purely through argv return false
+// so the PZ writer never runs against a foreign install directory.
+func pluginManagesINI(registry ports.PluginRegistry, templateID string) bool {
+	if registry == nil {
+		return true // legacy wiring keeps the historical behaviour
+	}
+	plugin, ok := registry.Lookup(domain.TemplateID(templateID))
+	if !ok {
+		return true
+	}
+	for _, target := range plugin.Descriptor().ConfigTargets {
+		if target == "ini" {
+			return true
+		}
+	}
+	return false
 }
