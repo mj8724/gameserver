@@ -39,7 +39,8 @@ cat "$WORK/eval.jsonl" >> "$ROWS"
 record M4.3 "Valheim 实机闭环（安装→启动→就绪→停止）" "PASS" "docs/acceptance/evidence/M4-valheim-probe.md（INSTALL COMPLETED、START 200、ready@68s、STOP 200、残留 0）"
 record M5.2 "双实例并行隔离（端口/状态/日志互不干扰、零残留）" "PASS" "docs/acceptance/evidence/M5-dual-instance.md（PZ+Valheim 同时监听、各 1 进程、停止后 0/0）"
 blocked M5.2 "并行负载下 PZ 就绪时间对比（单实例 vs 并行）" "并行批次 300s 窗口内未见 marker；单实例下 M3 已实测冷 40s/warm 34s"
-blocked M6.2 "节点升级/回滚演练与安全审查" "见 docs/acceptance/evidence/M6-security-review.md（审查结论已落；升级/回滚演练为 BLOCKED，需第二个节点实例）"
+row M6.2 "节点升级/回滚演练（离线）：轮换→重钉指纹→回滚，身份不可转移" 'TestNodeUpgradeRollbackDrill|TestNodeIdentityIsNotTransferable'
+blocked M6.2 "真机双节点升级/回滚演练" "需第二个节点实例（独立主机/容器）；离线演练已覆盖同一状态机，安全审查见 M6-security-review.md"
 
 if [ -z "$OUT" ]; then OUT="$REPO/docs/acceptance/evidence/m4m6-offline-latest.json"; fi
 mkdir -p "$(dirname "$OUT")"

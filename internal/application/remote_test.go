@@ -11,6 +11,7 @@ import (
 type fakeNodes struct {
 	authorizeErr error
 	rotated      int
+	registry     map[string]string
 }
 
 func (f *fakeNodes) Identity(context.Context) (ports.NodeIdentity, error) {
@@ -18,11 +19,28 @@ func (f *fakeNodes) Identity(context.Context) (ports.NodeIdentity, error) {
 }
 func (f *fakeNodes) Rotate(context.Context) (ports.NodeIdentity, error) {
 	f.rotated++
-	return ports.NodeIdentity{NodeID: "node-local", Fingerprint: "new"}, nil
+	return ports.NodeIdentity{NodeID: "node-local", Fingerprint: "fp-new"}, nil
 }
-func (f *fakeNodes) Register(context.Context, ports.RegisteredNode) error { return nil }
-func (f *fakeNodes) Revoke(context.Context, string) error                 { return nil }
-func (f *fakeNodes) Authorize(context.Context, string, string) error      { return f.authorizeErr }
+func (f *fakeNodes) Register(_ context.Context, node ports.RegisteredNode) error {
+	if f.registry == nil {
+		f.registry = map[string]string{}
+	}
+	f.registry[node.NodeID] = node.Fingerprint
+	return nil
+}
+func (f *fakeNodes) Revoke(context.Context, string) error { return nil }
+func (f *fakeNodes) Authorize(_ context.Context, nodeID, fingerprint string) error {
+	if f.authorizeErr != nil {
+		return f.authorizeErr
+	}
+	if pinned, ok := f.registry[nodeID]; ok {
+		if pinned != fingerprint {
+			return ports.ErrNodeUnknown
+		}
+		return nil
+	}
+	return ports.ErrNodeUnknown
+}
 func (f *fakeNodes) List(context.Context) ([]ports.RegisteredNode, error) {
 	return []ports.RegisteredNode{}, nil
 }
