@@ -1,6 +1,10 @@
 package application
 
-import "context"
+import (
+	"context"
+
+	"github.com/mj8724/gameserver/internal/ports"
+)
 
 // Control composes the application use cases exposed by the inbound HTTP and
 // console adapters. Implementations coordinate domain state and outbound
@@ -24,6 +28,27 @@ type Control interface {
 	RemoveMod(context.Context, string) (ModsResult, error)
 	Renew(context.Context, int) (RenewalResult, error)
 	SubscribeConsole(context.Context, int) (ConsoleSubscription, error)
+}
+
+// InstanceLister projects the host registry plus live state (M5.3).
+type InstanceLister interface {
+	ListInstances(ctx context.Context) ([]ports.InstanceView, error)
+}
+
+// InstanceSummary is the multi-instance projection (M5.3): the registry record
+// plus the instance's own running/ready state, so one call answers "which
+// instances exist and what are they doing".
+type InstanceSummary struct {
+	ID         string         `json:"instance_id"`
+	Name       string         `json:"name"`
+	TemplateID string         `json:"template_id"`
+	DataRoot   string         `json:"data_root"`
+	Running    bool           `json:"running"`
+	Ready      bool           `json:"ready"`
+	Status     string         `json:"status"`
+	Ports      map[string]int `json:"ports,omitempty"`
+	// Active marks the instance this control session currently operates on.
+	Active bool `json:"active"`
 }
 
 // StatusResponse is the additive, extensible status projection returned by

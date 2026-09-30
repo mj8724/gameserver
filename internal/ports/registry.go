@@ -39,3 +39,19 @@ type PortAllocator interface {
 	// instance uses and that the OS reports free.
 	Allocate(ctx context.Context, primaryKey, directKey string) (map[string]int, error)
 }
+
+// InstanceLister projects the registry plus live state for the control surface.
+// It is a separate port so the legacy Control interface stays unchanged.
+type InstanceLister interface {
+	ListInstances(ctx context.Context) ([]InstanceView, error)
+}
+
+// InstanceView is one row of the multi-instance listing.
+type InstanceView struct {
+	Record  InstanceRecord
+	Running bool
+	Ready   bool
+	Status  string
+	Ports   map[string]int
+	Active  bool
+}

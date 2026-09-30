@@ -175,6 +175,7 @@ UI 调用面不再以固定计数核对；由 `TestStaticUIContract` 动态断�
 | M3.3 新端点 | `POST /api/server/mods/download` | `POST /api/server/mods` 逐字不变（仍仅登记不下载）；偏差 D11；单在飞 409 |
 | M3.4 查询字段 | 就绪时间线 + 玩家数/地图（`unavailable` 语义） | 只追加；`ready`/`readiness` 语义与 §2.3 兼容性约束不变；偏差 D12 |
 | M3.5 策略字段 | 软/硬阈值状态与判定依据 | `quota_gb`/`usage_percent` 类型与含义不变；判定用新增字段；偏差 D12 |
+| M5 多实例 | 新端点 `GET /api/instances`（注册表 + 活跃实例状态聚合） | 追加端点，不改变 legacy 1..20 路由与响应字段；无注册表时回退为活跃实例单行 |
 | M3.2 自动备份 | 停止成功后后台触发自动备份（含 sandbox 稳定等待）；新增状态字段 `last_backup{state,message,at}` | 追加字段；`stop` 响应体与失败语义不变（备份失败不影响 stop 结果）；偏差 D10 的意图语义不适用于备份（备份为尽力而为） |
 
 ## 5.1 r3/r4 增量：受管键所有权与 SandboxVars（非 legacy 行为）

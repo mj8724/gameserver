@@ -25,6 +25,7 @@ import (
 
 	"github.com/mj8724/gameserver/internal/adapters/httpapi"
 	"github.com/mj8724/gameserver/internal/adapters/instancefiles"
+	"github.com/mj8724/gameserver/internal/adapters/instanceregistry"
 	"github.com/mj8724/gameserver/internal/adapters/localstate"
 	"github.com/mj8724/gameserver/internal/adapters/migrate"
 	"github.com/mj8724/gameserver/internal/adapters/optioncatalog"
@@ -219,6 +220,10 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	for _, warning := range templates.Warnings() {
 		log.Printf("template warning: %s", warning)
 	}
+	instanceRegistry, registryErr := instanceregistry.New(absoluteData)
+	if registryErr != nil {
+		return nil, fmt.Errorf("instance registry: %w", registryErr)
+	}
 	gamePlugins := plugins.New()
 	gamePlugins.Register(pzplugin.New())
 	gamePlugins.Register(valheimplugin.New())
@@ -323,6 +328,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Workshop:      workshopDownloader,
 		Query:         pzQueryAdapter{},
 		Capacity:      buildCapacity(cfg, states, files),
+		Registry:      instanceRegistry,
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,
@@ -427,6 +433,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if err != nil {
 		return nil, fmt.Errorf("http server: %w", err)
 	}
+	handler.WithInstanceLister(control)
 
 	return &appRuntime{
 		handler:     handler,

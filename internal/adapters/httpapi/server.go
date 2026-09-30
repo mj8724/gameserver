@@ -40,11 +40,12 @@ type Config struct {
 // Server is a configured HTTP handler. Close cancels active WebSocket
 // sessions and their application subscriptions; call it during shutdown.
 type Server struct {
-	control application.Control
-	auth    *application.Authenticator
-	assets  ports.StaticAssets
-	config  Config
-	mux     *http.ServeMux
+	control    application.Control
+	instances_ application.InstanceLister
+	auth       *application.Authenticator
+	assets     ports.StaticAssets
+	config     Config
+	mux        *http.ServeMux
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -136,6 +137,7 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("GET /api/status", s.status)
 	s.mux.HandleFunc("GET /api/templates", s.templates)
+	s.mux.HandleFunc("GET /api/instances", s.instances)
 	s.mux.HandleFunc("POST /api/server/install", s.install)
 	s.mux.HandleFunc("GET /api/server/install", s.installStatus)
 	s.mux.HandleFunc("POST /api/server/start", s.start)
@@ -238,6 +240,44 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	}
 	state["install_task"] = install
 	writeJSON(w, http.StatusOK, state)
+}
+
+// WithInstanceLister attaches the multi-instance projection (M5.3). The
+// legacy constructor signature stays unchanged.
+func (s *Server) WithInstanceLister(lister application.InstanceLister) *Server {
+	s.instances_ = lister
+	return s
+}
+
+func (s *Server) instances(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, false) {
+		return
+	}
+	lister := s.instances_
+	if lister == nil {
+		writeJSON(w, http.StatusOK, []application.InstanceSummary{})
+		return
+	}
+	views, err := lister.ListInstances(r.Context())
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	summaries := make([]application.InstanceSummary, 0, len(views))
+	for _, view := range views {
+		summaries = append(summaries, application.InstanceSummary{
+			ID:         string(view.Record.ID),
+			Name:       view.Record.Name,
+			TemplateID: view.Record.TemplateID,
+			DataRoot:   view.Record.DataRoot,
+			Running:    view.Running,
+			Ready:      view.Ready,
+			Status:     view.Status,
+			Ports:      view.Ports,
+			Active:     view.Active,
+		})
+	}
+	writeJSON(w, http.StatusOK, summaries)
 }
 
 func (s *Server) templates(w http.ResponseWriter, r *http.Request) {

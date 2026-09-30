@@ -48,6 +48,7 @@ type ServiceDeps struct {
 	Workshop        ports.WorkshopDownloader
 	Query           ports.GameQuerier
 	Capacity        ports.CapacityChecker
+	Registry        ports.InstanceRegistry
 }
 
 type diskUsageProvider interface {
