@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -71,12 +72,14 @@ func (p *Plugin) GameConfig(ports.PluginDeps) (ports.GameConfig, error) {
 
 // LaunchSpec builds the vendor argv. Every value is a separate argv element, so
 // quotes and shell syntax in a server name or password stay inert.
-func (p *Plugin) LaunchSpec(deps ports.PluginDeps) (ports.LaunchSpecBuilder, error) {
-	exe := ServerExecutable
+func (p *Plugin) LaunchSpec(ports.PluginDeps) (ports.LaunchSpecBuilder, error) {
 	return func(_ context.Context, state domain.InstanceState, input ports.LaunchInput) (ports.LaunchSpec, error) {
 		if strings.TrimSpace(input.InstallDir) == "" {
 			return ports.LaunchSpec{}, errors.New("valheim launch requires an install directory")
 		}
+		// The process adapter resolves a bare name through PATH, so the spec
+		// carries the fully qualified path inside the instance install directory.
+		exe := filepath.Join(input.InstallDir, ServerExecutable)
 		name := firstNonEmpty(input.ServerName, "gameserver")
 		password := firstNonEmpty(input.AdminPass, "")
 		if len(password) < 5 {

@@ -2,6 +2,7 @@ package valheimplugin
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -31,8 +32,8 @@ func TestValheimLaunchSpecUsesVendorArgv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("spec: %v", err)
 	}
-	if spec.Executable != ServerExecutable {
-		t.Fatalf("executable = %q", spec.Executable)
+	if !strings.HasSuffix(spec.Executable, ServerExecutable) || !filepath.IsAbs(spec.Executable) {
+		t.Fatalf("executable must be a fully qualified path inside the install dir, got %q", spec.Executable)
 	}
 	if spec.WorkDir != "/games/valheim" {
 		t.Fatalf("workdir = %q", spec.WorkDir)
