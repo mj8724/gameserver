@@ -1,0 +1,72 @@
+schema_version: "1.0"
+metadata:
+  id: "valheim"
+  name: "Valheim (英灵神殿)"
+  category: "Survival"
+  icon: "https://cdn.cloudflare.steamstatic.com/steam/apps/892970/header.jpg"
+  author: "Official Template"
+  version: "1.0.0"
+  description: "北欧题材生存建造游戏专用服务端；argv 与就绪口径来自目标机只读取证（M4.3）。"
+  supported_os: ["windows"]
+
+steam:
+  app_id: "896660"
+  anonymous_login: true
+  validate_on_install: true
+  default_branch: "public"
+  # 取证：目标机 steamcmd 安装 exit 0；制品与启动方式见 docs/acceptance/evidence/M4-valheim-probe.md
+  versions:
+    - label: "稳定版（public）"
+      branch: "public"
+      default: true
+      evidence_ref: "docs/acceptance/evidence/M4-valheim-probe.md"
+
+environments:
+  windows:
+    # 启动 argv 由 valheim 插件按厂商脚本形状构造（直接可执行 + SteamAppId 环境变量）。
+    executable: "valheim_server.exe"
+    working_directory: ""
+    start_arguments: ""
+  linux:
+    executable: "valheim_server.x86_64"
+    working_directory: ""
+    start_arguments: ""
+
+ports:
+  - key: "SERVER_PORT"
+    label: "游戏端口 (UDP)"
+    type: "UDP"
+    default: 2456
+    is_primary: true
+  - key: "DIRECT_PORT"
+    label: "查询端口 (UDP)"
+    type: "UDP"
+    default: 2457
+    is_primary: false
+
+variables:
+  - key: "SERVER_NAME"
+    label: "服务器名称"
+    type: "string"
+    default: "gameserver"
+    required: true
+    user_editable: true
+    description: "显示在服务器列表中的名称，同时用作世界名"
+
+  - key: "ADMIN_PASSWORD"
+    label: "服务器密码"
+    type: "password"
+    default: ""
+    required: true
+    user_editable: true
+    description: "加入服务器所需密码（厂商要求至少 5 个字符）"
+
+  - key: "SERVER_PASSWORD"
+    label: "备用密码字段"
+    type: "password"
+    default: ""
+    required: false
+    user_editable: true
+    description: "兼容旧界面字段；Valheim 使用 ADMIN_PASSWORD 作为入服密码"
+
+config_bindings: []

@@ -334,6 +334,22 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Locks:         &oslock.Locks{ServersRoot: serversRoot, ServiceID: serviceID},
 		Templates:     templates,
 		BuildLaunchSpec: func(ctx context.Context, state domain.InstanceState, input ports.LaunchInput) (ports.LaunchSpec, error) {
+			// A plugin that owns its argv (for example a direct-executable game
+			// with no launcher descriptor) builds the spec itself; otherwise the
+			// PZ paths below apply.
+			if plugin, ok := gamePlugins.Lookup(domain.TemplateID(state.TemplateID)); ok {
+				builder, buildErr := plugin.LaunchSpec(ports.PluginDeps{
+					DataRoot: absoluteData, ServersRoot: serversRoot, Instance: instance,
+					Platform: runtime.GOOS, LaunchVector: launchVector(cfg),
+					EvidenceRef: cfg.LaunchEvidenceRef, MemoryMB: serverMemoryMB(cfg, input.InstallDir),
+				})
+				if buildErr != nil {
+					return ports.LaunchSpec{}, buildErr
+				}
+				if builder != nil {
+					return builder(ctx, state, input)
+				}
+			}
 			if input.Vector == pz.VectorLauncherDescriptor {
 				descriptor, err := pz.LoadLauncherDescriptor(input.InstallDir)
 				if err != nil {

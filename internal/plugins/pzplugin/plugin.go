@@ -3,8 +3,6 @@
 package pzplugin
 
 import (
-	"fmt"
-
 	"github.com/mj8724/gameserver/internal/adapters/pz"
 	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
@@ -53,23 +51,19 @@ func (p *Plugin) InstallerSource() (string, []ports.VersionSpec) {
 	return descriptor.SteamAppID, descriptor.Versions
 }
 
-// GameConfig builds the configuration adapter for one instance.
-func (p *Plugin) GameConfig(deps ports.PluginDeps) (ports.GameConfig, error) {
-	_ = deps
-	return nil, fmt.Errorf("pzplugin.GameConfig requires the composition-site factory")
-}
+// GameConfig, LaunchSpec and Readiness return (nil, nil): Project Zomboid's
+// INI/SandboxVars writer, launcher-descriptor vector and log-marker oracle are
+// assembled by the composition root, which owns the Target Manifest evidence
+// and the configuration ownership matrix. A nil result means "the plugin does
+// not supply this port"; an error would mean the plugin tried and failed.
+func (p *Plugin) GameConfig(ports.PluginDeps) (ports.GameConfig, error) { return nil, nil }
 
-// LaunchSpec returns nil: the composition root supplies the typed builder
-// because it owns launch evidence (vector, manifest reference, memory).
-func (p *Plugin) LaunchSpec(ports.PluginDeps) (ports.LaunchSpecBuilder, error) {
-	return nil, fmt.Errorf("pzplugin.LaunchSpec requires the composition-site builder")
-}
+// LaunchSpec is supplied by the composition root (see the note above).
+func (p *Plugin) LaunchSpec(ports.PluginDeps) (ports.LaunchSpecBuilder, error) { return nil, nil }
 
-// Readiness builds the log-marker oracle declared in the descriptor.
-func (p *Plugin) Readiness(deps ports.PluginDeps) (ports.ReadinessProbe, error) {
-	marker := p.Descriptor().Readiness.Marker
-	return ports.ReadinessProbe(nil), fmt.Errorf("pzplugin.Readiness(%s) requires an injected log source", marker)
-}
+// Readiness is supplied by the composition root (log-marker oracle with the
+// manifest-recorded window).
+func (p *Plugin) Readiness(ports.PluginDeps) (ports.ReadinessProbe, error) { return nil, nil }
 
 // Name reports the game id for logs.
 func (p *Plugin) Name() string { return string(p.Descriptor().ID) }
