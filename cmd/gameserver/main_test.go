@@ -1216,3 +1216,82 @@ func TestLogMarkerReadinessScansBufferedLines(t *testing.T) {
 		t.Fatal("Ready() = false; the oracle must see markers already in the ring buffer")
 	}
 }
+
+// M5.3: the multi-instance endpoint is served by the real composition root and
+// reports the active instance, proving the route and the lister wiring.
+func TestM5OfflineInstancesEndpoint(t *testing.T) {
+	dataRoot, _ := legacyFixture(t)
+	rt, err := buildRuntimeWith(testConfig(t, dataRoot), runtimeOverrides{})
+	if err != nil {
+		t.Fatalf("buildRuntimeWith: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	client := server.Client()
+	jar, _ := cookiejar.New(nil)
+	client.Jar = jar
+	origin := server.URL
+	if status, _ := call(t, client, "POST", origin+"/api/auth/login", origin, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+	status, body := call(t, client, "GET", origin+"/api/instances", origin, "")
+	if status != 200 {
+		t.Fatalf("GET /api/instances = %d %s", status, body)
+	}
+	if !strings.Contains(body, `"instance_id":"pz_01"`) || !strings.Contains(body, `"active":true`) {
+		t.Fatalf("instances payload wrong: %s", body)
+	}
+}
+
+// M5.3: instance creation allocates a free port pair and the listing then shows
+// both instances; removal only unregisters (data stays on disk).
+func TestM5OfflineInstanceLifecycle(t *testing.T) {
+	dataRoot, _ := legacyFixture(t)
+	rt, err := buildRuntimeWith(testConfig(t, dataRoot), runtimeOverrides{})
+	if err != nil {
+		t.Fatalf("buildRuntimeWith: %v", err)
+	}
+	defer rt.handler.Close()
+	server := httptest.NewServer(rt.handler)
+	defer server.Close()
+	client := server.Client()
+	jar, _ := cookiejar.New(nil)
+	client.Jar = jar
+	origin := server.URL
+	if status, _ := call(t, client, "POST", origin+"/api/auth/login", origin, `{"password":"m2-offline-admin"}`); status != 200 {
+		t.Fatalf("login = %d", status)
+	}
+	status, body := call(t, client, "POST", origin+"/api/instances", origin, `{"instance_id":"valheim_02","template_id":"valheim"}`)
+	if status != 200 {
+		t.Fatalf("create = %d %s", status, body)
+	}
+	if !strings.Contains(body, `"instance_id":"valheim_02"`) || !strings.Contains(body, `"SERVER_PORT"`) {
+		t.Fatalf("created instance payload wrong: %s", body)
+	}
+	// Duplicate and unknown template are refused.
+	if status, _ := call(t, client, "POST", origin+"/api/instances", origin, `{"instance_id":"valheim_02","template_id":"valheim"}`); status == 200 {
+		t.Fatal("duplicate instance must be refused")
+	}
+	if status, _ := call(t, client, "POST", origin+"/api/instances", origin, `{"instance_id":"x_09","template_id":"nope"}`); status == 200 {
+		t.Fatal("unknown template must be refused")
+	}
+	// The listing shows both instances with exactly one active row.
+	status, body = call(t, client, "GET", origin+"/api/instances", origin, "")
+	if status != 200 || !strings.Contains(body, `"instance_id":"pz_01"`) || !strings.Contains(body, `"instance_id":"valheim_02"`) {
+		t.Fatalf("listing after create = %d %s", status, body)
+	}
+	if strings.Count(body, `"active":true`) != 1 {
+		t.Fatalf("exactly one active instance expected: %s", body)
+	}
+	// The active instance cannot unregister itself; a registered one can.
+	if status, _ := call(t, client, "DELETE", origin+"/api/instances/pz_01", origin, ""); status == 200 {
+		t.Fatal("the active instance must not be removable")
+	}
+	if status, body := call(t, client, "DELETE", origin+"/api/instances/valheim_02", origin, ""); status != 200 {
+		t.Fatalf("remove = %d %s", status, body)
+	}
+	if _, err := os.Stat(filepath.Join(dataRoot, "servers", "valheim_02")); err == nil {
+		t.Fatal("removal must not create or delete instance directories")
+	}
+}

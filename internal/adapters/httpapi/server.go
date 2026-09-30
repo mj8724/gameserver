@@ -1194,10 +1194,11 @@ func knownPath(requestPath string) bool {
 	case "/api/auth/status", "/api/auth/login", "/api/auth/logout",
 		"/api/status", "/api/templates", "/api/server/install", "/api/server/start",
 		"/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command",
-		"/api/server/logs", "/api/server/config", "/api/server/mods", "/api/server/renew", "/ws/console":
+		"/api/server/logs", "/api/server/config", "/api/server/mods", "/api/server/renew", "/ws/console",
+		"/api/instances":
 		return true
 	}
-	return isModItemPath(requestPath)
+	return isModItemPath(requestPath) || isInstanceItemPath(requestPath)
 }
 
 func allowedMethods(requestPath string) []string {
@@ -1210,6 +1211,8 @@ func allowedMethods(requestPath string) []string {
 			return []string{http.MethodGet}
 		}
 		return []string{http.MethodGet, http.MethodHead}
+	case "/api/instances":
+		return []string{http.MethodGet, http.MethodPost}
 	case "/api/auth/login", "/api/auth/logout", "/api/server/start", "/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command", "/api/server/mods", "/api/server/renew", "/ws/console":
 		if requestPath == "/api/server/mods" {
 			return []string{http.MethodPost}
@@ -1222,11 +1225,23 @@ func allowedMethods(requestPath string) []string {
 		if isModItemPath(requestPath) {
 			return []string{http.MethodDelete}
 		}
+		if isInstanceItemPath(requestPath) {
+			return []string{http.MethodDelete}
+		}
 		if isStaticRequestPath(requestPath) {
 			return []string{http.MethodGet, http.MethodHead}
 		}
 		return []string{}
 	}
+}
+
+// isInstanceItemPath reports /api/instances/<id> (single segment, non-empty).
+func isInstanceItemPath(requestPath string) bool {
+	rest, ok := strings.CutPrefix(requestPath, "/api/instances/")
+	if !ok {
+		return false
+	}
+	return rest != "" && !strings.Contains(rest, "/")
 }
 
 func isModItemPath(requestPath string) bool {
