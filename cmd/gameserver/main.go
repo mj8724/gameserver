@@ -28,6 +28,7 @@ import (
 	"github.com/mj8724/gameserver/internal/adapters/instanceregistry"
 	"github.com/mj8724/gameserver/internal/adapters/localstate"
 	"github.com/mj8724/gameserver/internal/adapters/migrate"
+	"github.com/mj8724/gameserver/internal/adapters/nodestate"
 	"github.com/mj8724/gameserver/internal/adapters/optioncatalog"
 	"github.com/mj8724/gameserver/internal/adapters/oslock"
 	"github.com/mj8724/gameserver/internal/adapters/process"
@@ -223,6 +224,10 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	instanceRegistry, registryErr := instanceregistry.New(absoluteData)
 	if registryErr != nil {
 		return nil, fmt.Errorf("instance registry: %w", registryErr)
+	}
+	nodeStore, nodeErr := nodestate.New(filepath.Join(absoluteData, "nodes"))
+	if nodeErr != nil {
+		return nil, fmt.Errorf("node store: %w", nodeErr)
 	}
 	gamePlugins := plugins.New()
 	gamePlugins.Register(pzplugin.New())
@@ -434,7 +439,7 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if err != nil {
 		return nil, fmt.Errorf("http server: %w", err)
 	}
-	handler.WithInstanceLister(control)
+	handler.WithInstanceLister(control).WithNodeStore(nodeStore).WithTaskLedger(nodeStore.Ledger())
 
 	return &appRuntime{
 		handler:     handler,

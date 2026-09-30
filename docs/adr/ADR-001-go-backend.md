@@ -194,6 +194,8 @@ internal/domain          (实例/配置/任务/端口/秘密策略的值类型�
 | `PluginRegistry` | 编译期游戏插件注册表（r6/M4：按模板 id 解析插件，未知模板失败关闭） | plugins |
 | `InstanceRegistry` | 主机实例注册表与端口分配（r6/M5：原子写+读回校验，legacy 单实例自动发现） | instanceregistry |
 | `InstanceLister` | 多实例清单投影（r6/M5.3：注册表 + 活跃实例实时状态） | application |
+| `NodeStore` | 节点身份/对等注册表（r6/M6.1：ed25519 密钥 0600、注册/撤销/轮换、失败关闭授权） | nodestate |
+| `TaskLedger` | 持久幂等任务台账（r6/M6.1：request id + 输入指纹去重、终态不可覆盖） | nodestate |
 | `StaticAssets` | 只读静态资源 | staticassets |
 | `Clock` | 时间源（测试可注入） | systemclock |
 
@@ -212,6 +214,7 @@ internal/domain          (实例/配置/任务/端口/秘密策略的值类型�
 | M3.5 策略字段（追加） | 软/硬阈值状态与判定依据 | `quota_gb`/`usage_percent` **类型与含义不变**（UI 契约）；判定用新增字段 |
 | M3.3 新端点 | `POST /api/server/mods/download {"workshop_ids":[...]}` | legacy `POST /api/server/mods`（登记）**逐字语义不变**；单在飞互斥（409）；先下载后登记 |
 | M3.1 恢复态 | `install_task.status` 追加恢复相关取值 | legacy `IDLE/INSTALLING/COMPLETED/FAILED` **保留**；「重启后 IDLE」契约变更为持久意图+对账（偏差 D10，见 §5.4） |
+| M6 节点与任务 | `GET /api/nodes`（身份+对等列表）、`POST /api/nodes`（注册）、`POST /api/nodes/rotate`（轮换）、`POST /api/nodes/{id}/revoke`（撤销）、`GET /api/tasks`（任务台账） | 追加端点；私钥路径与私钥材料**永不返回**；未知/已撤销/指纹不匹配一律失败关闭 |
 | M5 多实例清单 | 新端点 `GET /api/instances` 返回 `[{instance_id,name,template_id,data_root,running,ready,status,ports,active}]` | 追加端点/追加字段；单实例部署在无注册表时回退为仅活跃实例 |
 | M3.2 自动备份 | 停止成功后后台自动备份（sandbox 稳定等待）；新增状态字段 `last_backup{state,message,at}` | `stop` 响应体与失败语义不变；备份为尽力而为、失败不阻塞任何后续操作 |
 

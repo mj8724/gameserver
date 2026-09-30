@@ -43,6 +43,8 @@ type Config struct {
 type Server struct {
 	control    application.Control
 	instances_ application.InstanceLister
+	nodes_     ports.NodeStore
+	ledger_    ports.TaskLedger
 	auth       *application.Authenticator
 	assets     ports.StaticAssets
 	config     Config
@@ -139,6 +141,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/status", s.status)
 	s.mux.HandleFunc("GET /api/templates", s.templates)
 	s.mux.HandleFunc("GET /api/instances", s.instances)
+	s.mux.HandleFunc("GET /api/nodes", s.nodes)
+	s.mux.HandleFunc("POST /api/nodes", s.registerNode)
+	s.mux.HandleFunc("POST /api/nodes/rotate", s.rotateNode)
+	s.mux.HandleFunc("POST /api/nodes/{node_id}/revoke", s.revokeNode)
+	s.mux.HandleFunc("GET /api/tasks", s.tasks)
 	s.mux.HandleFunc("POST /api/instances", s.createInstance)
 	s.mux.HandleFunc("DELETE /api/instances/{instance_id}", s.deleteInstance)
 	s.mux.HandleFunc("POST /api/server/install", s.install)
@@ -315,6 +322,128 @@ func asciiIdent(value string) bool {
 		}
 	}
 	return len(value) > 0
+}
+
+// WithNodeStore attaches node identity and peer registry support (M6).
+func (s *Server) WithNodeStore(store ports.NodeStore) *Server {
+	s.nodes_ = store
+	return s
+}
+
+// WithTaskLedger attaches the durable task ledger (M6).
+func (s *Server) WithTaskLedger(ledger ports.TaskLedger) *Server {
+	s.ledger_ = ledger
+	return s
+}
+
+func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, false) {
+		return
+	}
+	payload := map[string]any{"identity": nil, "nodes": []any{}}
+	if s.nodes_ != nil {
+		identity, err := s.nodes_.Identity(r.Context())
+		if err != nil {
+			writeApplicationError(w, err)
+			return
+		}
+		// The private key path never leaves the process.
+		payload["identity"] = map[string]any{
+			"node_id": identity.NodeID, "fingerprint": identity.Fingerprint,
+			"public_key": identity.PublicKey, "created_at": identity.CreatedAt, "rotated_at": identity.RotatedAt,
+		}
+		peers, err := s.nodes_.List(r.Context())
+		if err != nil {
+			writeApplicationError(w, err)
+			return
+		}
+		payload["nodes"] = peers
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func (s *Server) registerNode(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	if s.nodes_ == nil {
+		writeDetail(w, http.StatusNotImplemented, "节点注册不可用")
+		return
+	}
+	var req struct {
+		NodeID      *string `json:"node_id"`
+		Fingerprint *string `json:"fingerprint"`
+		PublicKey   *string `json:"public_key"`
+	}
+	if err := decodeStrictJSON(r, &req, false); err != nil || req.NodeID == nil || req.Fingerprint == nil ||
+		runeLength(*req.NodeID) < 1 || runeLength(*req.NodeID) > 128 || runeLength(*req.Fingerprint) < 1 || runeLength(*req.Fingerprint) > 256 {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+		return
+	}
+	publicKey := ""
+	if req.PublicKey != nil {
+		publicKey = *req.PublicKey
+	}
+	if err := s.nodes_.Register(r.Context(), ports.RegisteredNode{NodeID: *req.NodeID, Fingerprint: *req.Fingerprint, PublicKey: publicKey}); err != nil {
+		writeDetail(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"message": "节点已注册", "node_id": *req.NodeID})
+}
+
+func (s *Server) rotateNode(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	if s.nodes_ == nil {
+		writeDetail(w, http.StatusNotImplemented, "节点身份不可用")
+		return
+	}
+	identity, err := s.nodes_.Rotate(r.Context())
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "节点密钥已轮换", "node_id": identity.NodeID,
+		"fingerprint": identity.Fingerprint, "rotated_at": identity.RotatedAt,
+	})
+}
+
+func (s *Server) revokeNode(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	if s.nodes_ == nil {
+		writeDetail(w, http.StatusNotImplemented, "节点注册不可用")
+		return
+	}
+	nodeID := r.PathValue("node_id")
+	if runeLength(nodeID) < 1 || runeLength(nodeID) > 128 {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+		return
+	}
+	if err := s.nodes_.Revoke(r.Context(), nodeID); err != nil {
+		writeDetail(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"message": "节点已撤销", "node_id": nodeID})
+}
+
+func (s *Server) tasks(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, false) {
+		return
+	}
+	records := []ports.TaskRecord{}
+	if s.ledger_ != nil {
+		list, err := s.ledger_.List(r.Context())
+		if err != nil {
+			writeApplicationError(w, err)
+			return
+		}
+		records = list
+	}
+	writeJSON(w, http.StatusOK, records)
 }
 
 func (s *Server) instances(w http.ResponseWriter, r *http.Request) {
@@ -1195,10 +1324,10 @@ func knownPath(requestPath string) bool {
 		"/api/status", "/api/templates", "/api/server/install", "/api/server/start",
 		"/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command",
 		"/api/server/logs", "/api/server/config", "/api/server/mods", "/api/server/renew", "/ws/console",
-		"/api/instances":
+		"/api/instances", "/api/nodes", "/api/nodes/rotate", "/api/tasks":
 		return true
 	}
-	return isModItemPath(requestPath) || isInstanceItemPath(requestPath)
+	return isModItemPath(requestPath) || isInstanceItemPath(requestPath) || isNodeActionPath(requestPath)
 }
 
 func allowedMethods(requestPath string) []string {
@@ -1213,6 +1342,12 @@ func allowedMethods(requestPath string) []string {
 		return []string{http.MethodGet, http.MethodHead}
 	case "/api/instances":
 		return []string{http.MethodGet, http.MethodPost}
+	case "/api/nodes":
+		return []string{http.MethodGet, http.MethodPost}
+	case "/api/nodes/rotate":
+		return []string{http.MethodPost}
+	case "/api/tasks":
+		return []string{http.MethodGet}
 	case "/api/auth/login", "/api/auth/logout", "/api/server/start", "/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command", "/api/server/mods", "/api/server/renew", "/ws/console":
 		if requestPath == "/api/server/mods" {
 			return []string{http.MethodPost}
@@ -1228,11 +1363,24 @@ func allowedMethods(requestPath string) []string {
 		if isInstanceItemPath(requestPath) {
 			return []string{http.MethodDelete}
 		}
+		if isNodeActionPath(requestPath) {
+			return []string{http.MethodPost}
+		}
 		if isStaticRequestPath(requestPath) {
 			return []string{http.MethodGet, http.MethodHead}
 		}
 		return []string{}
 	}
+}
+
+// isNodeActionPath reports /api/nodes/<id>/revoke.
+func isNodeActionPath(requestPath string) bool {
+	rest, ok := strings.CutPrefix(requestPath, "/api/nodes/")
+	if !ok {
+		return false
+	}
+	parts := strings.Split(rest, "/")
+	return len(parts) == 2 && parts[0] != "" && parts[1] == "revoke"
 }
 
 // isInstanceItemPath reports /api/instances/<id> (single segment, non-empty).
