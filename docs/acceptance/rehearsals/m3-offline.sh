@@ -98,10 +98,11 @@ row M3.5 "硬阈值 409 + 恢复路径（只读+回退，永不自动删除）" 
 row M3.5 "自激环防护（自动备份前预检 → pending_backup 延迟）" 'TestAutomaticBackupDefersWhenCapacityTight'
 row M3.5 "用量口径（排除备份与锁目录）与 DiskUsageMB 对齐；阈值禁用=现状" 'TestDiskUsageExcludesBackupsAndLockDirs|TestCapacityDisabledKeepsHistoricalBehaviour|TestCapacityStatusProjectsState' 
 
-# ---------- M3.6 实机长跑（全部实机，离线无对应行） ----------
-blocked M3.6 "连续 start/stop ≥10 轮（含 1 次强杀）无残留" "需目标机授权与执行窗口"
-blocked M3.6 "4 类崩溃注入失败关闭" "需目标机授权（部分离线可覆盖，落地后补离线行）"
-blocked M3.6 "8h 观测（60s 采样）无静默丢失" "需 ≥4h 执行窗口（资源不允许时标 BLOCKED(时间窗口)）"
+# ---------- M3.6 实机长跑（实机证据见 evidence/M3-windows-reliability.md） ----------
+record M3.6 "连续 start/stop ≥10 轮（含 1 次强杀）无残留" "PASS" "2026-09-30 隔离根实测 10/10 轮 procs=0 ports=0（含第 6 轮 taskkill 强杀）；日志 G:\\gameserver-work\\logs\\m36a.txt"
+record M3.6 "崩溃注入：二进程争锁 / 缺制品 / 配置外部改写" "PASS" "争锁 409 + 释放后 200；缺制品 500 + 未起进程；配置改写后按受管键重写并成功启动"
+blocked M3.6 "崩溃注入：端口占用下的失败关闭语义" "start=200（既有契约=子进程创建成功即 200）未能证明失败关闭；需游戏日志/就绪复核"
+blocked M3.6 "8h 观测（60s 采样）无静默丢失" "观测已启动（SAMPLES=300≈5h），完整 8h 窗口超出单次会话；按规则记 BLOCKED(时间窗口)"
 
 # ---------- 判定待测行（行定义已在上面注册；评估结果追加合并，避免截断） ----------
 if [ -s "$ROW_DEFS" ]; then
