@@ -50,6 +50,9 @@ type ServiceDeps struct {
 	Capacity        ports.CapacityChecker
 	Registry        ports.InstanceRegistry
 	Ports           ports.PortAllocator
+	Nodes           ports.NodeStore
+	Tasks           ports.TaskLedger
+	Audit           ports.AuditLog
 }
 
 type diskUsageProvider interface {

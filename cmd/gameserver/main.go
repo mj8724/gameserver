@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mj8724/gameserver/internal/adapters/auditlog"
 	"github.com/mj8724/gameserver/internal/adapters/httpapi"
 	"github.com/mj8724/gameserver/internal/adapters/instancefiles"
 	"github.com/mj8724/gameserver/internal/adapters/instanceregistry"
@@ -229,6 +230,10 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if nodeErr != nil {
 		return nil, fmt.Errorf("node store: %w", nodeErr)
 	}
+	auditLog, auditErr := auditlog.New(absoluteData)
+	if auditErr != nil {
+		return nil, fmt.Errorf("audit log: %w", auditErr)
+	}
 	gamePlugins := plugins.New()
 	gamePlugins.Register(pzplugin.New())
 	gamePlugins.Register(valheimplugin.New())
@@ -335,6 +340,9 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		Capacity:      buildCapacity(cfg, states, files),
 		Registry:      instanceRegistry,
 		Ports:         &instanceregistry.PortAllocator{Registry: instanceRegistry},
+		Nodes:         nodeStore,
+		Tasks:         nodeStore.Ledger(),
+		Audit:         auditLog,
 		Instance:      instance,
 		Platform:      runtime.GOOS,
 		States:        states,

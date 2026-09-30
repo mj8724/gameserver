@@ -146,6 +146,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/nodes/rotate", s.rotateNode)
 	s.mux.HandleFunc("POST /api/nodes/{node_id}/revoke", s.revokeNode)
 	s.mux.HandleFunc("GET /api/tasks", s.tasks)
+	s.mux.HandleFunc("POST /api/remote", s.remote)
+	s.mux.HandleFunc("GET /api/audit", s.audit)
 	s.mux.HandleFunc("POST /api/instances", s.createInstance)
 	s.mux.HandleFunc("DELETE /api/instances/{instance_id}", s.deleteInstance)
 	s.mux.HandleFunc("POST /api/server/install", s.install)
@@ -428,6 +430,67 @@ func (s *Server) revokeNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"message": "节点已撤销", "node_id": nodeID})
+}
+
+// remote executes one allowlisted operation on behalf of an authorized node.
+// The operator identity comes from the authenticated session, never the body.
+// sessionOperator is the authenticated administrator identity used for audit
+// records; the request body can never claim to be someone else.
+func sessionOperator(_ *http.Request) string { return "admin" }
+
+func (s *Server) remote(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	executor, ok := s.control.(application.RemoteExecutor)
+	if !ok {
+		writeDetail(w, http.StatusNotImplemented, "远程执行不可用")
+		return
+	}
+	var req struct {
+		NodeID      *string `json:"node_id"`
+		Fingerprint *string `json:"fingerprint"`
+		RequestID   *string `json:"request_id"`
+		Operation   *string `json:"operation"`
+		Version     *string `json:"version"`
+	}
+	if err := decodeStrictJSON(r, &req, false); err != nil || req.NodeID == nil || req.Fingerprint == nil || req.RequestID == nil || req.Operation == nil ||
+		runeLength(*req.NodeID) < 1 || runeLength(*req.NodeID) > 128 || runeLength(*req.Fingerprint) < 1 || runeLength(*req.Fingerprint) > 256 ||
+		runeLength(*req.RequestID) < 1 || runeLength(*req.RequestID) > 128 || runeLength(*req.Operation) < 1 || runeLength(*req.Operation) > 32 {
+		writeDetail(w, http.StatusUnprocessableEntity, "请求数据无效")
+		return
+	}
+	version := ""
+	if req.Version != nil {
+		version = *req.Version
+	}
+	result, err := executor.ExecuteRemote(r.Context(), application.RemoteRequest{
+		NodeID: *req.NodeID, Fingerprint: *req.Fingerprint, Operator: sessionOperator(r),
+		RequestID: *req.RequestID, Operation: application.RemoteOperation(*req.Operation), Version: version,
+	})
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+// audit returns the newest audit records for review.
+func (s *Server) audit(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, false) {
+		return
+	}
+	reader, ok := s.control.(application.AuditReader)
+	if !ok {
+		writeJSON(w, http.StatusOK, []ports.AuditEntry{})
+		return
+	}
+	entries, err := reader.AuditRecent(r.Context(), 200)
+	if err != nil {
+		writeApplicationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, entries)
 }
 
 func (s *Server) tasks(w http.ResponseWriter, r *http.Request) {
@@ -1324,7 +1387,7 @@ func knownPath(requestPath string) bool {
 		"/api/status", "/api/templates", "/api/server/install", "/api/server/start",
 		"/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command",
 		"/api/server/logs", "/api/server/config", "/api/server/mods", "/api/server/renew", "/ws/console",
-		"/api/instances", "/api/nodes", "/api/nodes/rotate", "/api/tasks":
+		"/api/instances", "/api/nodes", "/api/nodes/rotate", "/api/tasks", "/api/remote", "/api/audit":
 		return true
 	}
 	return isModItemPath(requestPath) || isInstanceItemPath(requestPath) || isNodeActionPath(requestPath)
@@ -1346,8 +1409,10 @@ func allowedMethods(requestPath string) []string {
 		return []string{http.MethodGet, http.MethodPost}
 	case "/api/nodes/rotate":
 		return []string{http.MethodPost}
-	case "/api/tasks":
+	case "/api/tasks", "/api/audit":
 		return []string{http.MethodGet}
+	case "/api/remote":
+		return []string{http.MethodPost}
 	case "/api/auth/login", "/api/auth/logout", "/api/server/start", "/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command", "/api/server/mods", "/api/server/renew", "/ws/console":
 		if requestPath == "/api/server/mods" {
 			return []string{http.MethodPost}
