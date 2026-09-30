@@ -54,3 +54,18 @@
 4. **M3.6 观测窗口**：50 分钟不足以判定句柄趋势，需 ≥4h（理想 8h）完整窗口。
 
 **平台声明**：本里程碑证据**不产生** Linux/macOS 支持声明；Windows 声明边界沿用 ADR §1.6 r4/r5（Windows 10 x64 + launcher-descriptor 向量 + PZ 42.21）。
+
+## 6. r5 复评（2026-09-30，实机残留清偿后）
+
+离线矩阵四态（复跑 `bash docs/acceptance/rehearsals/m3-offline.sh`，exit 0）：**PASS = 26 / FAIL = 0 / BLOCKED = 2 / NOT RUN = 0**。
+
+| 原 BLOCKED 项 | 现状 | 依据 |
+|---|---|---|
+| M3.3 真实 workshop 下载 | **外部约束已定性（BLOCKED）** | 目标机直连 SteamCMD：`Connecting anonymously… Downloading item … ERROR! Download item failed (Failure).` → Workshop 下载需**已认证账号**，与本项目"匿名且不存凭据"边界（ADR §1.7）冲突 → 产品决策点 A（运维预置 Mod）/ B（引入凭据管理，需独立 ADR）。同时两个真实缺陷已修：端点未进白名单（405）、下载复用了 `+app_update` 而非 `+workshop_download_item`；并新增架构守卫 `TestEveryRegisteredHTTPRouteIsReachable` 防止该类缺陷复发 |
+| M3.4 A2S 可达性 | **PASS（改判）** | 实机 ready 后查询面返回 `{"map":"Muldraugh, KY","name":"My PZ Server","players":0,"max":100}` |
+| M3.6 ≥4h 观测 | **PASS** | 298 样本 ≈ 5.0 小时：`running` 298/298、`ready` 298/298、PID 唯一 3508、句柄 5438→5344（Δ−94 无泄漏）、`SERVER STARTED` 全程可检索 |
+| M3.6 端口占用失败关闭 | **仍 BLOCKED** | 占用 UDP 16261 后 `start=200`（既有契约=子进程创建成功）；未取得游戏侧失败的就绪/日志证据，不折算为通过 |
+
+证据：`docs/acceptance/evidence/M3-residuals-live.md`（含直连 SteamCMD 原始输出）。
+
+**结论更新**：M3 实机核心项（10 轮启停、争锁、缺制品、配置改写、**5 小时长跑**、**A2S 查询**）均有可复核证据；剩余 2 项 BLOCKED 分别为**外部平台约束**与**契约语义未取证**，逐条记录、不折算为通过。

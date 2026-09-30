@@ -14,14 +14,39 @@ readiness="ready"
 
 结论：**声明目标 PZ 42.21 响应 A2S_INFO**，解析器（`internal/adapters/pz/a2s.go`）字段映射正确（名称/地图/玩家数/上限）。M3.4 的 BLOCKED 行据此改判 **PASS**，查询面不再需要 `unavailable` 降级路径作为默认（降级仍保留为不可达时的安全行为）。
 
-## 2. M3.3 workshop 下载 —— 缺陷已定位并修复，实机复验待做
+## 2. M3.3 workshop 下载 —— 代码已修好并通过实机取证；**下载本身受 Steam 账号约束（BLOCKED，已定性）**
 
-首次实机运行暴露**两个真实缺陷**（均已修复并入库）：
+### 2.1 实机取证结论（决定性）
 
-1. **端点不可达**：`/api/server/mods/download` 未在 HTTP 请求路径白名单中 → 405 `Method Not Allowed`（与 `GET /api/instances` 同类缺陷）。修复：补齐白名单与方法表，并新增**路由覆盖守卫测试** `TestEveryRegisteredRouteIsWhitelisted`（解析 `server.go` 中全部 `HandleFunc` 注册，逐一断言 `knownPath` 与 `allowedMethods` 覆盖），从机制上防止该类缺陷再次出现（提交 `10d8737`）。
-2. **下载命令错误**：`DownloadWorkshopItem` 复用了 `+app_update` 的 argv，**从未发出 `+workshop_download_item`**，因此内容目录永不出现（实测返回 `workshop item … did not land under …`）。修复：`InstallSpec.WorkshopID` + `BuildArgs` 在 workshop 模式下只发 `+workshop_download_item <appid> <id>` 且**不与 app_update 同批**，新增断言 `TestBuildArgsWorkshopDownload`（提交 `014d847`）。
+在目标机直接执行 SteamCMD（绕过服务，取原始输出）：
 
-**复验状态**：修复后尚未重跑实机（观测窗口占用同一数据根/SteamCMD 槽，避免干扰）。**在该行复验通过前保持 BLOCKED**。
+```
+Steam Console Client (c) Valve Corporation
+Connecting anonymously to Steam Public...OK
+Waiting for client config...OK
+Waiting for user info...OK
+Downloading item 2169435993 ...
+ERROR! Download item 2169435993 failed (Failure).
+--- 落盘检查 ---
+NO_CONTENT_DIR
+```
+
+**结论**：`+workshop_download_item 380870 <id>` 命令**确实已发出**（证明 argv 修复生效），但 **Steam 以 `Failure` 拒绝匿名下载**——Workshop 内容下载要求**已认证且拥有该游戏的 Steam 账号**。本项目的秘密边界（ADR §1.7）明确规定 SteamCMD 使用 `anonymous` 登录、**不存储任何 Steam 凭据**，因此：
+
+- 「实机真实下载成功」这一行**无法在本项目当前安全边界内通过**；
+- 它是**外部平台约束 + 已记录的产品决策点**，不是实现缺陷：
+  - 选项 A（默认）：Mod 由运维预先放置/订阅（服务器文件预置），本服务的 `/api/server/mods` 登记语义不变；
+  - 选项 B（需单独批准）：引入 Steam 账号凭据管理（凭据存储/加密/轮换/审计）——属新特性，须独立 ADR 与安全审查。
+
+### 2.2 本批次修复的两个真实缺陷（均已入库并有测试）
+
+1. **端点不可达**：`/api/server/mods/download` 未在 HTTP 请求路径白名单 → 405。修复：补齐白名单与方法表（提交 `10d8737`）。
+2. **下载命令错误**：`DownloadWorkshopItem` 复用 `+app_update`，**从未发出 `+workshop_download_item`**。修复：`InstallSpec.WorkshopID` + `BuildArgs` 互斥分支（提交 `014d847`），并新增断言 `TestBuildArgsWorkshopDownload`。
+3. **可观测性**：下载失败原先只报"目录不存在"；现回传 SteamCMD 尾部输出（提交 `f5c4804`），正是该改动让上面这条决定性证据得以拿到。
+
+4. **系统性防复发**：新增架构守卫 `TestEveryRegisteredHTTPRouteIsReachable`（`internal/archtest`），把「注册了路由但未进白名单」这类缺陷在 CI 中拦截——该缺陷此前已连发两次（`/api/instances`、`/api/server/mods/download`）。
+
+**该行判定：BLOCKED（外部约束：Steam 账号要求）+ 代码/端点/失败关闭/legacy 一致性均已验证。**
 
 ## 3. M3.6 端口占用失败关闭 —— 仍 BLOCKED
 

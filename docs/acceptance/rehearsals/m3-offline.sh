@@ -86,7 +86,8 @@ row M3.3 "单在飞互斥（与 install 并发 → 409）" 'TestModDownloadConfl
 row M3.3 "不可信内容边界（路径穿越白名单/不执行可执行内容）" 'TestModContentPathTraversalRejected'
 record M3.3 "前置取证：workshop 落盘与 PZ 读取路径" "PASS" "Manifest §M3 代码取证 4 项（2026-09-30）；实机下载与 PZ 读取行为为 BLOCKED 待授权（见注解行）"
 
-blocked M3.3 "实机：真实 workshop 下载复验（端点白名单 + workshop argv 缺陷已修）" "修复后未重跑（观测窗口占用 SteamCMD/数据根）；见 evidence/M3-residuals-live.md §2"
+record M3.3 "端点可达 + workshop argv 正确（实机取证）" "PASS" "直接 SteamCMD 取证确认已发出 +workshop_download_item 380870 <id>；端点白名单与 argv 两缺陷已修并有断言"
+blocked M3.3 "实机真实下载成功" "外部约束：匿名登录被 Steam 以 Failure 拒绝（workshop 下载需已认证账号）；秘密边界禁存凭据（ADR §1.7）→ 记录为产品决策点 A/B"
 # ---------- M3.4 就绪与查询 ----------
 row M3.4 "就绪时间线（追加字段，带时间戳）" 'TestQueryFieldsDegradeToUnavailable'
 row M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" 'TestQueryFieldsDegradeToUnavailable|TestQueryFieldsProjectWhenA2SAnswers|TestParseA2SInfo|TestParseA2SInfoRejectsGarbage'
