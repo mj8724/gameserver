@@ -41,7 +41,8 @@ func (p *Plugin) Descriptor() ports.Descriptor {
 			Marker:          "*** SERVER STARTED ***",
 			DefaultTimeoutS: 60,
 		},
-		ConfigTargets: []string{"ini", "sandboxvars"},
+		ConfigTargets:  []string{"ini", "sandboxvars"},
+		InstallMarkers: []string{"StartServer64.bat", "ProjectZomboid64.exe", "start-server.sh", "ProjectZomboid64"},
 	}
 }
 

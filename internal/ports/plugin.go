@@ -46,6 +46,9 @@ type Descriptor struct {
 	Ports         []PortSpec
 	Readiness     ReadinessSpec
 	ConfigTargets []string // e.g. ["ini", "sandboxvars"]
+	// InstallMarkers are the artifact names whose presence proves the game is
+	// installed. They replace game-specific detection in shared code.
+	InstallMarkers []string
 }
 
 // Plugin supplies the adapters for one game. Dependency structs carry only

@@ -20,6 +20,24 @@ var instancePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 type Files struct {
 	ServersRoot string
 	Platform    string
+	// InstallMarkers are the artifact names that prove an install happened.
+	// They come from the game plugin descriptor; the zero value keeps the
+	// historical PZ candidates so existing deployments are unchanged.
+	InstallMarkers []string
+}
+
+// SetInstallMarkers replaces the install-detection artifacts (M4: the game
+// plugin descriptor owns them, so a second game is not judged by PZ files).
+func (f *Files) SetInstallMarkers(markers ...string) {
+	cleaned := make([]string, 0, len(markers))
+	for _, marker := range markers {
+		if trimmed := strings.TrimSpace(marker); trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	if len(cleaned) > 0 {
+		f.InstallMarkers = cleaned
+	}
 }
 
 // New validates the servers root and platform.
@@ -71,12 +89,14 @@ func (f *Files) IsInstalled(id domain.InstanceID) bool {
 	if err != nil {
 		return false
 	}
-	var candidates []string
-	switch f.Platform {
-	case "windows":
-		candidates = []string{"StartServer64.bat", "ProjectZomboid64.exe"}
-	default:
-		candidates = []string{"start-server.sh", "ProjectZomboid64"}
+	candidates := f.InstallMarkers
+	if len(candidates) == 0 {
+		switch f.Platform {
+		case "windows":
+			candidates = []string{"StartServer64.bat", "ProjectZomboid64.exe"}
+		default:
+			candidates = []string{"start-server.sh", "ProjectZomboid64"}
+		}
 	}
 	for _, name := range candidates {
 		if info, err := os.Stat(filepath.Join(installDir, name)); err == nil && !info.IsDir() {

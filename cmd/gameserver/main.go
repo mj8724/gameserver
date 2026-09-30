@@ -226,6 +226,9 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 		if plugin, ok := gamePlugins.Lookup(domain.TemplateID(state.TemplateID)); ok {
 			descriptor := plugin.Descriptor()
 			log.Printf("game plugin %s (%s, app %s, %d port(s))", descriptor.ID, descriptor.Name, descriptor.SteamAppID, len(descriptor.Ports))
+			if len(descriptor.InstallMarkers) > 0 {
+				files.SetInstallMarkers(descriptor.InstallMarkers...)
+			}
 		} else {
 			log.Printf("WARNING: no game plugin registered for template %q; install/launch stay fail-closed", state.TemplateID)
 		}

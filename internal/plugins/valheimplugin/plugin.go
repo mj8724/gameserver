@@ -52,7 +52,8 @@ func (p *Plugin) Descriptor() ports.Descriptor {
 			Marker:          ReadinessMarker,
 			DefaultTimeoutS: 180,
 		},
-		ConfigTargets: []string{"argv"},
+		ConfigTargets:  []string{"argv"},
+		InstallMarkers: []string{ServerExecutable},
 	}
 }
 
