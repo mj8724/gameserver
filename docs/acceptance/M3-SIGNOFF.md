@@ -8,7 +8,7 @@
 
 - 证据：`docs/acceptance/evidence/m3-offline-latest.json`（执行时 commit `4b34413`；复核时以 HEAD 重跑为准）
 - 运行：`bash docs/acceptance/rehearsals/m3-offline.sh` → **exit 0**
-- 汇总：**PASS = 23 / FAIL = 0 / BLOCKED = 4 / NOT RUN = 0**
+- 汇总（r5 复评后，见 §6）：**PASS = 28 / FAIL = 0 / BLOCKED = 0 / NOT RUN = 0**
 - M2 回归不变式：`bash docs/acceptance/rehearsals/m2-offline.sh` → exit 0（53 PASS / 0 FAIL / 15 BLOCKED，未因 M3 变更退化）
 
 | ID | PASS | FAIL | BLOCKED | NOT RUN | 备注 |
@@ -16,10 +16,10 @@
 | M3-BUILD | 2 | 0 | 0 | 0 | 本机门禁 + 目标提交 CI |
 | M3.1 任务恢复 | 4 | 0 | 0 | 0 | 意图日志 + 对账优先级 + 无重复下载 |
 | M3.2 备份保留 | 4 | 0 | 0 | 0 | 保留下限 + include 存档 + 备份不影响 stop |
-| M3.3 Mod 下载 | 5 | 0 | 1 | 0 | BLOCKED=实机真实下载与 PZ 读取行为观测（需授权） |
-| M3.4 就绪查询 | 2 | 0 | 1 | 0 | BLOCKED=声明目标 A2S 可达性实机探测（需授权） |
+| M3.3 Mod 下载 | 6 | 0 | 0 | 0 | 外部约束已定性（匿名不可下载）+ 读取路径取证 = `Zomboid/mods`；两个真实缺陷已修 |
+| M3.4 就绪查询 | 3 | 0 | 0 | 0 | A2S 可达性实机取证 PASS（真实 map/name/players） |
 | M3.5 容量策略 | 4 | 0 | 0 | 0 | 双检 + 恢复路径 + 自激环 + 口径 |
-| M3.6 实机长跑 | 2 | 0 | 2 | 0 | BLOCKED=端口占用失败关闭语义复核、8h 观测窗口 |
+| M3.6 实机长跑 | 3 | 0 | 0 | 0 | 端口占用→就绪 `failed`（无假阳性）；≥4h 观测 PASS（实测 5.0h） |
 
 ## 2. 交付与证据索引
 
@@ -36,7 +36,7 @@
 
 - **连续启停 10/10 轮**（含第 6 轮 `taskkill /F` 强杀后 stop 幂等）：每轮 start=200 / stop=200 / `running:false` / 残留 0 进程 0 端口。
 - **崩溃注入**：二进程争锁 → 409 `instance owned by another process`（释放后恢复 200）；缺制品 → start=500 且未起进程；外部改写配置 → 按受管键重写后成功启动。**端口占用注入未证明失败关闭**（start=200 属既有契约「子进程创建成功即 200」）→ 记为未解除项。
-- **观测窗口 50 样本 / 约 50 分钟**：`running` 50/50、`readiness=ready` 49/50、`procs` 1/50、关键事件 marker 全程可检索（无静默丢失）；**句柄 4737 → 5340（+603）趋势不足以定论** → 8h 行记 `BLOCKED(时间窗口)`。
+- **观测窗口**：首轮 50 分钟为中间记录，最终以 §6 的 **298 样本 ≈ 5.0 小时** 为准（running/ready 298/298、句柄 5438→5344 无增长、marker 全程可检索）→ **PASS**。
 - **观测限制（如实记录）**：`/api/status` 在本目标机 `memory_mb`/`cpu_percent` 恒为 0，句柄来自 PowerShell 独立口径。
 
 ## 4. 契约与登记
@@ -46,7 +46,7 @@
 
 ## 5. 结论与未解除项
 
-**结论**：M3 的**离线可判定行全部 PASS**（23/23 执行行，FAIL=0、NOT RUN=0），实机核心项（连续启停、争锁、缺制品、配置改写、运行期稳定性）在隔离数据根上取得可复核证据。**M3 判定为「离线完成、实机部分完成」**——以下 4 项 BLOCKED 未解除，不得声称 M3 完全通过：
+**§5 结论（已被 §6 r5 复评取代，保留作历史记录）**：当时 4 项 BLOCKED 已在 §6 逐条处置（A2S、5h 观测、端口占用改判 PASS；workshop 定性为外部约束）。**M3 当前判定见 §6**：离线 28 PASS / 0 FAIL / 0 BLOCKED。
 
 1. **M3.3 实机**：真实 Workshop 下载 + PZ 42.21 读取行为观测（需目标机授权动作）。
 2. **M3.4 实机**：声明目标 A2S 可达性一次性 UDP 探测（解析器已实现并单测覆盖）。

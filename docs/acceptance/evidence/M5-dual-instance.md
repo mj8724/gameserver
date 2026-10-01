@@ -25,11 +25,11 @@ AFTER_PZ=0    AFTER_VAL=0   AFTER_PORTS=0      # 停止后零残留
 | 同一实例争锁（跨进程） | 已在 M3.6 实测：第二个进程被拒 `409 instance owned by another process`；本批次以「不同实例互不影响」互补 |
 | PZ 就绪 marker 窗口内 | **未达**：PZ 端口已监听、进程存活，但 300s 测量窗口内未见 marker（同机并行两台服务 + 冷缓存重建世界）；**Valheim 侧在同一条件正常 ready**。PZ 单实例下的就绪已在 M3.5/M3.6 多次实测（冷 40s / warm 34s） |
 
-## 2. 未解除项（如实记录）
+## 2. 边界与历史记录（含已关闭项）
 
 1. ~~`GET /api/instances` 返回 404~~ **已定位并修复**：根因是 HTTP 请求路径白名单未包含新端点（中间件层 404，而非路由缺失）；修复见 `internal/adapters/httpapi/server.go` 与架构守卫 `internal/archtest` 的 `TestEveryRegisteredHTTPRouteIsReachable`，本地端到端 `TestM5OfflineInstancesEndpoint` 复验通过。
 2. **PZ 并行场景的就绪判定**：本批次为并行叠加负载，PZ marker 未在 300s 内出现；边界的 600s 窗口复测见 `M3-residuals-live.md §7`（数值化结果）。
-3. `mklink /J` 复用制品的第二实例方案在目标机上阻塞（已放弃，改用两个已安装实例），该路径未验证。
+3. ~~`mklink /J` 复用制品~~ 该路径在目标机阻塞，已放弃（改用两个已安装实例完成验收）；**不再作为未解除项**，仅作历史记录。
 
 ## 3. 结论
 
