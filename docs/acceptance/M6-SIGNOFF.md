@@ -25,7 +25,7 @@
 
 ## 3. 边界与后续项
 
-1. **跨进程 rotate/re-pin/回滚**：终批实机已执行（两台服务进程互为对等节点，A 的存储持有 B 的注册）；首轮脚本的撤销步骤写错作用对象（`node is not registered`）已修正后复验。
+1. **跨进程 rotate/re-pin/回滚已完成并修正顺序**：`M3-residuals-live.md §8.1` 记录 PIN_V1 → ROTATED → PIN_V2 → **STALE_FP1_AFTER_REPIN=节点未获授权** → FRESH_FP2 可用 → 回滚 PIN_V1 可用 → REVOKE 后拒绝；首轮"陈旧指纹被拒"断言顺序写反的脚本缺陷已修正。
 2. 传输层认证（mTLS）、RBAC、审计外发/防篡改后端：明确未启用（产品化前置，见安全审查 §3）。
 
 ## 4. 结论

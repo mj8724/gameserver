@@ -88,9 +88,9 @@ T=90/135/180s readiness=failed                                # 失败被表达�
 
 **同时记录的差异（不掩盖）**：该阶段 `tasklist` 显示 `java.exe` 计数为 **2**，且收尾 `AFTER_ALL_PROCS=1`——即存在**未被回收的残留 java 进程**（前序阶段启动的实例 + 本阶段启动的实例叠加）。这属"停止路径在多实例/抢占场景下的残留"问题，**列为未解除项**，需专项复核（不折算为通过）。
 
-### 6.2 并行就绪对比 —— 仍未取得数值（BLOCKED）
+### 6.2 并行就绪对比 —— **数值已取得（PASS，见 §8）**
 
-并行阶段 `PARALLEL_PORTS_PZ=2`、`PARALLEL_PORTS_VAL=3`（**两实例端口均在监听**），但 240s 窗口内 PZ 未出现 ready marker（`SOLO_READY_SECONDS=timeout`、`PARALLEL_PZ_READY_SECONDS=timeout`）。冷缓存 + 双服务叠加下就绪时间明显长于单实例历史值（冷 40s/warm 34s）。**维持 BLOCKED**：需要更长窗口（≥600s）与两次对照才能给出可信数字。
+首轮（240s 窗口）未取得数值，已在 §8 以 600s 窗口 + PID 跟踪重测并得到确定数字。
 
 ### 6.3 workshop —— PZ 自身不会拉取（外部约束再确认）
 
@@ -168,3 +168,52 @@ PARALLEL_PZ_READY_SECONDS=timeout_620s  PARALLEL_VALHEIM_READY_SECONDS=timeout
 ```
 
 并行 + 冷缓存条件下，PZ 与 Valheim 在 620s 窗口内均未见 ready marker（Valheim 历史单实例 68s）。**未取得可信数值，列为后续项**：需要更长窗口与分阶段对照（先单实例 warm 基线 → 再并行），并排查是否与 7.2 的残留进程争用有关。
+
+## 8. 终批三：就绪数值 + 指纹演练顺序修正（2026-09-30，`gs-num.sh`）
+
+### 8.1 身份演练（顺序修正后）—— 全链路 PASS
+
+```
+PIN_V1=200
+EXEC_PINNED_V1={"executed":true,"outcome":"completed"}        # 钉住 fp1 可执行
+ROTATED fp2_len=64 changed=yes                                # 轮换：指纹改变，node id 不变
+PIN_V2=200                                                    # 升级步骤：重钉 fp2
+STALE_FP1_AFTER_REPIN={"detail":"节点未获授权"}                 # ★ 陈旧指纹被拒（此前脚本顺序写反，本次修正）
+FRESH_FP2_AFTER_REPIN={"executed":true,"outcome":"completed"}  # 新指纹可用
+ROLLBACK_PIN_V1=200
+EXEC_AFTER_ROLLBACK={"executed":true,"outcome":"completed"}     # 回滚后旧指纹恢复可用
+REVOKE={"message":"节点已撤销"}
+EXEC_AFTER_REVOKE={"detail":"节点未获授权"}                      # 撤销后失败关闭
+```
+
+### 8.2 就绪数值（600s 窗口 + PID 跟踪）—— PASS
+
+| 场景 | 结果 |
+|---|---|
+| **单实例** PZ（冷缓存） | **SOLO_READY_SECONDS = 65**（PID 5408） |
+| **并行** PZ + Valheim（冷缓存） | **PZ = 5s**，**Valheim = 44s**（两实例同时就绪） |
+| 停止回收（按 PID） | `SOLO_PID_ALIVE_AFTER_STOP=0`、`PARALLEL_PZ_PID_ALIVE_AFTER_STOP=0` → **被跟踪的服务进程全部回收** |
+
+结论：并行不劣于单实例（本轮 PZ 甚至更快，因为世界/存档已存在），且**停止路径按 PID 核验无残留**。
+
+### 8.3 "残留 java 进程"根因闭合 —— **非本项目进程**
+
+```
+count_before=1
+PID=15288 PPID=1120
+CMD=G:\soft\steam\steamapps\common\ProjectZomboid\jre64\bin\java -Xms9216m -Xmx9216m
+    -Djava.class.path=.;projectzomboid.jar -Duser.dir=G:\soft\steam\steamapps\common\ProjectZo...
+```
+
+该进程是**操作者本机自行运行的 Project Zomboid 游戏客户端**（路径在 `G:\soft\steam\...`，堆 9216m，非本项目的服务端），与我们的服务生命周期无关。因此：
+
+- §6.1/§7.2 观察到的"残留 1 个 java"**是计数口径把用户自己的客户端算了进去**，**不构成缺陷**；
+- 按 PID 跟踪的核验（§8.2）证明我们的停止路径**确实回收了服务进程**；
+- 该差异从"未解除项"降级为**观测口径问题**，并已改用 PID 跟踪复核。
+
+### 8.4 Harness 教训（如实记录）
+
+`taskkill /F /IM java.exe` 在本批次日志中报 `无效参数/选项 - 'F:/'`：**Git-Bash 会把 `/F` 当路径转换**，导致此前的 kill 命令**静默无效**。因此：
+- 之前批次里 `PRE_KILL_JAVA=1 / POST_KILL_JAVA=1` 不是"杀不掉"，而是**根本没执行到位**；
+- 这也意味着我们**从未误杀**操作者的游戏客户端（幸运且正确）；
+- 后续进程终止类操作应使用 `MSYS_NO_PATHCONV=1 taskkill //F //IM ...` 或 `cmd /c "taskkill /F /IM ..."`，并在证据中记录该前缀。
