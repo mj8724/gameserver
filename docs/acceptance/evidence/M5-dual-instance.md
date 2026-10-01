@@ -27,8 +27,8 @@ AFTER_PZ=0    AFTER_VAL=0   AFTER_PORTS=0      # 停止后零残留
 
 ## 2. 未解除项（如实记录）
 
-1. **`GET /api/instances` 在本次实机批次返回 404**，而同一提交的本地门禁与路由测试通过（路由注册见 `internal/adapters/httpapi/server.go:141`）。需在下一批次用**新构建的二进制**复验（疑似批次内二进制/包陈旧或端口复用到了旧进程）。
-2. **PZ 并行场景的就绪判定**：本批次为并行叠加负载，PZ marker 未在 300s 内出现；不作为 M5.2 的失败项，但需在单实例与并行两种条件下分别记录就绪时间（下一批次补测）。
+1. ~~`GET /api/instances` 返回 404~~ **已定位并修复**：根因是 HTTP 请求路径白名单未包含新端点（中间件层 404，而非路由缺失）；修复见 `internal/adapters/httpapi/server.go` 与架构守卫 `internal/archtest` 的 `TestEveryRegisteredHTTPRouteIsReachable`，本地端到端 `TestM5OfflineInstancesEndpoint` 复验通过。
+2. **PZ 并行场景的就绪判定**：本批次为并行叠加负载，PZ marker 未在 300s 内出现；边界的 600s 窗口复测见 `M3-residuals-live.md §7`（数值化结果）。
 3. `mklink /J` 复用制品的第二实例方案在目标机上阻塞（已放弃，改用两个已安装实例），该路径未验证。
 
 ## 3. 结论

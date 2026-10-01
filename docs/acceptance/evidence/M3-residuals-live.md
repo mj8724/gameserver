@@ -117,3 +117,44 @@ RECONCILE={"reconciled":0,"tasks":[]}                              # 断线对�
 ```
 
 `REVOKE_B` 返回 `node is not registered`：该步骤的方向写错了（撤销应作用在**持有注册的那个存储**上），属**演练脚本缺陷**而非实现缺陷；撤销/失败关闭由离线断言 `TestAuthorizeFailsClosed` 与 `TestNodeUpgradeRollbackDrill` 覆盖，**列为脚本修正项**。
+
+## 7. 终批二：双节点 rotate/重钉/回滚 + 残留进程复核（2026-09-30，`gs-final2.sh`）
+
+### 7.1 双节点身份轮换与回滚 —— PASS
+
+```
+BEFORE_ROTATE id=node-65360f11ec4a fp1_len=64
+REG_B_V1=200                                   # 服务 A 注册对等节点 B（钉住 fp1）
+EXEC_V1={"executed":true,"outcome":"completed"} # 钉住的指纹可执行
+AFTER_ROTATE fp2_len=64 same_id=node-65360f11ec4a  # 轮换：改密钥、保 node id
+REG_B_V2=200                                   # 重新钉住 fp2（升级步骤）
+EXEC_V2_AFTER_UPGRADE={"executed":true}         # 升级后仍可执行
+ROLLBACK_REG=200                               # 回滚：重新钉住 fp1
+EXEC_AFTER_ROLLBACK={"executed":true}           # 回滚后恢复可执行
+REVOKE_ON_A={"message":"节点已撤销"...}          # 撤销
+EXEC_AFTER_REVOKE={"detail":"节点未获授权"}       # 撤销后失败关闭
+```
+
+判定：**注册 → 轮换保 id → 重钉新指纹 → 回滚旧指纹 → 撤销后拒绝**全链路在**两台服务进程**上成立。
+
+**脚本缺陷（如实记录）**：`STALE_FP_REJECTED` 一步的顺序写反了——它在"尚未重钉 fp2"时就拿 fp1 调用，因此返回 `executed=true` 只证明"当前钉住的指纹可用"，**并未真正测试陈旧指纹被拒**；该断言的正确顺序应为"重钉 fp2 后再用 fp1"。指纹不匹配拒绝由离线断言 `TestAuthorizeFailsClosed` 覆盖，**实机该步列为脚本修正项**。
+
+### 7.2 残留 java 进程 —— **观测到未回收进程（未解除项，需专项排查）**
+
+```
+PRE_KILL_JAVA=1     POST_KILL_JAVA=1      # 批次开始前已存在 1 个 java 进程；taskkill /F /IM java.exe 后仍为 1
+RUN_JAVA=2                                # 单个 PZ 实例运行期间出现 2 个 java 进程
+PZ_STOP=200
+STOP+10s_JAVA=1     STOP+30s_JAVA=1       # 停止后仍有 1 个 java 进程存活
+AFTER_ALL_JAVA=1    AFTER_ALL_VAL=0
+```
+
+结论：**停止路径在该环境下未能回收全部 java 进程**（观测到 1 个残留），且批次开始前的 `taskkill /F /IM java.exe` 也未能清除它——说明该进程可能处于不可杀的等待态，或属于更早批次遗留且被计数口径（`tasklist | find /c`）与预期不同。**这是真实的可靠性问题，列为未解除项**：需专项排查（进程树归属、停止路径的 wait/reap、以及是否是 PZ 自身的子 JVM），在查清前**不得声称多实例停止路径完全可靠**。
+
+### 7.3 并行就绪数值 —— 仍未取得（620s 窗口）
+
+```
+PARALLEL_PZ_READY_SECONDS=timeout_620s  PARALLEL_VALHEIM_READY_SECONDS=timeout
+```
+
+并行 + 冷缓存条件下，PZ 与 Valheim 在 620s 窗口内均未见 ready marker（Valheim 历史单实例 68s）。**未取得可信数值，列为后续项**：需要更长窗口与分阶段对照（先单实例 warm 基线 → 再并行），并排查是否与 7.2 的残留进程争用有关。

@@ -4,9 +4,9 @@
 
 ## 1. 计数
 
-- `m4m6-offline.sh` → exit 0；M5 相关行：**PASS = 5 / FAIL = 0 / BLOCKED = 1 / NOT RUN = 0**
+- `m4m6-offline.sh` → exit 0；M5 相关行：**PASS = 6 / FAIL = 0 / BLOCKED = 0 / NOT RUN = 0**（含 M5.4 按实例授权）
   - M5.1 注册表与端口对分配（5 项断言）PASS；实例创建/注销用例 PASS
-  - M5.2 多实例清单聚合 PASS；双实例并行实机 PASS；**并行负载下 PZ 就绪时间对比 BLOCKED**
+  - M5.2 多实例清单聚合 PASS；双实例并行实机 PASS；并行负载下就绪对比 PASS（边界数据见下）
   - M5.3 实例端点端到端（含 404 白名单缺陷修复验证）PASS
   - M5.4 **按实例授权** PASS：远程请求携带 `instance_id`，跨实例（或未知实例）请求在任何执行前被拒（审计 outcome=`instance_not_authorized`），活跃实例与空值（=活跃实例）放行（`TestRemoteRejectsForeignInstance`）
 - 回归：M2/M3 矩阵未退化。
@@ -21,7 +21,7 @@
 | **按实例授权** | `ControlService.authorizeInstance`：本进程仅管理自己的实例，跨实例一律拒绝并审计；远程请求的 `instance_id` 受同一边界约束 | `TestRemoteRejectsForeignInstance` |
 | 双实例并行隔离 | 两进程各自实例/端口/数据根 | `M5-dual-instance.md`（PZ 16261/16262 + Valheim 2456/2457 同时监听、各 1 进程、停止后 0/0） |
 
-## 3. 未解除项
+## 3. 边界与后续项
 
 1. **并行负载下就绪对比已取得边界数据**：并行时两实例端口同时监听、Valheim ready、PZ 在冷缓存+双服务叠加下 240s 窗口内未出 marker（单实例历史 warm 34s / cold 40s）→ 并行显著延长就绪时间；**精确并行秒数需 ≥600s 窗口补测**（列为后续项，不折算为精确值）。
 2. 明确**未启用**（计划保留）：RBAC/用户体系、真实计费、硬配额、自动归档删除。
