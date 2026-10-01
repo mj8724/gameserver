@@ -207,3 +207,5 @@ sc.exe config gameserver-pz_01 obj= ".\gs-pz" password= "<pw>" start= auto
 `GAMESERVER_READINESS_TIMEOUT`（秒，缺省 60，上限 3600）：Manifest 记录的就绪窗口覆盖，用于 marker 到达晚于 60s 的机器。
 
 **容量策略（M3.5，可选）**：`GAMESERVER_CAPACITY_SOFT_PERCENT`（告警）/`GAMESERVER_CAPACITY_HARD_PERCENT`（拒绝新增写入，409），按实例 `quota_gb` 计算；缺省 0 = 禁用（保持历史行为）。超限恢复路径=调阈值或清旧备份（**系统永不自动删除数据**）。用量口径=实例根递归（不含备份与 `#locks/#owners`）。
+
+**SteamCMD 凭据（可选，默认匿名）**：`GAMESERVER_STEAM_LOGIN` / `GAMESERVER_STEAM_PASSWORD`。**默认不设置**——本项目出厂边界为 `+login anonymous` 且不存储任何 Steam 凭据（ADR §1.7）。仅当需要**下载 Steam Workshop 内容**时才必须配置（匿名会被 Steam 以 `Failure` 拒绝，实测见 `docs/acceptance/evidence/M3-residuals-live.md §2/§6.3`）：配置后 SteamCMD 以该账号登录，密码作为独立 argv 元素传入并在日志中脱敏（`internal/adapters/steamcmd`：`progressReader.extraSecrets`，断言 `TestBuildArgsCredentialedLoginIsOptionalAndInert`、`TestProgressReaderRedactsConfiguredPassword`）。该通道属"凭据管理"产品决策（决策点 B），启用即自担账号风险。

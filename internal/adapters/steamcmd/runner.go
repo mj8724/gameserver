@@ -69,6 +69,12 @@ type InstallSpec struct {
 	// WorkshopID switches the command from an app update to one workshop item
 	// download (M3.3). It is validated as digits before use.
 	WorkshopID string
+	// Login/Password enable an authenticated Steam session. They are empty by
+	// default: the project's boundary is anonymous login with no stored
+	// credentials (ADR §1.7). When explicitly configured the password is
+	// passed as a separate argv element and is redacted from every log line.
+	Login    string
+	Password string
 }
 
 // InstallConfig supplies filesystem paths and app identity for the port-level
@@ -78,6 +84,10 @@ type InstallConfig struct {
 	SteamDir    string
 	InstallPath func(domain.InstanceID) (string, error)
 	AppID       string
+	// Login/Password are empty by default (anonymous, no stored credentials).
+	// When configured they authenticate SteamCMD; the password is never logged.
+	Login    string
+	Password string
 }
 
 // State is a safe status snapshot for the in-memory installer operation.
@@ -147,6 +157,8 @@ func (r *Runner) Install(ctx context.Context, request ports.InstallRequest, onPr
 		AppID:      r.config.AppID,
 		Validate:   request.Validate,
 		Beta:       request.Version,
+		Login:      r.config.Login,
+		Password:   r.config.Password,
 	}, nil, onProgress)
 }
 
@@ -186,7 +198,7 @@ func (r *Runner) InstallSpec(ctx context.Context, spec InstallSpec, onLog func(s
 		}
 	}
 	logSafe(fmt.Sprintf("[SteamCMD] starting app %s", spec.AppID))
-	output := &progressReader{secret: spec.BetaPass, onLine: func(line string) {
+	output := &progressReader{secret: spec.BetaPass, extraSecrets: []string{spec.Password}, onLine: func(line string) {
 		logSafe(line)
 		r.consumeLine(line, onProgress)
 	}}
@@ -295,7 +307,14 @@ func (r *Runner) setStatus(status string) {
 // BuildArgs returns the exact SteamCMD argv tokens. It is intentionally pure
 // and testable; no token is split or interpreted by a shell.
 func BuildArgs(spec InstallSpec) []string {
-	args := []string{"+force_install_dir", filepath.Clean(spec.InstallDir), "+login", "anonymous"}
+	args := []string{"+force_install_dir", filepath.Clean(spec.InstallDir), "+login"}
+	if spec.Login != "" {
+		// Authenticated session: both values are separate argv elements so
+		// shell syntax stays inert; the password is redacted in logs.
+		args = append(args, spec.Login, spec.Password)
+	} else {
+		args = append(args, "anonymous")
+	}
 	if spec.WorkshopID != "" {
 		// One workshop item, then exit: never an app update in the same run.
 		args = append(args, "+workshop_download_item", spec.AppID, spec.WorkshopID)
@@ -345,10 +364,11 @@ func redactLine(line, secret string) string {
 }
 
 type progressReader struct {
-	mu     sync.Mutex
-	buffer []byte
-	onLine func(string)
-	secret string
+	mu           sync.Mutex
+	buffer       []byte
+	onLine       func(string)
+	secret       string
+	extraSecrets []string
 }
 
 func (r *progressReader) Write(data []byte) (int, error) {
@@ -368,6 +388,9 @@ func (r *progressReader) Write(data []byte) (int, error) {
 		}
 		line := strings.TrimSuffix(string(r.buffer[:index]), "\r")
 		line = redactLine(line, r.secret)
+		for _, extra := range r.extraSecrets {
+			line = redactLine(line, extra)
+		}
 		remaining := append([]byte(nil), r.buffer[index+1:]...)
 		r.buffer = remaining
 		if line != "" && r.onLine != nil {
@@ -381,7 +404,11 @@ func (r *progressReader) Flush() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if len(r.buffer) != 0 && r.onLine != nil {
-		r.onLine(redactLine(strings.TrimSpace(string(r.buffer)), r.secret))
+		line := redactLine(strings.TrimSpace(string(r.buffer)), r.secret)
+		for _, extra := range r.extraSecrets {
+			line = redactLine(line, extra)
+		}
+		r.onLine(line)
 	}
 	r.buffer = nil
 }

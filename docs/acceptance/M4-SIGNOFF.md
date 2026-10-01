@@ -7,7 +7,7 @@
 
 - 离线矩阵：`bash docs/acceptance/rehearsals/m4m6-offline.sh` → **exit 0**；`docs/acceptance/evidence/m4m6-offline-latest.json`
 - M4 相关行：**PASS = 4 / FAIL = 0 / BLOCKED = 0 / NOT RUN = 0**（M4-BUILD 契约与注册表、M4.2 PZ 插件等价、M4.3 Valheim argv/就绪 5 项断言 + 实机闭环）
-- 回归不变式：`m2-offline.sh` exit 0（53/0/15 未退化）、`m3-offline.sh` exit 0（23/0/4 未退化）
+- 回归不变式：`m2-offline.sh` exit 0（53/0/15 未退化）、`m3-offline.sh` exit 0（**28 PASS / 0 FAIL / 0 BLOCKED / 0 NOT RUN**，未退化；见 `evidence/m3-offline-latest.json`）
 
 ## 2. 交付
 

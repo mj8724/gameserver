@@ -29,3 +29,39 @@ func TestBuildArgsWorkshopDownload(t *testing.T) {
 		t.Fatalf("app install argv changed: %v", install)
 	}
 }
+
+// Credentials are optional: the default session stays anonymous, and when
+// configured both values are separate argv elements (never a joined string).
+func TestBuildArgsCredentialedLoginIsOptionalAndInert(t *testing.T) {
+	anonymous := BuildArgs(InstallSpec{Executable: "steamcmd", InstallDir: "/g", AppID: "380870", WorkshopID: "2169435993"})
+	if !strings.Contains(strings.Join(anonymous, " "), "+login anonymous") {
+		t.Fatalf("default session must stay anonymous: %v", anonymous)
+	}
+	authed := BuildArgs(InstallSpec{Executable: "steamcmd", InstallDir: "/g", AppID: "380870", WorkshopID: "2169435993", Login: "captain", Password: "p@ss word"})
+	joined := strings.Join(authed, " ")
+	if !strings.Contains(joined, "+login captain p@ss word") {
+		t.Fatalf("credentials must be separate argv elements: %v", authed)
+	}
+	if strings.Contains(joined, "+login captain:p@ss") {
+		t.Fatal("credentials must never be joined into one token")
+	}
+}
+
+// The progress reader redacts an authenticated password from log lines.
+func TestProgressReaderRedactsConfiguredPassword(t *testing.T) {
+	reader := &progressReader{secret: "", extraSecrets: []string{"p@ss word"}}
+	var lines []string
+	reader.onLine = func(line string) { lines = append(lines, line) }
+	if _, err := reader.Write([]byte("Logging in as captain with password p@ss word ...\n")); err != nil {
+		t.Fatal(err)
+	}
+	reader.Flush()
+	if len(lines) == 0 {
+		t.Fatal("no lines captured")
+	}
+	for _, line := range lines {
+		if strings.Contains(line, "p@ss word") {
+			t.Fatalf("password leaked into logs: %q", line)
+		}
+	}
+}

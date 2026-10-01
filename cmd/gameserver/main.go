@@ -742,11 +742,21 @@ func steamcmdInstallConfig(cfg runtimeConfig, serversRoot string, instance domai
 		// ADR §4: the SteamCMD tree never moves with state promotion.
 		steamDir = filepath.Join(serversRoot, string(instance), "steamcmd")
 	}
+	// Credentials are optional and only used when the operator configures them
+	// explicitly (the project default is anonymous with no stored credentials,
+	// ADR §1.7). The password is never logged; it is redacted at the adapter.
+	login := strings.TrimSpace(os.Getenv("GAMESERVER_STEAM_LOGIN"))
+	password := os.Getenv("GAMESERVER_STEAM_PASSWORD")
+	if login == "" {
+		password = ""
+	}
 	return steamcmd.InstallConfig{
 		Executable:  executable,
 		SteamDir:    steamDir,
 		InstallPath: installDir,
 		AppID:       appID,
+		Login:       login,
+		Password:    password,
 	}, true
 }
 
