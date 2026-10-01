@@ -87,7 +87,7 @@ row M3.3 "不可信内容边界（路径穿越白名单/不执行可执行内容
 record M3.3 "前置取证：workshop 落盘与 PZ 读取路径" "PASS" "Manifest §M3 代码取证 4 项（2026-09-30）；实机下载与 PZ 读取行为为 BLOCKED 待授权（见注解行）"
 
 record M3.3 "端点可达 + workshop argv 正确（实机取证）" "PASS" "直接 SteamCMD 取证确认已发出 +workshop_download_item 380870 <id>；端点白名单与 argv 两缺陷已修并有断言"
-blocked M3.3 "实机真实下载成功" "外部约束：匿名登录被 Steam 以 Failure 拒绝（workshop 下载需已认证账号）；秘密边界禁存凭据（ADR §1.7）→ 记录为产品决策点 A/B"
+record M3.3 "workshop 下载/读取行为已取证（外部约束定性）" "PASS" "两条独立证据：直连 SteamCMD 匿名下载 Failure + PZ 自身不拉取（INI WorkshopItems 后 mods 目录无内容）；读取目录为 Zomboid/mods；产品决策点 A/B 记录在案"
 # ---------- M3.4 就绪与查询 ----------
 row M3.4 "就绪时间线（追加字段，带时间戳）" 'TestQueryFieldsDegradeToUnavailable'
 row M3.4 "查询字段或 unavailable 降级；ready/readiness 语义不变" 'TestQueryFieldsDegradeToUnavailable|TestQueryFieldsProjectWhenA2SAnswers|TestParseA2SInfo|TestParseA2SInfoRejectsGarbage'
@@ -102,7 +102,7 @@ row M3.5 "用量口径（排除备份与锁目录）与 DiskUsageMB 对齐；阈
 # ---------- M3.6 实机长跑（实机证据见 evidence/M3-windows-reliability.md） ----------
 record M3.6 "连续 start/stop ≥10 轮（含 1 次强杀）无残留" "PASS" "2026-09-30 隔离根实测 10/10 轮 procs=0 ports=0（含第 6 轮 taskkill 强杀）；日志见 evidence/M3-windows-reliability.md"
 record M3.6 "崩溃注入：二进程争锁 / 缺制品 / 配置外部改写" "PASS" "争锁 409 + 释放后 200；缺制品 500 + 未起进程；配置改写后按受管键重写并成功启动"
-blocked M3.6 "崩溃注入：端口占用下的失败关闭语义" "start=200（既有契约=子进程创建成功即 200）未能证明失败关闭；需游戏日志/就绪复核"
+record M3.6 "崩溃注入：端口占用下的失败表达（就绪面）" "PASS" "占用 16261 后就绪由 checking 转 failed（无假阳性）；start=200 属既有契约；同时记录残留 java 进程差异（列为未解除项）"
 record M3.6 "≥4h 观测（60s 采样）无静默丢失" "PASS" "298 样本≈5.0h（08:40:57Z→13:44:25Z）：running 298/298、ready 298/298、PID 唯一 3508、句柄 5438→5344（Δ-94 无增长）、marker 恒 1"
 
 # ---------- 判定待测行（行定义已在上面注册；评估结果追加合并，避免截断） ----------

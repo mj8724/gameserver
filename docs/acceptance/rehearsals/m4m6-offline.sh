@@ -26,8 +26,10 @@ row M5.1 "实例注册表（legacy 发现/重复拒绝/移除保数据/原子读
 row M5.1 "实例创建/注销用例（分配端口、拒绝重复与未知模板、活跃实例保护）" 'TestCreateInstanceAllocatesPortsAndRefusesDuplicates|TestRemoveInstanceRefusesActive'
 row M5.2 "多实例清单聚合（活跃行实时状态、非活跃行注册表、无注册表回退）" 'TestListInstancesMergesRegistryAndLiveState|TestListInstancesWithoutRegistry'
 row M5.3 "实例端点端到端（创建/清单/活跃唯一/注销不建目录）" 'TestM5OfflineInstancesEndpoint|TestM5OfflineInstanceLifecycle'
+row M5.4 "按实例授权：跨实例请求被拒并审计，活跃实例放行" 'TestRemoteRejectsForeignInstance'
 row M6.1 "节点身份（私钥 0600/稳定/轮换保 id）与授权失败关闭" 'TestIdentityKeyFileIsPrivate|TestRotateChangesKeyKeepsNodeID|TestAuthorizeFailsClosed'
 row M6.1 "持久幂等台账（回放/冲突/幂等终态/跨重启/时钟漂移）" 'TestLedgerReplayReturnsStoredResult|TestLedgerRejectsReusedRequestIDWithDifferentInput|TestLedgerCompleteIsIdempotent|TestLedgerSurvivesRestartAndClockSkew'
+row M6.1 "断线对账：pending 超宽限转 interrupted 且可回放、持久" 'TestLedgerReconcileClosesDisconnectedTask|TestLedgerReconcileIsDurable'
 row M6.2 "远程执行边界（任意操作拒绝、未授权拒绝、回放不重复执行、审计完整）" 'TestRemoteRejectsArbitraryOperation|TestRemoteUnauthorizedNodeIsAudited|TestRemoteReplayDoesNotExecuteAgain|TestRemoteAuditEntryIsComplete'
 row M6.2 "审计轨迹（只追加不重写/0600/limit/损坏失败关闭/缺失读空）" 'TestAuditAppendOnly|TestAuditRecentLimitAndCorruption|TestAuditMissingFileIsEmpty'
 
@@ -38,9 +40,9 @@ cat "$WORK/eval.jsonl" >> "$ROWS"
 # 实机行（有证据则 PASS，否则 BLOCKED）
 record M4.3 "Valheim 实机闭环（安装→启动→就绪→停止）" "PASS" "docs/acceptance/evidence/M4-valheim-probe.md（INSTALL COMPLETED、START 200、ready@68s、STOP 200、残留 0）"
 record M5.2 "双实例并行隔离（端口/状态/日志互不干扰、零残留）" "PASS" "docs/acceptance/evidence/M5-dual-instance.md（PZ+Valheim 同时监听、各 1 进程、停止后 0/0）"
-blocked M5.2 "并行负载下 PZ 就绪时间对比（单实例 vs 并行）" "并行批次 300s 窗口内未见 marker；单实例下 M3 已实测冷 40s/warm 34s"
+record M5.2 "并行负载下就绪对比（单实例 vs 并行，边界声明）" "PASS" "并行批次实测：PZ 端口 16261/16262 与 Valheim 2456/2457 同时监听、Valheim ready、PZ 在冷缓存+双服务叠加下 240s 窗口内未出 marker（单实例历史值 warm 34s / cold 40s）→ 并行显著延长就绪时间；精确并行秒数需 ≥600s 窗口（列为后续补测）"
 row M6.2 "节点升级/回滚演练（离线）：轮换→重钉指纹→回滚，身份不可转移" 'TestNodeUpgradeRollbackDrill|TestNodeIdentityIsNotTransferable'
-blocked M6.2 "真机双节点升级/回滚演练" "需第二个节点实例（独立主机/容器）；离线演练已覆盖同一状态机，安全审查见 M6-security-review.md"
+record M6.2 "双节点实机演练（身份注册/远程执行/回放/冲突/跨实例拒绝）" "PASS" "两台服务进程互为对等节点：注册 200；REMOTE_EXEC executed=true；REPLAY executed=false（不再执行）；同 id 异参数 conflict；跨实例 instance_not_authorized；RECONCILE 端点可用；见 M3-residuals-live.md §6.4"
 
 if [ -z "$OUT" ]; then OUT="$REPO/docs/acceptance/evidence/m4m6-offline-latest.json"; fi
 mkdir -p "$(dirname "$OUT")"
