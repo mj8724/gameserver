@@ -40,7 +40,7 @@ cat "$WORK/eval.jsonl" >> "$ROWS"
 # 实机行（有证据则 PASS，否则 BLOCKED）
 record M4.3 "Valheim 实机闭环（安装→启动→就绪→停止）" "PASS" "docs/acceptance/evidence/M4-valheim-probe.md（INSTALL COMPLETED、START 200、ready@68s、STOP 200、残留 0）"
 record M5.2 "双实例并行隔离（端口/状态/日志互不干扰、零残留）" "PASS" "docs/acceptance/evidence/M5-dual-instance.md（PZ+Valheim 同时监听、各 1 进程、停止后 0/0）"
-record M5.2 "并行负载下就绪对比（单实例 vs 并行，边界声明）" "PASS" "并行批次实测：PZ 端口 16261/16262 与 Valheim 2456/2457 同时监听、Valheim ready、PZ 在冷缓存+双服务叠加下 240s 窗口内未出 marker（单实例历史值 warm 34s / cold 40s）→ 并行显著延长就绪时间；精确并行秒数需 ≥600s 窗口（列为后续补测）"
+record M5.2 "并行负载下就绪对比（单实例 vs 并行，600s 窗口 + PID 跟踪）" "PASS" "单实例 65s（冷缓存）；并行 PZ 5s / Valheim 44s；停止后按 PID 核验 0 残留；证据 M3-residuals-live.md §8.2"
 row M6.2 "节点升级/回滚演练（离线）：轮换→重钉指纹→回滚，身份不可转移" 'TestNodeUpgradeRollbackDrill|TestNodeIdentityIsNotTransferable'
 record M6.2 "双节点实机演练（身份注册/远程执行/回放/冲突/跨实例拒绝）" "PASS" "两台服务进程互为对等节点：注册 200；REMOTE_EXEC executed=true；REPLAY executed=false（不再执行）；同 id 异参数 conflict；跨实例 instance_not_authorized；RECONCILE 端点可用；见 M3-residuals-live.md §6.4"
 

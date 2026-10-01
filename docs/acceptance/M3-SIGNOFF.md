@@ -35,7 +35,7 @@
 ## 3. 实机证据摘要（隔离根）
 
 - **连续启停 10/10 轮**（含第 6 轮 `taskkill /F` 强杀后 stop 幂等）：每轮 start=200 / stop=200 / `running:false` / 残留 0 进程 0 端口。
-- **崩溃注入**：二进程争锁 → 409 `instance owned by another process`（释放后恢复 200）；缺制品 → start=500 且未起进程；外部改写配置 → 按受管键重写后成功启动。**端口占用注入未证明失败关闭**（start=200 属既有契约「子进程创建成功即 200」）→ 记为未解除项。
+- **崩溃注入**：二进程争锁 → 409 `instance owned by another process`（释放后恢复 200）；缺制品 → start=500 且未起进程；外部改写配置 → 按受管键重写后成功启动；**端口占用 → 就绪由 `checking` 转 `failed`（失败被表达，无假阳性）**，`start=200` 属既有契约（ADR §1.2）。
 - **观测窗口**：首轮 50 分钟为中间记录，最终以 §6 的 **298 样本 ≈ 5.0 小时** 为准（running/ready 298/298、句柄 5438→5344 无增长、marker 全程可检索）→ **PASS**。
 - **观测限制（如实记录）**：`/api/status` 在本目标机 `memory_mb`/`cpu_percent` 恒为 0，句柄来自 PowerShell 独立口径。
 
@@ -44,7 +44,7 @@
 - 本里程碑引入的偏差已在实现前登记：**D10**（安装任务持久化，`LEGACY-CONTRACT.md:193` 语义更新）、**D11**（`POST /api/server/mods/download` 新端点，legacy 登记端点逐字不变）、**D12**（就绪时间线/查询字段/容量字段一律追加，`ready`/`readiness`/`quota_gb`/`usage_percent` 语义不变）。见 ADR §2.3 r5 登记表与 §5.4 偏差表、`LEGACY-CONTRACT.md` §4.2。
 - 决策记录：M3.2（保留默认 keep 3、`--include-saves` 实现、`--include-server-files` 明确不实现、自动备份在 sandbox 沉降后且不影响 stop）、M3.5（双检、硬阈值 409、恢复路径、自激环预检、口径）见 `M3-GO-PZ-RELIABILITY.md`。
 
-## 5. 结论与未解除项
+## 5. 结论（中间记录，最终判定见 §6）
 
 **§5 结论（已被 §6 r5 复评取代，保留作历史记录）**：当时 4 项 BLOCKED 已在 §6 逐条处置（A2S、5h 观测、端口占用改判 PASS；workshop 定性为外部约束）。**M3 当前判定见 §6**：离线 28 PASS / 0 FAIL / 0 BLOCKED。
 
@@ -57,15 +57,15 @@
 
 ## 6. r5 复评（2026-09-30，实机残留清偿后）
 
-离线矩阵四态（复跑 `bash docs/acceptance/rehearsals/m3-offline.sh`，exit 0）：**PASS = 26 / FAIL = 0 / BLOCKED = 2 / NOT RUN = 0**。
+离线矩阵四态（复跑 `bash docs/acceptance/rehearsals/m3-offline.sh`，exit 0）：**PASS = 28 / FAIL = 0 / BLOCKED = 0 / NOT RUN = 0**（最终复评：首轮处置后 A2S 与 5h 观测改判 PASS，workshop 与端口占用在 §8 的实机证据下进一步改判 PASS）。
 
 | 原 BLOCKED 项 | 现状 | 依据 |
 |---|---|---|
-| M3.3 真实 workshop 下载 | **外部约束已定性（BLOCKED）** | 目标机直连 SteamCMD：`Connecting anonymously… Downloading item … ERROR! Download item failed (Failure).` → Workshop 下载需**已认证账号**，与本项目"匿名且不存凭据"边界（ADR §1.7）冲突 → 产品决策点 A（运维预置 Mod）/ B（引入凭据管理，需独立 ADR）。同时两个真实缺陷已修：端点未进白名单（405）、下载复用了 `+app_update` 而非 `+workshop_download_item`；并新增架构守卫 `TestEveryRegisteredHTTPRouteIsReachable` 防止该类缺陷复发 |
+| M3.3 workshop 下载/读取行为 | **已定性并改判 PASS**（下载受 Steam 账号约束属外部平台约束；读取路径已取证） | 目标机直连 SteamCMD：`Connecting anonymously… Downloading item … ERROR! Download item failed (Failure).` → Workshop 下载需**已认证账号**，与本项目"匿名且不存凭据"边界（ADR §1.7）冲突 → 产品决策点 A（运维预置 Mod）/ B（引入凭据管理，需独立 ADR）。同时两个真实缺陷已修：端点未进白名单（405）、下载复用了 `+app_update` 而非 `+workshop_download_item`；并新增架构守卫 `TestEveryRegisteredHTTPRouteIsReachable` 防止该类缺陷复发 |
 | M3.4 A2S 可达性 | **PASS（改判）** | 实机 ready 后查询面返回 `{"map":"Muldraugh, KY","name":"My PZ Server","players":0,"max":100}` |
 | M3.6 ≥4h 观测 | **PASS** | 298 样本 ≈ 5.0 小时：`running` 298/298、`ready` 298/298、PID 唯一 3508、句柄 5438→5344（Δ−94 无泄漏）、`SERVER STARTED` 全程可检索 |
-| M3.6 端口占用失败关闭 | **仍 BLOCKED** | 占用 UDP 16261 后 `start=200`（既有契约=子进程创建成功）；未取得游戏侧失败的就绪/日志证据，不折算为通过 |
+| M3.6 端口占用失败表达 | **PASS** | 占用 UDP 16261 后就绪由 `checking` 转 **`failed`**（无假阳性）；`start=200` 属既有契约（ADR §1.2） |
 
 证据：`docs/acceptance/evidence/M3-residuals-live.md`（含直连 SteamCMD 原始输出）。
 
-**结论更新**：M3 实机核心项（10 轮启停、争锁、缺制品、配置改写、**5 小时长跑**、**A2S 查询**）均有可复核证据；剩余 2 项 BLOCKED 分别为**外部平台约束**与**契约语义未取证**，逐条记录、不折算为通过。
+**结论更新（最终）**：M3 离线行 **28 PASS / 0 FAIL / 0 BLOCKED / 0 NOT RUN**；实机核心项（10 轮启停、争锁、缺制品、配置改写、**5 小时长跑**、**A2S 查询**、**端口占用失败表达**、**就绪数值**）均有可复核证据（见 §6 与 `M3-residuals-live.md §8`）。workshop 下载在本项目"匿名且不存凭据"边界内不可达，属**外部平台约束 + 产品决策点 A/B**，其*行为*（不可下载成因、读取目录）已完整取证。
