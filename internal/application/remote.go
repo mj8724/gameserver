@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mj8724/gameserver/internal/domain"
 	"github.com/mj8724/gameserver/internal/ports"
 )
 
@@ -44,6 +45,10 @@ type RemoteRequest struct {
 	RequestID   string
 	Operation   RemoteOperation
 	Version     string
+	// InstanceID is the target instance. Per-instance authorization (M5) means a
+	// control process only acts on the instance it owns: an empty value means
+	// "the active instance", any other value must match it exactly.
+	InstanceID string
 }
 
 // RemoteResult is the outcome returned to the caller (and replayed on retry).
@@ -83,6 +88,10 @@ func (s *ControlService) ExecuteRemote(ctx context.Context, request RemoteReques
 	if strings.TrimSpace(request.RequestID) == "" {
 		s.audit(ctx, request, "rejected", "missing request id")
 		return RemoteResult{}, NewError(CodeOperationFailed, "远程请求必须携带 request_id")
+	}
+	if err := s.authorizeInstance(request.InstanceID); err != nil {
+		s.audit(ctx, request, "instance_not_authorized", err.Error())
+		return RemoteResult{}, err
 	}
 
 	record := ports.TaskRecord{
@@ -197,3 +206,20 @@ type AuditReader interface {
 
 var _ RemoteExecutor = (*ControlService)(nil)
 var _ AuditReader = (*ControlService)(nil)
+
+// authorizeInstance enforces the per-instance authorization boundary: this
+// control process acts on exactly one instance, so a request naming any other
+// instance (or an unknown one) is refused before anything runs and is audited.
+func (s *ControlService) authorizeInstance(requested string) error {
+	target := strings.TrimSpace(requested)
+	if target == "" || domain.InstanceID(target) == s.deps.Instance {
+		return nil
+	}
+	return NewError(CodeOperationFailed, "实例未授权："+target+"（本进程仅管理 "+string(s.deps.Instance)+"）")
+}
+
+// AuthorizeInstance exposes the same boundary to inbound HTTP endpoints that
+// name an instance explicitly.
+func (s *ControlService) AuthorizeInstance(requested string) error {
+	return s.authorizeInstance(requested)
+}

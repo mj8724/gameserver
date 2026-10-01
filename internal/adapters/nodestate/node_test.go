@@ -189,3 +189,54 @@ func TestLedgerSurvivesRestartAndClockSkew(t *testing.T) {
 		t.Fatalf("ledger file missing: %v", err)
 	}
 }
+
+// A task left pending by a disconnected node is reconciled to interrupted, and
+// a replay then returns that terminal outcome instead of executing again.
+func TestLedgerReconcileClosesDisconnectedTask(t *testing.T) {
+	store, _ := New(t.TempDir())
+	ledger := store.Ledger()
+	ctx := context.Background()
+	if _, _, err := ledger.Begin(ctx, ports.TaskRecord{RequestID: "req-d1", NodeID: "node-x", Operation: "start", InputHash: "h"}); err != nil {
+		t.Fatal(err)
+	}
+	// Inside the grace window nothing is touched.
+	affected, err := ledger.Reconcile(ctx, time.Hour)
+	if err != nil || len(affected) != 0 {
+		t.Fatalf("inside grace nothing reconciles: %+v %v", affected, err)
+	}
+	// After the grace window the pending task becomes interrupted.
+	affected, err = ledger.Reconcile(ctx, time.Nanosecond)
+	if err != nil || len(affected) != 1 {
+		t.Fatalf("pending task must reconcile: %+v %v", affected, err)
+	}
+	if affected[0].State != ports.TaskInterrupted || affected[0].Error == "" {
+		t.Fatalf("reconciled record incomplete: %+v", affected[0])
+	}
+	// Replaying the same request id reports the reconciled state, not a new run.
+	got, existed, err := ledger.Begin(ctx, ports.TaskRecord{RequestID: "req-d1", NodeID: "node-x", Operation: "start", InputHash: "h"})
+	if err != nil || !existed || got.State != ports.TaskInterrupted {
+		t.Fatalf("replay after reconciliation = %+v existed=%v err=%v", got, existed, err)
+	}
+	// Reconciling twice is a no-op (terminal states are never rewritten).
+	again, err := ledger.Reconcile(ctx, time.Nanosecond)
+	if err != nil || len(again) != 0 {
+		t.Fatalf("second reconcile must be empty: %+v %v", again, err)
+	}
+}
+
+// Reconciliation survives a restart (the interrupted state is durable).
+func TestLedgerReconcileIsDurable(t *testing.T) {
+	root := t.TempDir()
+	store, _ := New(root)
+	if _, _, err := store.Ledger().Begin(context.Background(), ports.TaskRecord{RequestID: "req-d2", Operation: "install", InputHash: "h"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Ledger().Reconcile(context.Background(), time.Nanosecond); err != nil {
+		t.Fatal(err)
+	}
+	reopened, _ := New(root)
+	record, err := reopened.Ledger().Get(context.Background(), "req-d2")
+	if err != nil || record.State != ports.TaskInterrupted {
+		t.Fatalf("interrupted state must be durable: %+v %v", record, err)
+	}
+}

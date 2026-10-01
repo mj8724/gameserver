@@ -4,8 +4,8 @@
 
 ## 1. 计数
 
-- `m4m6-offline.sh` → exit 0；M6 相关行：**PASS = 4 / FAIL = 0 / BLOCKED = 1 / NOT RUN = 0**
-  - M6.1 节点身份 3 项 + 幂等台账 4 项 PASS
+- `m4m6-offline.sh` → exit 0；M6 相关行：**PASS = 5 / FAIL = 0 / BLOCKED = 1 / NOT RUN = 0**
+  - M6.1 节点身份 3 项 + 幂等台账 4 项 + **断线对账 2 项** PASS
   - M6.2 远程边界 4 项 + 审计轨迹 3 项 PASS
   - M6.2 节点升级/回滚**离线演练** PASS（轮换→重钉指纹→回滚、身份不可转移）；安全审查见 `M6-security-review.md`
   - M6.2 **真机双节点升级/回滚演练：BLOCKED**（需第二个节点实例）
@@ -17,6 +17,7 @@
 | 节点身份（ed25519、0600、轮换保 id） | `internal/adapters/nodestate` | `TestIdentityKeyFileIsPrivate`、`TestRotateChangesKeyKeepsNodeID` |
 | 对等注册/撤销/失败关闭授权 | 同上 | `TestAuthorizeFailsClosed` |
 | 持久幂等任务（重放/冲突/终态不可覆盖/跨重启/时钟漂移） | `ports.TaskLedger` + `nodestate.Ledger` | 4 项断言 |
+| **断线对账** | `ports.TaskReconciler` + `Ledger.Reconcile`（pending 超宽限→`interrupted` 终态；启动时自动对账；`POST /api/tasks/reconcile` 可显式触发；状态持久） | `TestLedgerReconcileClosesDisconnectedTask`、`TestLedgerReconcileIsDurable` |
 | 远程执行边界（封闭操作集、无任意命令） | `internal/application/remote.go` | `TestRemoteRejectsArbitraryOperation` |
 | 授权 + 回放 | 同上 | `TestRemoteUnauthorizedNodeIsAudited`、`TestRemoteReplayDoesNotExecuteAgain` |
 | 审计（追加式、0600、损坏失败关闭、全路径记录） | `internal/adapters/auditlog` | `TestRemoteAuditEntryIsComplete`、`TestAuditAppendOnly`、`TestAuditRecentLimitAndCorruption` |

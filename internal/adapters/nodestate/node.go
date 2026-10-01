@@ -386,6 +386,50 @@ func (l *Ledger) Get(_ context.Context, requestID string) (ports.TaskRecord, err
 	return ports.TaskRecord{}, errors.New("task not found")
 }
 
+// Reconcile closes tasks that a disconnected node left in flight (M6). A task
+// still pending after the grace period is marked interrupted, which is a
+// terminal state: the node can then replay its request id and receive the
+// reconciled outcome instead of a second execution.
+func (l *Ledger) Reconcile(ctx context.Context, grace time.Duration) ([]ports.TaskRecord, error) {
+	l.store.mu.Lock()
+	defer l.store.mu.Unlock()
+	records, err := l.read()
+	if err != nil {
+		return nil, err
+	}
+	if grace <= 0 {
+		grace = time.Minute
+	}
+	cutoff := time.Now().UTC().Add(-grace)
+	var affected []ports.TaskRecord
+	changed := false
+	for index, record := range records {
+		if record.State != ports.TaskPending {
+			continue
+		}
+		reference := record.UpdatedAt
+		if reference.IsZero() {
+			reference = record.CreatedAt
+		}
+		if reference.After(cutoff) {
+			// Still inside the grace window: the node may answer any moment.
+			continue
+		}
+		records[index].State = ports.TaskInterrupted
+		records[index].Error = "node disconnected before the task completed; replay the request id to retry"
+		records[index].UpdatedAt = time.Now().UTC()
+		affected = append(affected, records[index])
+		changed = true
+	}
+	if !changed {
+		return []ports.TaskRecord{}, nil
+	}
+	if err := l.write(records); err != nil {
+		return nil, err
+	}
+	return affected, nil
+}
+
 // List returns every task record.
 func (l *Ledger) List(_ context.Context) ([]ports.TaskRecord, error) {
 	l.store.mu.Lock()

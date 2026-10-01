@@ -447,6 +447,11 @@ func buildRuntimeWith(cfg runtimeConfig, overrides runtimeOverrides) (*appRuntim
 	if err != nil {
 		return nil, fmt.Errorf("http server: %w", err)
 	}
+	// M6 disconnect reconciliation: a task left in flight by a node that went
+	// away is closed as interrupted before the service starts serving.
+	if affected, reconcileErr := nodeStore.Ledger().Reconcile(context.Background(), 0); reconcileErr == nil && len(affected) > 0 {
+		log.Printf("task ledger reconciliation: %d interrupted task(s) closed", len(affected))
+	}
 	handler.WithInstanceLister(control).WithNodeStore(nodeStore).WithTaskLedger(nodeStore.Ledger())
 
 	return &appRuntime{

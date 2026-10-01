@@ -68,6 +68,19 @@ type TaskRecord struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// TaskInterrupted is the terminal state written for a task whose node
+// disconnected while the request was still in flight (M6 disconnect
+// reconciliation). It is terminal so a replay is answered from the ledger and
+// never re-executed blindly.
+const TaskInterrupted = "interrupted"
+
+// TaskReconciler closes tasks left in flight by a disconnected node.
+type TaskReconciler interface {
+	// Reconcile marks non-terminal records older than the grace period as
+	// interrupted and returns the affected records.
+	Reconcile(ctx context.Context, grace time.Duration) ([]TaskRecord, error)
+}
+
 // TaskLedger records remote tasks so a replay returns the stored result
 // instead of executing the operation twice.
 type TaskLedger interface {

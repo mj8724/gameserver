@@ -148,6 +148,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/tasks", s.tasks)
 	s.mux.HandleFunc("POST /api/remote", s.remote)
 	s.mux.HandleFunc("GET /api/audit", s.audit)
+	s.mux.HandleFunc("POST /api/tasks/reconcile", s.reconcileTasks)
 	s.mux.HandleFunc("POST /api/instances", s.createInstance)
 	s.mux.HandleFunc("DELETE /api/instances/{instance_id}", s.deleteInstance)
 	s.mux.HandleFunc("POST /api/server/install", s.install)
@@ -453,6 +454,7 @@ func (s *Server) remote(w http.ResponseWriter, r *http.Request) {
 		RequestID   *string `json:"request_id"`
 		Operation   *string `json:"operation"`
 		Version     *string `json:"version"`
+		InstanceID  *string `json:"instance_id"`
 	}
 	if err := decodeStrictJSON(r, &req, false); err != nil || req.NodeID == nil || req.Fingerprint == nil || req.RequestID == nil || req.Operation == nil ||
 		runeLength(*req.NodeID) < 1 || runeLength(*req.NodeID) > 128 || runeLength(*req.Fingerprint) < 1 || runeLength(*req.Fingerprint) > 256 ||
@@ -464,9 +466,14 @@ func (s *Server) remote(w http.ResponseWriter, r *http.Request) {
 	if req.Version != nil {
 		version = *req.Version
 	}
+	instanceID := ""
+	if req.InstanceID != nil {
+		instanceID = *req.InstanceID
+	}
 	result, err := executor.ExecuteRemote(r.Context(), application.RemoteRequest{
 		NodeID: *req.NodeID, Fingerprint: *req.Fingerprint, Operator: sessionOperator(r),
 		RequestID: *req.RequestID, Operation: application.RemoteOperation(*req.Operation), Version: version,
+		InstanceID: instanceID,
 	})
 	if err != nil {
 		writeApplicationError(w, err)
@@ -476,6 +483,24 @@ func (s *Server) remote(w http.ResponseWriter, r *http.Request) {
 }
 
 // audit returns the newest audit records for review.
+// reconcileTasks closes tasks left in flight by a disconnected node (M6).
+func (s *Server) reconcileTasks(w http.ResponseWriter, r *http.Request) {
+	if !s.requireSession(w, r, true) {
+		return
+	}
+	reconciler, ok := s.ledger_.(ports.TaskReconciler)
+	if !ok {
+		writeDetail(w, http.StatusNotImplemented, "任务对账不可用")
+		return
+	}
+	affected, err := reconciler.Reconcile(r.Context(), 0)
+	if err != nil {
+		writeDetail(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"reconciled": len(affected), "tasks": affected})
+}
+
 func (s *Server) audit(w http.ResponseWriter, r *http.Request) {
 	if !s.requireSession(w, r, false) {
 		return
@@ -1387,7 +1412,7 @@ func knownPath(requestPath string) bool {
 		"/api/status", "/api/templates", "/api/server/install", "/api/server/start",
 		"/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command",
 		"/api/server/logs", "/api/server/config", "/api/server/mods", "/api/server/renew", "/ws/console",
-		"/api/instances", "/api/nodes", "/api/nodes/rotate", "/api/tasks", "/api/remote", "/api/audit":
+		"/api/instances", "/api/nodes", "/api/nodes/rotate", "/api/tasks", "/api/tasks/reconcile", "/api/remote", "/api/audit":
 		return true
 	}
 	return isModItemPath(requestPath) || isInstanceItemPath(requestPath) || isNodeActionPath(requestPath)
@@ -1413,7 +1438,7 @@ func allowedMethods(requestPath string) []string {
 		return []string{http.MethodPost}
 	case "/api/tasks", "/api/audit":
 		return []string{http.MethodGet}
-	case "/api/remote":
+	case "/api/remote", "/api/tasks/reconcile":
 		return []string{http.MethodPost}
 	case "/api/auth/login", "/api/auth/logout", "/api/server/start", "/api/server/stop", "/api/server/restart", "/api/server/kill", "/api/server/command", "/api/server/mods", "/api/server/renew", "/ws/console":
 		if requestPath == "/api/server/mods" {
