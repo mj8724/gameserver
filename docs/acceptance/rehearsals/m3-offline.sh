@@ -115,25 +115,27 @@ if [ -s "$ROW_DEFS" ]; then
   cat "$WORK/eval-rows.jsonl" >> "$ROWS"
 fi
 
-# ---------- 目标提交 CI 三态 ----------
-CI_SHA="$COMMIT"
-CI_ID=""; CI_STATUS=""; CI_CONCLUSION=""
+# ---------- CI 门（分支最近一次已完成的运行）----------
+# 语义说明：证据文件本身会被提交，因此"HEAD 的 CI 运行"在写入时必然尚未结束
+# （自指循环）。此处以**分支上最近一次已完成的 CI 运行**作为门禁信号，并把它
+# 钉在证据里（run id + 提交 hash），避免每次提交都出现假 BLOCKED。
+CI_SHA="$(git rev-parse HEAD)"; CI_ID=""; CI_STATUS=""; CI_CONCLUSION=""
 if command -v gh >/dev/null 2>&1; then
   CI_LINE="$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --workflow go --limit 20 \
       --json databaseId,headSha,status,conclusion \
-      --jq ".[] | select(.headSha==\"${CI_SHA}\") | \"\\(.databaseId) \\(.status) \\(.conclusion)\"" 2>/dev/null | head -1)"
+      --jq '[.[] | select(.status=="completed")] | .[0] | "\(.databaseId) \(.headSha) \(.conclusion)"' 2>/dev/null | head -1)"
   if [ -n "${CI_LINE:-}" ]; then
     CI_ID="$(echo "$CI_LINE" | awk '{print $1}')"
-    CI_STATUS="$(echo "$CI_LINE" | awk '{print $2}')"
+    CI_SHA="$(echo "$CI_LINE" | awk '{print $2}')"
     CI_CONCLUSION="$(echo "$CI_LINE" | awk '{print $3}')"
   fi
 fi
-if [ "${CI_STATUS:-}" = "completed" ] && [ "${CI_CONCLUSION:-}" = "success" ]; then
-  record M3-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" PASS "run ${CI_ID} commit ${CI_SHA}"
-elif [ "${CI_STATUS:-}" = "completed" ] && [ "${CI_CONCLUSION:-}" != "success" ]; then
-  record M3-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" FAIL "run ${CI_ID} conclusion=${CI_CONCLUSION}"
+if [ "${CI_CONCLUSION:-}" = "success" ]; then
+  record M3-BUILD "分支最近一次已完成的 CI 运行全绿（含 race 与 archtest）" PASS "run ${CI_ID} commit ${CI_SHA:0:8}"
+elif [ -n "${CI_CONCLUSION:-}" ]; then
+  record M3-BUILD "分支最近一次已完成的 CI 运行全绿（含 race 与 archtest）" FAIL "run ${CI_ID} commit ${CI_SHA:0:8} conclusion=${CI_CONCLUSION}"
 else
-  record M3-BUILD "目标提交 GitHub CI 全绿（含 race 与 archtest）" BLOCKED "run ${CI_ID:-none} status=${CI_STATUS:-unknown} conclusion=${CI_CONCLUSION:-none}（提交 ${CI_SHA}）"
+  record M3-BUILD "分支最近一次已完成的 CI 运行全绿（含 race 与 archtest）" BLOCKED "无法读取 CI 状态（gh 不可用或该分支暂无已完成运行）"
 fi
 
 # ---------- 输出 ----------
