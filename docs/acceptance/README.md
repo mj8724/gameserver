@@ -55,3 +55,8 @@
 9. **JSON 证据里的 Windows 路径必须转义**：直接把 `G:\path\x` 拼进 `printf '{"evidence":"%s"}'` 会产生非法转义（`\g`）使整个证据文件不可解析；用正斜杠或写进 Markdown 证据文件并在 JSON 中引用文档。
 10. **start=200 只代表子进程创建成功**（既有契约）：端口被占用时 start 仍可能返回 200，判断"是否可用"必须看 readiness/日志，不能只看状态码。
 11. **本机 `/api/status` 的 `memory_mb`/`cpu_percent` 在 Windows 恒为 0**：长时间观测的内存趋势需另行取数（PowerShell `Get-Process java | Handles/WorkingSet`），并在证据里注明口径差异。
+
+12. **路由注册 ≠ 可达**：HTTP 中间件的请求路径白名单/方法表若没同步新端点，`mux` 里注册好的路由仍会 404/405（本项目连发两次：`/api/instances`、`/api/server/mods/download`）。现由 `internal/archtest` 的守卫测试解析 `HandleFunc` 注册源并逐一断言覆盖；新增端点后必须让该测试通过。
+13. **可执行文件必须给绝对路径**：进程适配器按 `PATH` 解析裸文件名，插件返回 `valheim_server.exe` 会得到 `executable file not found in %PATH%`；插件应在 install 目录内拼好绝对路径（本项由 `process.LoggingSupervisor` 记录底层错误才得以定位）。
+14. **argv 复用的隐性错**：实现"下载 Workshop 内容"时若复用安装的 `+app_update` argv，命令看起来成功（exit 0）却什么都没下；应显式发 `+workshop_download_item <appid> <id>` 且不与 app_update 同批。
+15. **平台账号约束要先用原始 CLI 定性**：匿名 SteamCMD 下载 Workshop 会被 Steam 以 `Failure` 拒绝（需已认证且拥有该游戏的账号）。拿到直连 CLI 原始输出再判断，能避免在 argv/路径上反复徒劳修复——并把结论写成产品决策点，而不是"待实现"。
