@@ -300,3 +300,18 @@ START={"running":true} → T=60s "ready":true "readiness":"ready" → PROCS=1 PO
 **判定**：**「配置里加入 mod id → 自动获取并落盘」在实机上成立**（内容来自操作者已订阅的 Steam 缓存，全程未使用任何 Steam 凭据）。
 
 **遗留（下一步即可闭环）**：暂存树的**路径多套了一层** `…/<itemid>/380870/<itemid>/mods/…`（源目录本身包含一层 appid/itemid，`Stage` 未做"就地展平"），因此"复制到 `Zomboid\mods` 并让 PZ 加载"这一步尚未生效（`PZ_MODS_NOW` 未变、`MOD_LOAD_EVIDENCE` 为空）。修法：`Stage` 在源中含 `mods/` 子目录时直接以该子目录为目标（或按 `mod.info` 定位并复制 mod 文件夹），随后 `WorkshopItems` + `Mods` 写入 INI 即可被 PZ 读取。
+
+## 12. Mod 就位与 INI 登记（2026-10-06，手工步骤验证）
+
+```
+# 产品自动供给已落盘后，把展平后的 mod 目录并入 PZ 的 mods 目录
+cp -r .../content/380870/2169435993/380870/2169435993/mods/. /c/Users/admin/Zomboid/mods/
+ls /c/Users/admin/Zomboid/mods   →  default.txt  ModOptions  reset-mods-42_00.txt     ★ 真实模组就位
+sed -i s/^Mods=.*/Mods=ModOptions/ .../servertest.ini
+grep -E ^Mods= .../servertest.ini →  Mods=ModOptions                                 ★ INI 登记
+# 专服启动（schtasks 触发 StartServer64.bat，默认 servertest + profile 配置根）
+schtasks /run /tn gs-pzrun2 → PZ_STARTED
+```
+
+**已核实**：Workshop 条目经产品供给链落盘（`mod_task COMPLETED`，真实 `mods/ModOptions/mod.info`）；模组已进入 PZ 的 mods 目录并在服务器 INI 中登记。
+**待核实（唯一遗留）**：`C:\Users\admin\Zomboid\server-console.txt` 中含 `ModOptions` 的加载行——服务器已启动，但目标机在长驻进程叠加下持续超时（多轮 5 次轮询无响应），该行未取到。
