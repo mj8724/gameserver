@@ -54,14 +54,26 @@ func (r *Runner) DownloadWorkshopItem(ctx context.Context, instance domain.Insta
 		return "", err
 	}
 	contentDir := filepath.Join(installDir, "steamapps", "workshop", "content", r.config.AppID, workshopID)
-	info, err := os.Stat(contentDir)
-	if err != nil || !info.IsDir() {
-		if len(tail) > 0 {
-			return "", fmt.Errorf("workshop item %s did not land under %s; steamcmd said: %s", workshopID, contentDir, strings.Join(tail, " | "))
-		}
-		return "", fmt.Errorf("workshop item %s did not land under %s", workshopID, contentDir)
+	if info, statErr := os.Stat(contentDir); statErr == nil && info.IsDir() {
+		return filepath.ToSlash(contentDir), nil
 	}
-	return filepath.ToSlash(contentDir), nil
+	// SteamCMD could not fetch it (typically no authenticated account). Fall
+	// back to the operator's Steam client cache when one is configured: the
+	// content is already on disk, and copying it keeps the anonymous boundary.
+	if r.config.LocalCache.Enabled() {
+		staged, stageErr := r.config.LocalCache.Stage(r.config.AppID, workshopID, contentDir)
+		if stageErr == nil {
+			return staged, nil
+		}
+		if len(tail) > 0 {
+			return "", fmt.Errorf("workshop item %s not fetched by steamcmd (%s) and not staged from the local cache (%v)", workshopID, strings.Join(tail, " | "), stageErr)
+		}
+		return "", fmt.Errorf("workshop item %s not staged from the local cache: %w", workshopID, stageErr)
+	}
+	if len(tail) > 0 {
+		return "", fmt.Errorf("workshop item %s did not land under %s; steamcmd said: %s", workshopID, contentDir, strings.Join(tail, " | "))
+	}
+	return "", fmt.Errorf("workshop item %s did not land under %s", workshopID, contentDir)
 }
 
 func allDigits(value string) bool {

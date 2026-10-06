@@ -88,6 +88,9 @@ type InstallConfig struct {
 	// When configured they authenticate SteamCMD; the password is never logged.
 	Login    string
 	Password string
+	// LocalCache provisions workshop items from the operator's Steam client
+	// cache when SteamCMD cannot (no authenticated account).
+	LocalCache LocalWorkshopCache
 }
 
 // State is a safe status snapshot for the in-memory installer operation.

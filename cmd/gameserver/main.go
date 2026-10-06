@@ -750,6 +750,10 @@ func steamcmdInstallConfig(cfg runtimeConfig, serversRoot string, instance domai
 	if login == "" {
 		password = ""
 	}
+	// Workshop items may also be provisioned from the operator's Steam client
+	// cache (no Steam credentials needed): GAMESERVER_WORKSHOP_CACHE points at
+	// the library's steamapps/workshop/content directory.
+	cacheRoot := strings.TrimSpace(os.Getenv("GAMESERVER_WORKSHOP_CACHE"))
 	return steamcmd.InstallConfig{
 		Executable:  executable,
 		SteamDir:    steamDir,
@@ -757,6 +761,7 @@ func steamcmdInstallConfig(cfg runtimeConfig, serversRoot string, instance domai
 		AppID:       appID,
 		Login:       login,
 		Password:    password,
+		LocalCache:  steamcmd.LocalWorkshopCache{Root: cacheRoot},
 	}, true
 }
 
