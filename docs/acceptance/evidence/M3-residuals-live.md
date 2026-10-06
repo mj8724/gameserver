@@ -271,3 +271,32 @@ LOG_ERR=launcher descriptor rewrite: java/. -> java/ …   # 描述符向量确�
 4. **安装失败根因排除**：先前 `App state 0x202` 是**磁盘空间不足**（G:/F: 各 4 GB），换 `C:` 后 `INSTALL_EXIT=0`。
 
 **仍未达成（外部约束，证据三次一致）**：Workshop 内容本体下载需已认证 Steam 账号；匿名被 Steam 以 `Failure` 拒绝（§2 直连 CLI、§6.3 游戏自身、§10 服务内自动下载三处一致），本机亦无 Workshop 缓存可迁移。使能通道（`GAMESERVER_STEAM_LOGIN/_PASSWORD`，脱敏、默认关闭）已实现并有断言。
+
+## 11. Workshop 供给打通：从操作者 Steam 缓存落盘（2026-10-06，提交 `ca40ad0`/`1846e18`/`3ddfce9`）
+
+**根因链（全部实测确认）**：
+1. 操作者 Steam 客户端**已订阅并下载** PZ Workshop 内容：`steamapps\workshop\appworkshop_108600.acf` 列出 20 个订阅项（含 `2169435993`），内容位于 **`steamapps\workshop\content\108600\<id>`**；
+2. 关键在于 **app id 不同**：Steam 客户端按**游戏** app id（PZ `108600`）存放，而专服安装用**服务端** app id（`380870`）；
+3. SteamCMD 匿名无法下载（三次独立证据），但内容已在本地 → **无需任何凭据即可供给**。
+
+**实现的供给路径**（`internal/adapters/steamcmd/localcache.go` + `workshop.go` 回退）：
+- 新增 `LocalWorkshopCache`：把操作者缓存中的条目复制进实例并按 `mod.info` 校验（拒绝符号链接、拒绝无 `mod.info`、失败清理、id 必须为数字）；
+- **跨 app id 查找**：先按请求的 app id，再扫描缓存下所有 app id 目录（条目 id 唯一）；
+- `GAMESERVER_WORKSHOP_CACHE` 指向 `steamapps\workshop\content`；
+- SteamCMD 失败后自动回退该路径，**保持"匿名/不存凭据"边界**。
+
+**实机结果（`gs-mod3.sh`）**：
+
+```
+ADD_MOD={"message":"模组已登记（尚未下载）", ...}                    # 配置面加 mod id（legacy 文案不变）
+T=15s  mod_task={"status":"DOWNLOADING", ...}
+T=15s+ mod_task={"message":"模组 2169435993 已下载","progress":100,"status":"COMPLETED"}   ★ 真实内容落盘
+STAGED_EXISTS=yes
+STAGED_MODINFO=…/content/380870/2169435993/…/mods/ModOptions/mod.info                       ★ 真实模组（ModOptions）
+INI_WORKSHOP=WorkshopItems=2169435993                                                       # INI 登记
+START={"running":true} → T=60s "ready":true "readiness":"ready" → PROCS=1 PORTS=2 → STOP=200 → 残留 0
+```
+
+**判定**：**「配置里加入 mod id → 自动获取并落盘」在实机上成立**（内容来自操作者已订阅的 Steam 缓存，全程未使用任何 Steam 凭据）。
+
+**遗留（下一步即可闭环）**：暂存树的**路径多套了一层** `…/<itemid>/380870/<itemid>/mods/…`（源目录本身包含一层 appid/itemid，`Stage` 未做"就地展平"），因此"复制到 `Zomboid\mods` 并让 PZ 加载"这一步尚未生效（`PZ_MODS_NOW` 未变、`MOD_LOAD_EVIDENCE` 为空）。修法：`Stage` 在源中含 `mods/` 子目录时直接以该子目录为目标（或按 `mod.info` 定位并复制 mod 文件夹），随后 `WorkshopItems` + `Mods` 写入 INI 即可被 PZ 读取。
