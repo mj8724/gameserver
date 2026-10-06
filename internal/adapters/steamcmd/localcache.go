@@ -39,10 +39,30 @@ func (c LocalWorkshopCache) Stage(appID, itemID, destinationRoot string) (string
 	if !allDigits(appID) || !allDigits(itemID) {
 		return "", errors.New("app id and workshop id must be numeric")
 	}
+	// The Steam client keys workshop content by the GAME app id (e.g. 108600
+	// for Project Zomboid), while a dedicated-server install uses its own app
+	// id (380870). Look the item up under the requested app id first, then
+	// across every app id present in the cache — an item id is unique.
 	source := filepath.Join(c.Root, appID, itemID)
-	info, err := os.Stat(source)
-	if err != nil || !info.IsDir() {
-		return "", fmt.Errorf("workshop item %s is not present in the local cache", itemID)
+	if info, statErr := os.Stat(source); statErr != nil || !info.IsDir() {
+		source = ""
+		entries, err := os.ReadDir(c.Root)
+		if err != nil {
+			return "", err
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			candidate := filepath.Join(c.Root, entry.Name(), itemID)
+			if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+				source = candidate
+				break
+			}
+		}
+		if source == "" {
+			return "", fmt.Errorf("workshop item %s is not present in the local cache (%s)", itemID, c.Root)
+		}
 	}
 	target := filepath.Join(destinationRoot, appID, itemID)
 	if err := os.RemoveAll(target); err != nil {

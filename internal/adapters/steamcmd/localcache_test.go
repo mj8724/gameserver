@@ -3,6 +3,7 @@ package steamcmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -55,5 +56,26 @@ func TestLocalWorkshopCacheRejectsMissingAndInvalid(t *testing.T) {
 	// Non-numeric ids are rejected before touching the filesystem.
 	if _, err := (LocalWorkshopCache{Root: cache}).Stage("380870", "../etc", destination); err == nil {
 		t.Fatal("path traversal id must be rejected")
+	}
+}
+
+// The Steam client stores workshop content under the GAME app id, while a
+// dedicated-server install uses its own: the cache lookup must find the item
+// regardless of which app id directory holds it.
+func TestLocalWorkshopCacheFindsItemUnderAnotherAppID(t *testing.T) {
+	cache := t.TempDir()
+	// Cached under the game id (108600), requested under the server id (380870).
+	writeMod(t, filepath.Join(cache, "108600", "2169435993"), map[string]string{"mods/M/mod.info": "name=M\n"})
+	destination := filepath.Join(t.TempDir(), "out")
+
+	staged, err := LocalWorkshopCache{Root: cache}.Stage("380870", "2169435993", destination)
+	if err != nil {
+		t.Fatalf("Stage across app ids: %v", err)
+	}
+	if !strings.Contains(staged, "2169435993") {
+		t.Fatalf("unexpected staged path: %s", staged)
+	}
+	if _, err := os.Stat(filepath.Join(staged, "mods", "M", "mod.info")); err != nil {
+		t.Fatalf("staged content missing: %v", err)
 	}
 }
