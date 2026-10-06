@@ -69,3 +69,15 @@
 证据：`docs/acceptance/evidence/M3-residuals-live.md`（含直连 SteamCMD 原始输出）。
 
 **结论更新（最终）**：M3 离线行 **28 PASS / 0 FAIL / 0 BLOCKED / 0 NOT RUN**；实机核心项（10 轮启停、争锁、缺制品、配置改写、**5 小时长跑**、**A2S 查询**、**端口占用失败表达**、**就绪数值**）均有可复核证据（见 §6 与 `M3-residuals-live.md §8`）。workshop 下载在本项目"匿名且不存凭据"边界内不可达，属**外部平台约束 + 产品决策点 A/B**，其*行为*（不可下载成因、读取目录）已完整取证。
+
+## 7. 关于「真实 workshop 下载」的边界声明（2026-09-30）
+
+该项是 M3 唯一**未由实机下载成功**证明的能力，两次独立实测确立了其性质：
+
+1. 直连 SteamCMD（绕过服务）：`Connecting anonymously to Steam Public...OK` → `Downloading item 2169435993 ...` → `ERROR! Download item failed (Failure).` —— 命令与 argv 均正确，**Steam 拒绝匿名下载 Workshop 内容**；
+2. 游戏自身路径：INI 写入 `WorkshopItems=2169435993` 并运行服务端后，`Zomboid/mods` 无该内容、日志无 workshop 行 —— **PZ 不会自行拉取**；
+3. 本机 Steam 客户端无该 app 的 Workshop 缓存（`steamapps/workshop/content/380870` 不存在）—— 无可迁移的本地内容。
+
+**代码侧已完成且可测**：`+workshop_download_item` 正确发出（缺陷已修）、端点可达（白名单缺陷已修）、失败可观测（回传 SteamCMD 输出）、**可选的认证会话** `GAMESERVER_STEAM_LOGIN`/`_PASSWORD`（默认关闭、密码独立 argv 且日志脱敏，断言 `TestBuildArgsCredentialedLoginIsOptionalAndInert`、`TestProgressReaderRedactsConfiguredPassword`）。
+
+**因此该能力被记为「外部平台约束（已接受边界）」**：在出厂安全边界（匿名登录、不存储 Steam 凭据，ADR §1.7）下不可达；启用需产品决策（凭据管理，含存储/加密/轮换/审计与独立 ADR）。**不得作为"实现缺陷"或"未清偿缺陷"计**；其*行为*（拒绝成因、命令正确性、读取路径）已完整取证。
