@@ -79,3 +79,23 @@ func TestLocalWorkshopCacheFindsItemUnderAnotherAppID(t *testing.T) {
 		t.Fatalf("staged content missing: %v", err)
 	}
 }
+
+// A cache entry that already nests <appID>/<itemID> inside its own directory is
+// staged flat: the instance must end up with content/<appID>/<itemID>/mods/...,
+// otherwise the game cannot find the mod.
+func TestLocalWorkshopCacheFlattensNestedItem(t *testing.T) {
+	cache := t.TempDir()
+	writeMod(t, filepath.Join(cache, "108600", "2169435993", "380870", "2169435993"), map[string]string{"mods/ModOptions/mod.info": "name=ModOptions\n"})
+	destination := filepath.Join(t.TempDir(), "content", "380870")
+
+	staged, err := LocalWorkshopCache{Root: cache}.Stage("380870", "2169435993", destination)
+	if err != nil {
+		t.Fatalf("Stage nested item: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(staged, "mods", "ModOptions", "mod.info")); err != nil {
+		t.Fatalf("mod.info must sit directly under the staged item: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(staged, "380870")); err == nil {
+		t.Fatal("the nested copy must be flattened away")
+	}
+}

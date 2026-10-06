@@ -64,11 +64,19 @@ func (c LocalWorkshopCache) Stage(appID, itemID, destinationRoot string) (string
 			return "", fmt.Errorf("workshop item %s is not present in the local cache (%s)", itemID, c.Root)
 		}
 	}
+	// A cache entry may already be a nested copy (some tools stage
+	// <appID>/<itemID>/... inside the item directory). Locate the directory
+	// that actually holds mods/ or mod.info and stage THAT as the item root, so
+	// the instance always ends up with <content>/<appID>/<itemID>/mods/... .
+	itemRoot := locateModRoot(source)
+	if itemRoot == "" {
+		return "", fmt.Errorf("workshop item %s contains no mod.info in the local cache", itemID)
+	}
 	target := filepath.Join(destinationRoot, appID, itemID)
 	if err := os.RemoveAll(target); err != nil {
 		return "", err
 	}
-	if err := copyWorkshopTree(source, target); err != nil {
+	if err := copyWorkshopTree(itemRoot, target); err != nil {
 		return "", err
 	}
 	if !containsModInfo(target) {
@@ -76,6 +84,32 @@ func (c LocalWorkshopCache) Stage(appID, itemID, destinationRoot string) (string
 		return "", fmt.Errorf("staged workshop item %s contains no mod.info", itemID)
 	}
 	return filepath.ToSlash(target), nil
+}
+
+// locateModRoot returns the shallowest directory at or under root that contains
+// a mods/ directory, falling back to the shallowest directory holding a
+// mod.info. It returns "" when the item carries no mod content.
+func locateModRoot(root string) string {
+	if info, err := os.Stat(filepath.Join(root, "mods")); err == nil && info.IsDir() {
+		return root
+	}
+	if containsModInfo(filepath.Join(root, "mods")) {
+		return root
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return ""
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(root, entry.Name())
+		if nested := locateModRoot(candidate); nested != "" {
+			return nested
+		}
+	}
+	return ""
 }
 
 // copyWorkshopTree copies a directory tree with regular-file checks only.
