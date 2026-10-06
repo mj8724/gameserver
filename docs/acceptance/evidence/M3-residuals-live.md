@@ -247,3 +247,27 @@ T=120s mod_task={"status":"FAILED","message":"模组 2169435993 下载失败：w
 3. 旧证据中"未配置的下载不会触发"的担心被排除：任务确实发起并到达 SteamCMD。
 
 **仍未通过的最后一步**：用**操作者的客户端安装**直接启动专服（`launcher-descriptor` 向量指向客户端 `ProjectZomboid64.json`）时 `start` 返回 `服务器启动失败`（该 JSON 属游戏客户端形态，与服务端描述文件不同）；`SVC_TAIL` 无 `process start failed` 行，说明失败发生在**启动规格构建/描述文件校验**阶段而非进程创建阶段。需以**服务端安装**（`StartServer64.bat` + `ProjectZomboid64.json` 的服务端形态）复测，或把客户端 JSON 的差异登记为插件向量约束。
+
+## 10. 真实专服包上的完整闭环（2026-10-06，`gs-loop.sh`）
+
+**环境**：工作根被清空后重建（`G:\gs-work`）；SteamCMD 重新下载并完成自更新；PZ 专服包（app 380870，匿名）安装到 **`C:\gs-pz`**（`G:`/`F:` 均仅剩 4 GB 空间导致 `App state 0x202` 失败，`C:` 27 GB 可用 → **磁盘空间是安装失败的真实原因**）；实例 `server_files` 为真实专服包（`StartServer64.bat` + `ProjectZomboid64.json` + `jre64` 齐备）；配置根 `C:\Users\admin\Zomboid`。
+
+```
+IS_INSTALLED=true
+ADD_MOD={"message":"模组已登记（尚未下载）","mods":{"workshop_ids":["2169435993"]}}   # legacy 文案逐字不变
+MOD_TASK="mod_task":{"message":"模组 2169435993 下载失败：workshop item … did not land under C:\gs-pz\…"}  # 自动下载接线成立，止于 Steam 账号
+START={"message":"启动指令已执行","running":true}
+T=60s "ready":true "readiness":"ready"        # ★ 60 秒内就绪（launcher-descriptor + 专服包）
+PROCS=1 PORTS=2                               # 1 个 java 进程 + 16261/16262 监听
+MODS_DIR=default.txt reset-mods-42_00.txt     # PZ 读取路径 = Zomboid\mods（已确认存在并被游戏使用）
+STOP=200  AFTER_STOP_JAVA=0                   # 停止成功且无残留
+LOG_ERR=launcher descriptor rewrite: java/. -> java/ …   # 描述符向量确实生效
+```
+
+**本轮闭合的项**：
+1. **启动闭环（专服包）**：`launcher-descriptor` 向量在**真实服务端安装**上启动成功、**60 秒内 ready**、端口监听、停止后零残留；
+2. **PZ 读取路径**：`Zomboid\mods` 存在且被游戏使用（mods 列表可见）；
+3. **自动下载接线**：配置面加入 mod id → 任务发起（`DOWNLOADING`→终态）→ 失败原因如实回传；
+4. **安装失败根因排除**：先前 `App state 0x202` 是**磁盘空间不足**（G:/F: 各 4 GB），换 `C:` 后 `INSTALL_EXIT=0`。
+
+**仍未达成（外部约束，证据三次一致）**：Workshop 内容本体下载需已认证 Steam 账号；匿名被 Steam 以 `Failure` 拒绝（§2 直连 CLI、§6.3 游戏自身、§10 服务内自动下载三处一致），本机亦无 Workshop 缓存可迁移。使能通道（`GAMESERVER_STEAM_LOGIN/_PASSWORD`，脱敏、默认关闭）已实现并有断言。
