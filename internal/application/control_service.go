@@ -77,6 +77,19 @@ type ControlService struct {
 	backupRunning bool
 	lastBackup    autoBackupState
 	backupSettle  time.Duration
+	// modTask tracks the background install of workshop items that were added
+	// through the configuration surface: adding a mod id must configure and
+	// download it, not merely record it.
+	modTask modInstallTask
+	modMu   sync.Mutex
+}
+
+type modInstallTask struct {
+	running  bool
+	status   string
+	progress float64
+	message  string
+	pending  []string
 }
 
 type autoBackupState struct {
@@ -228,6 +241,9 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 	ready := s.ready
 	readiness := s.readiness
 	readinessTimeline := map[string]any{"state": readiness, "since": s.readinessAt}
+	s.modMu.Lock()
+	modTask := s.modTask
+	s.modMu.Unlock()
 	s.mu.Unlock()
 
 	return StatusResponse{
@@ -256,9 +272,12 @@ func (s *ControlService) Status(ctx context.Context) (StatusResponse, error) {
 		"ready":              ready,
 		"readiness":          readiness,
 		"readiness_timeline": readinessTimeline,
-		"game_query":         s.queryGame(ctx),
-		"capacity":           s.capacityStatus(ctx),
-		"pending_restart":    s.pendingRestart.Load(),
+		"mod_task": map[string]any{
+			"status": modTask.status, "progress": modTask.progress, "message": modTask.message,
+		},
+		"game_query":      s.queryGame(ctx),
+		"capacity":        s.capacityStatus(ctx),
+		"pending_restart": s.pendingRestart.Load(),
 	}, nil
 }
 
@@ -865,6 +884,7 @@ func (s *ControlService) AddMod(ctx context.Context, request AddModRequest) (Mod
 	if err := s.deps.States.Save(ctx, updated); err != nil {
 		return ModsResult{}, WrapError(CodeOperationFailed, "保存模组失败", err)
 	}
+	s.scheduleModDownload([]string{request.WorkshopID})
 	return ModsResult{Message: "模组已登记（尚未下载）", Mods: mods}, nil
 }
 
@@ -1175,4 +1195,59 @@ func (s *ControlService) capacityStatus(ctx context.Context) map[string]any {
 		result["soft_percent"] = status.SoftPercent
 	}
 	return result
+}
+
+// ScheduleModDownload lets the composition root trigger the automatic install
+// after a configuration write that changed the workshop item list.
+func (s *ControlService) ScheduleModDownload(ids []string) { s.scheduleModDownload(ids) }
+
+// scheduleModDownload installs workshop items in the background through the
+// shared single in-flight gate; failures are recorded, never fatal.
+func (s *ControlService) scheduleModDownload(ids []string) {
+	if s.deps.Workshop == nil || len(ids) == 0 {
+		return
+	}
+	s.modMu.Lock()
+	if s.modTask.running {
+		s.modTask.pending = append(s.modTask.pending, ids...)
+		s.modMu.Unlock()
+		return
+	}
+	s.modTask = modInstallTask{running: true, status: "DOWNLOADING", message: "准备下载模组"}
+	s.modMu.Unlock()
+	go func(queue []string) {
+		for _, id := range queue {
+			s.modMu.Lock()
+			s.modTask.message = "正在下载模组 " + id
+			s.modMu.Unlock()
+			_, err := s.deps.Workshop.DownloadWorkshopItem(context.Background(), s.deps.Instance, id, func(progress ports.Progress) {
+				s.modMu.Lock()
+				if progress.Percent >= 0 {
+					s.modTask.progress = progress.Percent
+				}
+				if progress.Message != "" {
+					s.modTask.message = progress.Message
+				}
+				s.modMu.Unlock()
+			})
+			s.modMu.Lock()
+			if err != nil {
+				s.modTask.status = "FAILED"
+				s.modTask.message = "模组 " + id + " 下载失败：" + err.Error()
+			} else {
+				s.modTask.status = "COMPLETED"
+				s.modTask.progress = 100
+				s.modTask.message = "模组 " + id + " 已下载"
+			}
+			s.modMu.Unlock()
+		}
+		s.modMu.Lock()
+		pending := s.modTask.pending
+		s.modTask.pending = nil
+		s.modTask.running = false
+		s.modMu.Unlock()
+		if len(pending) > 0 {
+			s.scheduleModDownload(pending)
+		}
+	}(append([]string(nil), ids...))
 }

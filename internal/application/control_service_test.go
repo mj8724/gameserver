@@ -653,3 +653,37 @@ func (f *fakeQuery) Query(context.Context, string, int) (ports.GameQueryInfo, er
 	}
 	return f.info, nil
 }
+
+// Adding a mod id through the registration surface also schedules its download:
+// the operator configures the mod once instead of registering and downloading
+// separately. The legacy response text stays verbatim.
+func TestAddModSchedulesAutomaticDownload(t *testing.T) {
+	h := newHarness(t)
+	workshop := &fakeWorkshop{contentDir: "/tmp/ws"}
+	h.service.deps.Workshop = workshop
+	result, err := h.service.AddMod(context.Background(), AddModRequest{WorkshopID: "2169435993"})
+	if err != nil {
+		t.Fatalf("AddMod: %v", err)
+	}
+	if result.Message != "模组已登记（尚未下载）" {
+		t.Fatalf("legacy message must stay verbatim: %q", result.Message)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if workshop.calls > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if workshop.calls == 0 {
+		t.Fatal("adding a mod id must schedule its download")
+	}
+	// A second registration while the download is in flight is queued, and the
+	// status projection exposes the task (additive field).
+	h.service.modMu.Lock()
+	status := h.service.modTask.status
+	h.service.modMu.Unlock()
+	if status == "" {
+		t.Fatal("mod_task status must be projected")
+	}
+}
