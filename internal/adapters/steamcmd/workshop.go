@@ -61,7 +61,9 @@ func (r *Runner) DownloadWorkshopItem(ctx context.Context, instance domain.Insta
 	// back to the operator's Steam client cache when one is configured: the
 	// content is already on disk, and copying it keeps the anonymous boundary.
 	if r.config.LocalCache.Enabled() {
-		staged, stageErr := r.config.LocalCache.Stage(r.config.AppID, workshopID, contentDir)
+		// Stage appends <appID>/<itemID> itself, so hand it the content root.
+		contentRoot := filepath.Join(installDir, "steamapps", "workshop", "content")
+		staged, stageErr := r.config.LocalCache.Stage(r.config.AppID, workshopID, contentRoot)
 		if stageErr == nil {
 			return staged, nil
 		}
