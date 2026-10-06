@@ -223,3 +223,27 @@ CMD=G:\soft\steam\steamapps\common\ProjectZomboid\jre64\bin\java -Xms9216m -Xmx9
 - 之前批次里 `PRE_KILL_JAVA=1 / POST_KILL_JAVA=1` 不是"杀不掉"，而是**根本没执行到位**；
 - 这也意味着我们**从未误杀**操作者的游戏客户端（幸运且正确）；
 - 后续进程终止类操作应使用 `MSYS_NO_PATHCONV=1 taskkill //F //IM ...` 或 `cmd /c "taskkill /F /IM ..."`，并在证据中记录该前缀。
+
+## 9. 自动下载实机验证（2026-10-06，使用操作者 Steam 版 PZ 安装）
+
+**环境**：工作根被清空后重建（`G:\gs-work`：Go 1.27.1 + 仓库 + 构建 OK）；实例 `server_files` 经 **junction 指向操作者的 Steam 安装** `G:\soft\steam\steamapps\common\ProjectZomboid`（`ProjectZomboid64.json` 存在、无 `StartServer64.bat`，即客户端形态）；配置根 `C:\Users\admin\Zomboid`（其 `servertest.ini` 18,974 字节，实测可读）。
+
+**实测链路（提交 `15682ec`）**：
+
+```
+INSTALL_FILES=bink2w64.dll bink64.dll fmod.dll … jnidispatch.dll   # 通过 junction 用上操作者安装
+HAS_DESCRIPTOR=yes HAS_BAT=no
+IS_INSTALLED=true                                                  # 安装检测经插件标记通过
+ADD_MOD={"message":"模组已登记（尚未下载）","mods":{"workshop_ids":["2169435993"]}}   # legacy 文案逐字不变
+T=10s  mod_task={"status":"DOWNLOADING","progress":0,"message":"正在下载模组 2169435993"}
+T=30s  DOWNLOADING
+T=60s  DOWNLOADING
+T=120s mod_task={"status":"FAILED","message":"模组 2169435993 下载失败：workshop item … did not land under G:\gs-work\data\servers\pz_01\server_files\steamapps\workshop\…"}
+```
+
+**结论（本轮新增的真实证据）**：
+1. **「配置里加入 mod id → 自动下载」的接线在实机成立**：登记后自动调度、任务状态可见（`DOWNLOADING` → 终态）、失败原因原样回传；
+2. 下载本体仍停在 Steam 账号要求（与 §2 的直连 SteamCMD `Failure` 一致）——失败原因由服务如实暴露，不是静默失败；
+3. 旧证据中"未配置的下载不会触发"的担心被排除：任务确实发起并到达 SteamCMD。
+
+**仍未通过的最后一步**：用**操作者的客户端安装**直接启动专服（`launcher-descriptor` 向量指向客户端 `ProjectZomboid64.json`）时 `start` 返回 `服务器启动失败`（该 JSON 属游戏客户端形态，与服务端描述文件不同）；`SVC_TAIL` 无 `process start failed` 行，说明失败发生在**启动规格构建/描述文件校验**阶段而非进程创建阶段。需以**服务端安装**（`StartServer64.bat` + `ProjectZomboid64.json` 的服务端形态）复测，或把客户端 JSON 的差异登记为插件向量约束。
