@@ -1,0 +1,42 @@
+# Project Zomboid Dedicated Server (app 380870) — steamcmd app_info_print 摘录
+# 采集：2026-09-29（UTC 见下），主机 DESKTOP-9M8FOG7，命令 steamcmd.exe +login anonymous +app_info_print 380870 +quit
+# 完整输出 SHA-256: aa0361c82414c8e3859d3a9806449a965772c464cf1fc38c946299c69d8564c8（298 行；本文件为 branches 段摘录，逐字保留）
+
+		"branches"
+		{
+			"public"
+			{
+				"buildid"		"25485538"
+				"timeupdated"		"1790597203"
+				"timebuildupdated"		"1790178504"
+			}
+			"unstable"
+			{
+				"buildid"		"25485538"
+				"description"		"Unstable"
+				"timeupdated"		"1790178694"
+				"timebuildupdated"		"1790178504"
+			}
+			"legacy41"
+			{
+				"buildid"		"24928750"
+				"description"		"Build 41.78.21"
+				"timeupdated"		"1787742984"
+				"timebuildupdated"		"1787663215"
+			}
+			"42.19"
+			{
+				"buildid"		"24929695"
+				"description"		"Build 42.19.2"
+				"timeupdated"		"1787742952"
+				"timebuildupdated"		"1787665995"
+			}
+		}
+		"privatebranches"		"1"
+	}
+}
+Unloading Steam API...OK
+Redirecting stderr to 'G:\steamcmd\logs\stderr.txt'
+Logging directory: 'G:\steamcmd/logs'
+[  0%] 正在检查可用更新...
+[----] 正在验证安装...

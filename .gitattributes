@@ -1,0 +1,18 @@
+# Keep sources LF on every platform: gofmt and the CI gate compare against LF.
+# Without this, a Windows checkout with core.autocrlf=true rewrites every Go file
+# to CRLF and `gofmt -l cmd internal` reports the whole tree as unformatted.
+* text=auto
+*.go text eol=lf
+*.sh text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets must never be normalised.
+*.png binary
+*.jpg binary
+*.ico binary
+*.db binary

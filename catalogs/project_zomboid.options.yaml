@@ -1,0 +1,4174 @@
+# 由 tools/pzoptions 从厂商配置生成，请勿手改。
+# 生成命令: go run ./tools/pzoptions -ini <servertest.ini> -sandbox <servertest_SandboxVars.lua> -template project_zomboid -build 42.21 -out catalogs/project_zomboid.options.yaml
+schema_version: "1.0"
+template_id: "project_zomboid"
+source:
+  build_id: "42.21"
+  extracted_at: "2026-09-29T07:13:00Z"
+  files:
+    - path: "servertest.ini"
+      sha256: "cf8c8dd5fa609ecce4e7fa5a34539658e3681940c284a59652415f0598b6a934"
+    - path: "servertest_SandboxVars.lua"
+      sha256: "55a04f4eb34e4bcee4c403aa0e0219e850fb56aea153c8df0d6c477d1723ec6b"
+  command: "cmd.exe /c StartServer64.bat \"-cachedir=...\" \"-servername=servertest\"; see extraction record"
+options:
+  - target: "ini"
+    key: "AdminSafehouse"
+    label: "AdminSafehouse"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "access"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AllowCoop"
+    label: "AllowCoop"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AllowDestructionBySledgehammer"
+    label: "AllowDestructionBySledgehammer"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AllowNonAsciiUsername"
+    label: "AllowNonAsciiUsername"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AnnounceAnimalDeath"
+    label: "AnnounceAnimalDeath"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AnnounceDeath"
+    label: "AnnounceDeath"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatChecksum"
+    label: "AntiCheatChecksum"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatHit"
+    label: "AntiCheatHit"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatNoClip"
+    label: "AntiCheatNoClip"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatPacketException"
+    label: "AntiCheatPacketException"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatPermission"
+    label: "AntiCheatPermission"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatPlayer"
+    label: "AntiCheatPlayer"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatSafeHouse"
+    label: "AntiCheatSafeHouse"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatSafety"
+    label: "AntiCheatSafety"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatSpeed"
+    label: "AntiCheatSpeed"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "AntiCheatXP"
+    label: "AntiCheatXP"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BackupsCount"
+    label: "BackupsCount"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BackupsOnStart"
+    label: "BackupsOnStart"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BackupsOnVersionChange"
+    label: "BackupsOnVersionChange"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BackupsPeriod"
+    label: "BackupsPeriod"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BadWordListFile"
+    label: "BadWordListFile"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BadWordPolicy"
+    label: "BadWordPolicy"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BadWordReplacement"
+    label: "BadWordReplacement"
+    type: "string"
+    secret: false
+    default: "[HIDDEN]"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BanKickGlobalSound"
+    label: "BanKickGlobalSound"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "BloodSplatLifespanDays"
+    label: "BloodSplatLifespanDays"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "CarEngineAttractionModifier"
+    label: "CarEngineAttractionModifier"
+    type: "float"
+    secret: false
+    default: "0.5"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ChatMessageCharacterLimit"
+    label: "ChatMessageCharacterLimit"
+    type: "int"
+    secret: false
+    default: "200"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ChatMessageSlowModeTime"
+    label: "ChatMessageSlowModeTime"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ChatStreams"
+    label: "ChatStreams"
+    type: "string"
+    secret: false
+    default: "s,r,a,w,y,sh,f,all"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ClientActionLogs"
+    label: "ClientActionLogs"
+    type: "string"
+    secret: false
+    default: "ISEnterVehicle;ISExitVehicle;ISTakeEngineParts;"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ClientCommandFilter"
+    label: "ClientCommandFilter"
+    type: "string"
+    secret: false
+    default: "-vehicle.*;+vehicle.damageWindow;+vehicle.fixPart;+vehicle.installPart;+vehicle.uninstallPart"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DefaultPort"
+    label: "DefaultPort"
+    type: "int"
+    secret: false
+    default: "16261"
+    group: "network"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "DenyLoginOnOverloadedServer"
+    label: "DenyLoginOnOverloadedServer"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableBurntTowing"
+    label: "DisableBurntTowing"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableRadioAdmin"
+    label: "DisableRadioAdmin"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "access"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableRadioGM"
+    label: "DisableRadioGM"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableRadioInvisible"
+    label: "DisableRadioInvisible"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableRadioModerator"
+    label: "DisableRadioModerator"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableRadioOverseer"
+    label: "DisableRadioOverseer"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableRadioStaff"
+    label: "DisableRadioStaff"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableSafehouseWhenOwnerConnected"
+    label: "DisableSafehouseWhenOwnerConnected"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableScoreboard"
+    label: "DisableScoreboard"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableTrailerTowing"
+    label: "DisableTrailerTowing"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisableVehicleTowing"
+    label: "DisableVehicleTowing"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DiscordChatChannel"
+    label: "DiscordChatChannel"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DiscordCommandChannel"
+    label: "DiscordCommandChannel"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DiscordEnable"
+    label: "DiscordEnable"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DiscordLogChannel"
+    label: "DiscordLogChannel"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DiscordToken"
+    label: "DiscordToken"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DisplayUserName"
+    label: "DisplayUserName"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DoLuaChecksum"
+    label: "DoLuaChecksum"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "DropOffWhiteListAfterDeath"
+    label: "DropOffWhiteListAfterDeath"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Faction"
+    label: "Faction"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "FactionDaySurvivedToCreate"
+    label: "FactionDaySurvivedToCreate"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "FactionPlayersRequiredForTag"
+    label: "FactionPlayersRequiredForTag"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "FastForwardMultiplier"
+    label: "FastForwardMultiplier"
+    type: "float"
+    secret: false
+    default: "40.0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "GlobalChat"
+    label: "GlobalChat"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "GoodWordListFile"
+    label: "GoodWordListFile"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "HideAdminsInPlayerList"
+    label: "HideAdminsInPlayerList"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "access"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "HideDisguisedUserName"
+    label: "HideDisguisedUserName"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "HidePlayersBehindYou"
+    label: "HidePlayersBehindYou"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ItemNumbersLimitPerContainer"
+    label: "ItemNumbersLimitPerContainer"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "KnockedDownAllowed"
+    label: "KnockedDownAllowed"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "LoginQueueConnectTimeout"
+    label: "LoginQueueConnectTimeout"
+    type: "int"
+    secret: false
+    default: "60"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "LoginQueueEnabled"
+    label: "LoginQueueEnabled"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Map"
+    label: "Map"
+    type: "string"
+    secret: false
+    default: "Muldraugh, KY"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "MapRemotePlayerVisibility"
+    label: "MapRemotePlayerVisibility"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "MaxAccountsPerUser"
+    label: "MaxAccountsPerUser"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "MaxPacketsPerSecond"
+    label: "MaxPacketsPerSecond"
+    type: "int"
+    secret: false
+    default: "300"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "MaxPlayers"
+    label: "MaxPlayers"
+    type: "int"
+    secret: false
+    default: "32"
+    group: "players"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "MaxSafezoneSize"
+    label: "MaxSafezoneSize"
+    type: "int"
+    secret: false
+    default: "20000"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Mods"
+    label: "Mods"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "MouseOverToSeeDisplayName"
+    label: "MouseOverToSeeDisplayName"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "MultiplayerStatisticsPeriod"
+    label: "MultiplayerStatisticsPeriod"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "NoFire"
+    label: "NoFire"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Open"
+    label: "Open"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "PVP"
+    label: "PVP"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "PVPFirearmDamageModifier"
+    label: "PVPFirearmDamageModifier"
+    type: "float"
+    secret: false
+    default: "50.0"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PVPLogToolChat"
+    label: "PVPLogToolChat"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PVPLogToolFile"
+    label: "PVPLogToolFile"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PVPMeleeDamageModifier"
+    label: "PVPMeleeDamageModifier"
+    type: "float"
+    secret: false
+    default: "30.0"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PVPMeleeWhileHitReaction"
+    label: "PVPMeleeWhileHitReaction"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Password"
+    label: "Password"
+    type: "string"
+    secret: true
+    default: ""
+    group: "access"
+    requires_restart: true
+    writable: "ro"
+    clearable: false
+  - target: "ini"
+    key: "PauseEmpty"
+    label: "PauseEmpty"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "PerkLogs"
+    label: "PerkLogs"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PingLimit"
+    label: "PingLimit"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PlayerBumpPlayer"
+    label: "PlayerBumpPlayer"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PlayerRespawnWithOther"
+    label: "PlayerRespawnWithOther"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PlayerRespawnWithSelf"
+    label: "PlayerRespawnWithSelf"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PlayerSafehouse"
+    label: "PlayerSafehouse"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Public"
+    label: "Public"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "PublicDescription"
+    label: "PublicDescription"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "PublicName"
+    label: "PublicName"
+    type: "string"
+    secret: false
+    default: "My PZ Server"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "RCONPassword"
+    label: "RCONPassword"
+    type: "string"
+    secret: true
+    default: ""
+    group: "access"
+    requires_restart: true
+    writable: "rw"
+    clearable: false
+  - target: "ini"
+    key: "RCONPort"
+    label: "RCONPort"
+    type: "int"
+    secret: false
+    default: "27015"
+    group: "network"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "RemovePlayerCorpsesOnCorpseRemoval"
+    label: "RemovePlayerCorpsesOnCorpseRemoval"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ResetID"
+    label: "ResetID"
+    type: "int"
+    secret: false
+    default: "5182239"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafeHouseRemovalTime"
+    label: "SafeHouseRemovalTime"
+    type: "int"
+    secret: false
+    default: "144"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseAllowFire"
+    label: "SafehouseAllowFire"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseAllowLoot"
+    label: "SafehouseAllowLoot"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseAllowNonResidential"
+    label: "SafehouseAllowNonResidential"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseAllowRespawn"
+    label: "SafehouseAllowRespawn"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseAllowTrepass"
+    label: "SafehouseAllowTrepass"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseDaySurvivedToClaim"
+    label: "SafehouseDaySurvivedToClaim"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehouseDisableDisguises"
+    label: "SafehouseDisableDisguises"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafehousePreventsLootRespawn"
+    label: "SafehousePreventsLootRespawn"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafetyCooldownTimer"
+    label: "SafetyCooldownTimer"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafetyDisconnectDelay"
+    label: "SafetyDisconnectDelay"
+    type: "int"
+    secret: false
+    default: "60"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafetySystem"
+    label: "SafetySystem"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SafetyToggleTimer"
+    label: "SafetyToggleTimer"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SaveWorldEveryMinutes"
+    label: "SaveWorldEveryMinutes"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Seed"
+    label: "Seed"
+    type: "string"
+    secret: false
+    default: "KnvMJdqBOHwSYOjQ"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ServerPlayerID"
+    label: "ServerPlayerID"
+    type: "int"
+    secret: false
+    default: "1783056672"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ServerWelcomeMessage"
+    label: "ServerWelcomeMessage"
+    type: "string"
+    secret: false
+    default: "Welcome to Project Zomboid Multiplayer! <LINE> <LINE> To interact with the Chat panel: press Tab, T, or Enter. <LINE> <LINE> The Tab key will change the target stream of the message. <LINE> <LINE> Global Streams: /all <LINE> Local Streams: /say, /yell <LINE> Special Steams: /whisper, /safehouse, /faction. <LINE> <LINE> Press the Up arrow to cycle through your message history. Click the Gear icon to customize chat. <LINE> <LINE> Happy surviving!"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ShowCoordinates"
+    label: "ShowCoordinates"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ShowFirstAndLastName"
+    label: "ShowFirstAndLastName"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "ShowSafety"
+    label: "ShowSafety"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SledgehammerOnlyInSafehouse"
+    label: "SledgehammerOnlyInSafehouse"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SleepAllowed"
+    label: "SleepAllowed"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SleepNeeded"
+    label: "SleepNeeded"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SneakModeHideFromOtherPlayers"
+    label: "SneakModeHideFromOtherPlayers"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "players"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SpawnItems"
+    label: "SpawnItems"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SpawnPoint"
+    label: "SpawnPoint"
+    type: "string"
+    secret: false
+    default: "0,0,0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SpeedLimit"
+    label: "SpeedLimit"
+    type: "float"
+    secret: false
+    default: "70.0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SteamScoreboard"
+    label: "SteamScoreboard"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "network"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SteamVAC"
+    label: "SteamVAC"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "network"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "SwitchZombiesOwnershipEachUpdate"
+    label: "SwitchZombiesOwnershipEachUpdate"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "TrashDeleteAll"
+    label: "TrashDeleteAll"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "UDPPort"
+    label: "UDPPort"
+    type: "int"
+    secret: false
+    default: "16262"
+    group: "network"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "UPnP"
+    label: "UPnP"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "UltraSpeedDoesnotAffectToAnimals"
+    label: "UltraSpeedDoesnotAffectToAnimals"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "UsePhysicsHitReaction"
+    label: "UsePhysicsHitReaction"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "UsernameDisguises"
+    label: "UsernameDisguises"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "Voice3D"
+    label: "Voice3D"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "VoiceEnable"
+    label: "VoiceEnable"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "VoiceMaxDistance"
+    label: "VoiceMaxDistance"
+    type: "float"
+    secret: false
+    default: "100.0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "VoiceMinDistance"
+    label: "VoiceMinDistance"
+    type: "float"
+    secret: false
+    default: "10.0"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "War"
+    label: "War"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "WarDuration"
+    label: "WarDuration"
+    type: "int"
+    secret: false
+    default: "3600"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "WarSafehouseHitPoints"
+    label: "WarSafehouseHitPoints"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "WarStartDelay"
+    label: "WarStartDelay"
+    type: "int"
+    secret: false
+    default: "600"
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "WebhookAddress"
+    label: "WebhookAddress"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "ini"
+    key: "WorkshopItems"
+    label: "WorkshopItems"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "ro"
+    clearable: true
+  - target: "ini"
+    key: "server_browser_announced_ip"
+    label: "server_browser_announced_ip"
+    type: "string"
+    secret: false
+    default: ""
+    group: "server"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AbundantLootFactor"
+    label: "AbundantLootFactor"
+    type: "float"
+    secret: false
+    default: "3.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ActiveOnly"
+    label: "ActiveOnly"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Aiming"
+    label: "Aiming"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Alarm"
+    label: "Alarm"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AlarmDecay"
+    label: "AlarmDecay"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AlarmDecayModifier"
+    label: "AlarmDecayModifier"
+    type: "int"
+    secret: false
+    default: "14"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AllClothesUnlocked"
+    label: "AllClothesUnlocked"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AllowExteriorGenerator"
+    label: "AllowExteriorGenerator"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AllowMiniMap"
+    label: "AllowMiniMap"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AllowWorldMap"
+    label: "AllowWorldMap"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AmmoLootNew"
+    label: "AmmoLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalAgeModifier"
+    label: "AnimalAgeModifier"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalEggHatch"
+    label: "AnimalEggHatch"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalGrassRegrowTime"
+    label: "AnimalGrassRegrowTime"
+    type: "int"
+    secret: false
+    default: "240"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalMatingSeason"
+    label: "AnimalMatingSeason"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalMetaPredator"
+    label: "AnimalMetaPredator"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalMetaStatsModifier"
+    label: "AnimalMetaStatsModifier"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalMilkIncModifier"
+    label: "AnimalMilkIncModifier"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalPathChance"
+    label: "AnimalPathChance"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalPregnancyTime"
+    label: "AnimalPregnancyTime"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalRanchChance"
+    label: "AnimalRanchChance"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalSoundAttractZombies"
+    label: "AnimalSoundAttractZombies"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalStatsModifier"
+    label: "AnimalStatsModifier"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalTrackChance"
+    label: "AnimalTrackChance"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnimalWoolIncModifier"
+    label: "AnimalWoolIncModifier"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AnnotatedMapChance"
+    label: "AnnotatedMapChance"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "AttackBlockMovements"
+    label: "AttackBlockMovements"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Axe"
+    label: "Axe"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Basement"
+    label: "Basement"
+    type: "string"
+    secret: false
+    default: "{"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Blacksmith"
+    label: "Blacksmith"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "BloodLevel"
+    label: "BloodLevel"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "BloodSplatLifespanDays"
+    label: "BloodSplatLifespanDays"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Blunt"
+    label: "Blunt"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "BoneFracture"
+    label: "BoneFracture"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Butchering"
+    label: "Butchering"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CannedFoodLootNew"
+    label: "CannedFoodLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CarAlarm"
+    label: "CarAlarm"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CarDamageOnImpact"
+    label: "CarDamageOnImpact"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CarGasConsumption"
+    label: "CarGasConsumption"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CarGeneralCondition"
+    label: "CarGeneralCondition"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CarSpawnRate"
+    label: "CarSpawnRate"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Carving"
+    label: "Carving"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ChanceHasGas"
+    label: "ChanceHasGas"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ChanceOfAttachedWeapon"
+    label: "ChanceOfAttachedWeapon"
+    type: "int"
+    secret: false
+    default: "6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CharacterFreePoints"
+    label: "CharacterFreePoints"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ClayLakeChance"
+    label: "ClayLakeChance"
+    type: "float"
+    secret: false
+    default: "0.05"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ClayRiverChance"
+    label: "ClayRiverChance"
+    type: "float"
+    secret: false
+    default: "0.05"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ClimateCycle"
+    label: "ClimateCycle"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ClothingDegradation"
+    label: "ClothingDegradation"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ClothingLootNew"
+    label: "ClothingLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Cognition"
+    label: "Cognition"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CommonLootFactor"
+    label: "CommonLootFactor"
+    type: "float"
+    secret: false
+    default: "2.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CompostTime"
+    label: "CompostTime"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ConstructionBonusPoints"
+    label: "ConstructionBonusPoints"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ConstructionPreventsLootRespawn"
+    label: "ConstructionPreventsLootRespawn"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ContainerLootNew"
+    label: "ContainerLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Cooking"
+    label: "Cooking"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CookwareLootNew"
+    label: "CookwareLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "CrawlUnderVehicle"
+    label: "CrawlUnderVehicle"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DamageToPlayerFromHitByACar"
+    label: "DamageToPlayerFromHitByACar"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DayLength"
+    label: "DayLength"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DayNightCycle"
+    label: "DayNightCycle"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DaysForRottenFoodRemoval"
+    label: "DaysForRottenFoodRemoval"
+    type: "int"
+    secret: false
+    default: "-1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DaysUntilMaximumDiminishedLoot"
+    label: "DaysUntilMaximumDiminishedLoot"
+    type: "int"
+    secret: false
+    default: "3650"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DaysUntilMaximumLooted"
+    label: "DaysUntilMaximumLooted"
+    type: "int"
+    secret: false
+    default: "90"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DaysUntilMaximumRatIndex"
+    label: "DaysUntilMaximumRatIndex"
+    type: "int"
+    secret: false
+    default: "90"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DecayingCorpseHealthImpact"
+    label: "DecayingCorpseHealthImpact"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DisableFakeDead"
+    label: "DisableFakeDead"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DiscomfortFactor"
+    label: "DiscomfortFactor"
+    type: "float"
+    secret: false
+    default: "0.8"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Distribution"
+    label: "Distribution"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Doctor"
+    label: "Doctor"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "DoorOpeningPercentage"
+    label: "DoorOpeningPercentage"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "EasyClimbing"
+    label: "EasyClimbing"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ElecShut"
+    label: "ElecShut"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ElecShutModifier"
+    label: "ElecShutModifier"
+    type: "int"
+    secret: false
+    default: "14"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Electricity"
+    label: "Electricity"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "EnablePoisoning"
+    label: "EnablePoisoning"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "EnableSnowOnGround"
+    label: "EnableSnowOnGround"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "EnableTaintedWaterText"
+    label: "EnableTaintedWaterText"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "EnableVehicles"
+    label: "EnableVehicles"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "EndRegen"
+    label: "EndRegen"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ErosionDays"
+    label: "ErosionDays"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ErosionSpeed"
+    label: "ErosionSpeed"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ExtremeLootFactor"
+    label: "ExtremeLootFactor"
+    type: "float"
+    secret: false
+    default: "0.2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Farming"
+    label: "Farming"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FarmingAmountNew"
+    label: "FarmingAmountNew"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FarmingLootNew"
+    label: "FarmingLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FarmingSpeedNew"
+    label: "FarmingSpeedNew"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FenceDamageMultiplier"
+    label: "FenceDamageMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FenceThumpersRequired"
+    label: "FenceThumpersRequired"
+    type: "int"
+    secret: false
+    default: "25"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FireSpread"
+    label: "FireSpread"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FirearmHeadGearEffect"
+    label: "FirearmHeadGearEffect"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FirearmJamMultiplier"
+    label: "FirearmJamMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FirearmMoodleMultiplier"
+    label: "FirearmMoodleMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FirearmNoiseMultiplier"
+    label: "FirearmNoiseMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FirearmUseDamageChance"
+    label: "FirearmUseDamageChance"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FirearmWeatherMultiplier"
+    label: "FirearmWeatherMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FishAbundance"
+    label: "FishAbundance"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Fishing"
+    label: "Fishing"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Fitness"
+    label: "Fitness"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FlintKnapping"
+    label: "FlintKnapping"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FogCycle"
+    label: "FogCycle"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FollowSoundDistance"
+    label: "FollowSoundDistance"
+    type: "int"
+    secret: false
+    default: "100"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FoodLootNew"
+    label: "FoodLootNew"
+    type: "float"
+    secret: false
+    default: "0.8"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FoodRotSpeed"
+    label: "FoodRotSpeed"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FridgeFactor"
+    label: "FridgeFactor"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FuelStationGasEmptyChance"
+    label: "FuelStationGasEmptyChance"
+    type: "int"
+    secret: false
+    default: "20"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FuelStationGasInfinite"
+    label: "FuelStationGasInfinite"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FuelStationGasMax"
+    label: "FuelStationGasMax"
+    type: "float"
+    secret: false
+    default: "0.8"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "FuelStationGasMin"
+    label: "FuelStationGasMin"
+    type: "float"
+    secret: false
+    default: "0.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "GeneratorFuelConsumption"
+    label: "GeneratorFuelConsumption"
+    type: "float"
+    secret: false
+    default: "0.1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "GeneratorSpawning"
+    label: "GeneratorSpawning"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "GeneratorTileRange"
+    label: "GeneratorTileRange"
+    type: "int"
+    secret: false
+    default: "20"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "GeneratorVerticalPowerRange"
+    label: "GeneratorVerticalPowerRange"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Glassmaking"
+    label: "Glassmaking"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Global"
+    label: "Global"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "GlobalToggle"
+    label: "GlobalToggle"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Hearing"
+    label: "Hearing"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Helicopter"
+    label: "Helicopter"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "HoursForCorpseRemoval"
+    label: "HoursForCorpseRemoval"
+    type: "float"
+    secret: false
+    default: "216.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "HoursForLootRespawn"
+    label: "HoursForLootRespawn"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "HoursForWorldItemRemoval"
+    label: "HoursForWorldItemRemoval"
+    type: "float"
+    secret: false
+    default: "24.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Husbandry"
+    label: "Husbandry"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "InitialGas"
+    label: "InitialGas"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "InjurySeverity"
+    label: "InjurySeverity"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "InsaneLootFactor"
+    label: "InsaneLootFactor"
+    type: "float"
+    secret: false
+    default: "0.05"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ItemRemovalListBlacklistToggle"
+    label: "ItemRemovalListBlacklistToggle"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "KeyLootNew"
+    label: "KeyLootNew"
+    type: "float"
+    secret: false
+    default: "0.4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "KillInsideCrops"
+    label: "KillInsideCrops"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LevelForDismantleXPCutoff"
+    label: "LevelForDismantleXPCutoff"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LevelForMediaXPCutoff"
+    label: "LevelForMediaXPCutoff"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LightBulbLifespan"
+    label: "LightBulbLifespan"
+    type: "float"
+    secret: false
+    default: "2.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Lightfoot"
+    label: "Lightfoot"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LiteratureCooldown"
+    label: "LiteratureCooldown"
+    type: "int"
+    secret: false
+    default: "45"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LiteratureLootNew"
+    label: "LiteratureLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LockedCar"
+    label: "LockedCar"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LockedHouses"
+    label: "LockedHouses"
+    type: "int"
+    secret: false
+    default: "6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LongBlade"
+    label: "LongBlade"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "LootItemRemovalList"
+    label: "LootItemRemovalList"
+    type: "string"
+    secret: false
+    default: ""
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaggotSpawn"
+    label: "MaggotSpawn"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Maintenance"
+    label: "Maintenance"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Map"
+    label: "Map"
+    type: "string"
+    secret: false
+    default: "{"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MapAllKnown"
+    label: "MapAllKnown"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MapNeedsLight"
+    label: "MapNeedsLight"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Masonry"
+    label: "Masonry"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaterialLootNew"
+    label: "MaterialLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaxFogIntensity"
+    label: "MaxFogIntensity"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaxItemsForLootRespawn"
+    label: "MaxItemsForLootRespawn"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaxRainFxIntensity"
+    label: "MaxRainFxIntensity"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaximumDiminishedLoot"
+    label: "MaximumDiminishedLoot"
+    type: "int"
+    secret: false
+    default: "20"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaximumFireFuelHours"
+    label: "MaximumFireFuelHours"
+    type: "int"
+    secret: false
+    default: "8"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaximumLooted"
+    label: "MaximumLooted"
+    type: "int"
+    secret: false
+    default: "25"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaximumLootedBuildingRooms"
+    label: "MaximumLootedBuildingRooms"
+    type: "int"
+    secret: false
+    default: "50"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MaximumRatIndex"
+    label: "MaximumRatIndex"
+    type: "int"
+    secret: false
+    default: "25"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Mechanics"
+    label: "Mechanics"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MechanicsLootNew"
+    label: "MechanicsLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MediaLootNew"
+    label: "MediaLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MedicalLootNew"
+    label: "MedicalLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MementoLootNew"
+    label: "MementoLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Memory"
+    label: "Memory"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MetaEvent"
+    label: "MetaEvent"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MetaKnowledge"
+    label: "MetaKnowledge"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MetalWelding"
+    label: "MetalWelding"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MinutesPerPage"
+    label: "MinutesPerPage"
+    type: "float"
+    secret: false
+    default: "2.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Mortality"
+    label: "Mortality"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MultiHitZombies"
+    label: "MultiHitZombies"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MultiplierConfig"
+    label: "MultiplierConfig"
+    type: "string"
+    secret: false
+    default: "{"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "MuscleStrainFactor"
+    label: "MuscleStrainFactor"
+    type: "float"
+    secret: false
+    default: "0.7"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "NatureAbundance"
+    label: "NatureAbundance"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "NegativeTraitsPenalty"
+    label: "NegativeTraitsPenalty"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "NightDarkness"
+    label: "NightDarkness"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "NightLength"
+    label: "NightLength"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Nimble"
+    label: "Nimble"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "NoBlackClothes"
+    label: "NoBlackClothes"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "NormalLootFactor"
+    label: "NormalLootFactor"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Nutrition"
+    label: "Nutrition"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "OtherLootNew"
+    label: "OtherLootNew"
+    type: "float"
+    secret: false
+    default: "0.8"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlaceDirtAboveground"
+    label: "PlaceDirtAboveground"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlantAbundance"
+    label: "PlantAbundance"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlantGrowingSeasons"
+    label: "PlantGrowingSeasons"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlantResilience"
+    label: "PlantResilience"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlantScavenging"
+    label: "PlantScavenging"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlayerDamageFromCrash"
+    label: "PlayerDamageFromCrash"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PlayerSpawnZombieRemoval"
+    label: "PlayerSpawnZombieRemoval"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PopulationMultiplier"
+    label: "PopulationMultiplier"
+    type: "float"
+    secret: false
+    default: "0.65"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PopulationPeakDay"
+    label: "PopulationPeakDay"
+    type: "int"
+    secret: false
+    default: "28"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PopulationPeakMultiplier"
+    label: "PopulationPeakMultiplier"
+    type: "float"
+    secret: false
+    default: "1.5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "PopulationStartMultiplier"
+    label: "PopulationStartMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Pottery"
+    label: "Pottery"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Rain"
+    label: "Rain"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RallyGroupRadius"
+    label: "RallyGroupRadius"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RallyGroupSeparation"
+    label: "RallyGroupSeparation"
+    type: "int"
+    secret: false
+    default: "15"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RallyGroupSize"
+    label: "RallyGroupSize"
+    type: "int"
+    secret: false
+    default: "20"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RallyGroupSizeVariance"
+    label: "RallyGroupSizeVariance"
+    type: "int"
+    secret: false
+    default: "50"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RallyTravelDistance"
+    label: "RallyTravelDistance"
+    type: "int"
+    secret: false
+    default: "20"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RangedWeaponLootNew"
+    label: "RangedWeaponLootNew"
+    type: "float"
+    secret: false
+    default: "1.2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RareLootFactor"
+    label: "RareLootFactor"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Reanimate"
+    label: "Reanimate"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RearVulnerability"
+    label: "RearVulnerability"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RecentlySurvivorVehicles"
+    label: "RecentlySurvivorVehicles"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RecipeResourceLoot"
+    label: "RecipeResourceLoot"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RedistributeHours"
+    label: "RedistributeHours"
+    type: "float"
+    secret: false
+    default: "12.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Reloading"
+    label: "Reloading"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RemoveStoryLoot"
+    label: "RemoveStoryLoot"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RemoveZombieLoot"
+    label: "RemoveZombieLoot"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RespawnHours"
+    label: "RespawnHours"
+    type: "float"
+    secret: false
+    default: "0.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RespawnMultiplier"
+    label: "RespawnMultiplier"
+    type: "float"
+    secret: false
+    default: "0.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RespawnUnseenHours"
+    label: "RespawnUnseenHours"
+    type: "float"
+    secret: false
+    default: "0.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RollsMultiplier"
+    label: "RollsMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "RuralLooted"
+    label: "RuralLooted"
+    type: "float"
+    secret: false
+    default: "0.5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SeeNotLearntRecipe"
+    label: "SeeNotLearntRecipe"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SeenHoursPreventLootRespawn"
+    label: "SeenHoursPreventLootRespawn"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Sight"
+    label: "Sight"
+    type: "int"
+    secret: false
+    default: "5"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SirenEffectsZombies"
+    label: "SirenEffectsZombies"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SirenShutoffHours"
+    label: "SirenShutoffHours"
+    type: "float"
+    secret: false
+    default: "0.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SkillBookLoot"
+    label: "SkillBookLoot"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SleepingEvent"
+    label: "SleepingEvent"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SmallBlade"
+    label: "SmallBlade"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SmallBlunt"
+    label: "SmallBlunt"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Sneak"
+    label: "Sneak"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SpawnFrequency"
+    label: "SpawnFrequency"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Spear"
+    label: "Spear"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Speed"
+    label: "Speed"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SpottedLogic"
+    label: "SpottedLogic"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SprinterPercentage"
+    label: "SprinterPercentage"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Sprinting"
+    label: "Sprinting"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "StartDay"
+    label: "StartDay"
+    type: "int"
+    secret: false
+    default: "9"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "StartMonth"
+    label: "StartMonth"
+    type: "int"
+    secret: false
+    default: "7"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "StartTime"
+    label: "StartTime"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "StartYear"
+    label: "StartYear"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "StarterKit"
+    label: "StarterKit"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "StatsDecrease"
+    label: "StatsDecrease"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Strength"
+    label: "Strength"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SurvivalGearsLootNew"
+    label: "SurvivalGearsLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "SurvivorHouseChance"
+    label: "SurvivorHouseChance"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Tailoring"
+    label: "Tailoring"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Temperature"
+    label: "Temperature"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ThumpNoChasing"
+    label: "ThumpNoChasing"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ThumpOnConstruction"
+    label: "ThumpOnConstruction"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "TimeSinceApo"
+    label: "TimeSinceApo"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ToolLootNew"
+    label: "ToolLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Toughness"
+    label: "Toughness"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Tracking"
+    label: "Tracking"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "TrafficJam"
+    label: "TrafficJam"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Transmission"
+    label: "Transmission"
+    type: "int"
+    secret: false
+    default: "1"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Trapping"
+    label: "Trapping"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "TriggerHouseAlarm"
+    label: "TriggerHouseAlarm"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "VehicleEasyUse"
+    label: "VehicleEasyUse"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "VehicleStoryChance"
+    label: "VehicleStoryChance"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "WaterShut"
+    label: "WaterShut"
+    type: "int"
+    secret: false
+    default: "2"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "WaterShutModifier"
+    label: "WaterShutModifier"
+    type: "int"
+    secret: false
+    default: "14"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "WeaponLootNew"
+    label: "WeaponLootNew"
+    type: "float"
+    secret: false
+    default: "0.6"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Woodwork"
+    label: "Woodwork"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "WorldItemRemovalList"
+    label: "WorldItemRemovalList"
+    type: "string"
+    secret: false
+    default: "Base.Hat, Base.Glasses, Base.Maggots, Base.Slug, Base.Slug2, Base.Snail, Base.Worm, Base.Dung_Mouse, Base.Dung_Rat"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "WoundInfectionFactor"
+    label: "WoundInfectionFactor"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieAttractionMultiplier"
+    label: "ZombieAttractionMultiplier"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieConfig"
+    label: "ZombieConfig"
+    type: "string"
+    secret: false
+    default: "{"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieHealthImpact"
+    label: "ZombieHealthImpact"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieLore"
+    label: "ZombieLore"
+    type: "string"
+    secret: false
+    default: "{"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieMigrate"
+    label: "ZombieMigrate"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiePopLootEffect"
+    label: "ZombiePopLootEffect"
+    type: "int"
+    secret: false
+    default: "0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieRespawn"
+    label: "ZombieRespawn"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombieVoronoiNoise"
+    label: "ZombieVoronoiNoise"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "Zombies"
+    label: "Zombies"
+    type: "int"
+    secret: false
+    default: "4"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesArmorFactor"
+    label: "ZombiesArmorFactor"
+    type: "float"
+    secret: false
+    default: "2.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesCountBeforeDelete"
+    label: "ZombiesCountBeforeDelete"
+    type: "int"
+    secret: false
+    default: "300"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesCrawlersDragDown"
+    label: "ZombiesCrawlersDragDown"
+    type: "bool"
+    secret: false
+    default: "false"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesDragDown"
+    label: "ZombiesDragDown"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesFallDamage"
+    label: "ZombiesFallDamage"
+    type: "float"
+    secret: false
+    default: "1.0"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesFenceLunge"
+    label: "ZombiesFenceLunge"
+    type: "bool"
+    secret: false
+    default: "true"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZombiesMaxDefense"
+    label: "ZombiesMaxDefense"
+    type: "int"
+    secret: false
+    default: "85"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
+  - target: "sandboxvars"
+    path: "ZoneStoryChance"
+    label: "ZoneStoryChance"
+    type: "int"
+    secret: false
+    default: "3"
+    group: "sandbox"
+    requires_restart: true
+    writable: "rw"
+    clearable: true
